@@ -1,0 +1,73 @@
+========================================================================
+Nifty 50 daily data 2015-01-05 to 2026-10-05, 2893 days
+(share of days where open == previous close, a data artefact: 0.0%)
+
+1. Return decomposition (log-sum, % per year)
+      overnight_%  intraday_%  total_%  intraday_up_days_%
+Date                                                      
+2015         29.7       -35.2     -5.5                45.3
+2016         25.0       -22.1      3.0                42.2
+2017         40.4       -15.2     25.2                43.5
+2018         22.0       -18.9      3.1                46.9
+2019         35.4       -24.0     11.4                43.6
+2020         43.9       -30.0     13.9                48.8
+2021         45.9       -24.3     21.6                50.0
+2022          7.1        -2.9      4.2                52.0
+2023         31.2       -12.9     18.3                47.8
+2024         23.7       -15.3      8.4                45.9
+2025          8.7         1.3     10.0                47.0
+2026         -3.5       -11.3    -14.7                47.8
+ALL: overnight 309.6%  intraday -210.7%  mean overnight 0.109%/day  mean intraday -0.069%/day
+
+2. Direction base rates
+P(up day) = 53.3%   -> 'always predict up' accuracy
+P(up | yesterday up) = 56.7%   P(up | yesterday down) = 49.5%
+P(intraday close>open) = 46.7%
+
+3. India VIX implied move vs realised (volatility risk premium)
+Mean implied 1-day sd 1.043%  vs mean |actual move| 0.695% (normal dist: E|x| = 0.798*sd -> 0.832%)
+Days with |move| > implied 1-sd: 21.1% (normal ~31.7%)
+Days with |move| > implied 2-sd: 2.6% (normal ~4.6%)
+VIX minus next-21d realised vol: mean 2.55 vol pts, median 3.31, positive 80.5% of days
+      VRP_mean_volpts  share_positive
+Date                                 
+2015             2.01            0.72
+2016             2.29            0.78
+2017             3.70            0.99
+2018             2.78            0.83
+2019             3.23            0.80
+2020             1.97            0.77
+2021             3.24            0.79
+2022             3.00            0.79
+2023             2.86            0.93
+2024             1.35            0.67
+2025             2.55            0.86
+2026             1.17            0.67
+
+4. Gap behaviour (does the open-to-close move follow the gap?)
+gap up > +0.5%           N= 454  P(close>open)=52.9%  mean intraday -0.041%
+gap down < -0.5%         N= 251  P(close>open)=53.8%  mean intraday +0.107%
+flat open |gap| < 0.2%   N=1107  P(close>open)=43.6%  mean intraday -0.093%
+
+5. US S&P 500 previous session -> Nifty
+corr(US prev day, Nifty gap)      = 0.47
+corr(US prev day, Nifty intraday) = -0.03
+P(gap sign == US sign) = 68.4%
+P(intraday sign == US sign) = 49.1%
+
+6. Trend filter: close vs 50-day MA -> next 5-day return
+above 50DMA: N=1819  P(fwd5>0)=57.4%  mean +0.26%  sd 1.84%
+below 50DMA: N=1020  P(fwd5>0)=54.8%  mean +0.09%  sd 2.84%
+
+7. VIX regime -> size of the next 5-day move
+              N  mean_abs_pct   p_up
+vix_bucket                          
+<12         414          1.16  50.48
+12-15       928          1.36  56.47
+15-18       730          1.63  58.08
+18-22       455          1.87  56.70
+>22         295          2.98  61.02
+
+8. Weekly window: does Nifty stay inside the VIX-implied 1-sd weekly range?
+All days since 2015: inside 1-sd weekly range 74.5% (normal ~68.3%), inside 0.5-sd 42.4% (normal ~38.3%)
+Since Tuesday expiry (Sep 2025): N=264  inside 1-sd 73.5%  mean |5d move| 1.38% vs mean implied 1.90%
