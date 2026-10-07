@@ -99,6 +99,7 @@ Angel One SmartAPI (read-only)          NSE/BSE end-of-day files (free)      New
 - A live recorder
 - Historical 1-minute backfill
 - End-of-day downloads
+- Global, macro and index-fundamental data collection (section 5.7a)
 - The event and holiday calendar
 - Storage layout
 - Data-quality reports
@@ -121,6 +122,8 @@ quantdesk/                 Python package
     nse.py, bse.py         bhavcopy, participant-wise OI, FII/DII downloads
   calendar/
     events.py              loads config/events.yaml, NSE/BSE holidays
+  macro/collect.py         global, India-macro and index-fundamental data (section 5.7a)
+  analysis/                built in SP2: technical.py and macro.py engines (section 5A)
   storage.py               Parquet writers, DuckDB views, immutable raw partitions
   quality.py               gap/sanity checks, daily health report
   cli.py                   `python -m quantdesk <command>`
@@ -197,6 +200,41 @@ research/experiments.csv   append-only experiment registry (used by SP2)
 - A one-off backfill of NSE and BSE bhavcopy back to 2019. This feeds the free tests: rebuilding dealer gamma, OI walls against settlement, and daily VRP.
 - Requests are polite: browser-like headers, a session cookie and 1–2 seconds between requests. Raw files are kept unmodified.
 
+### 5.7a Global, macro and fundamental data (`macro/collect.py`)
+
+These feed the fundamental/macro engine (section 5A.2).
+
+**Daily, at 07:30 and 18:30, from Yahoo Finance (free):**
+
+| Ticker | Series |
+|---|---|
+| `BZ=F` | Brent |
+| `INR=X` | USD/INR |
+| `^TNX` | US 10-year yield |
+| `DX-Y.NYB` | Dollar index |
+| `ES=F`, `NQ=F` | S&P 500 and Nasdaq futures |
+| `^GSPC` | S&P 500 |
+| `^N225`, `^HSI`, `^KS11` | Nikkei, Hang Seng, KOSPI |
+| `^INDIAVIX` | India VIX |
+| `^NSEI`, `^BSESN`, `^NSEBANK` | Nifty, Sensex, Bank Nifty |
+
+**Intraday, every 5 minutes during 09:00–15:30:** `ES=F`, `NQ=F`, `INR=X`, `BZ=F`, `^N225`, `^HSI`. Yahoo keeps only about 60 days of 5-minute data, so we store our own copy to build a lead-lag history.
+
+**India rates and macro:**
+- India 10-year G-sec yield (FBIL/CCIL daily benchmark).
+- RBI policy rate and stance, recorded after each MPC.
+- CPI, WPI, IIP and GDP prints (MOSPI). Each is stored as value and change vs the previous print.
+
+**Index fundamentals:** Nifty 50 P/E, P/B and dividend yield from NSE's daily index data, backfilled to 2015.
+
+**Flows:**
+- FII/DII cash flows (also in section 5.7).
+- FII index-futures long ratio from participant-wise OI.
+
+**Manual monthly entries:**
+- Results calendar for the top-10 Nifty weights.
+- Nifty forward EPS revision direction (up, flat or down). Each entry carries a source URL.
+
 ### 5.8 Calendar (`calendar/events.py`, `config/events.yaml`)
 
 - Fields per event: date, time (IST), type, gate level E0–E3, and a source URL.
@@ -253,6 +291,63 @@ research/experiments.csv   append-only experiment registry (used by SP2)
 
 ---
 
+## 5A. Analysis engines (built in SP2, shown in SP3)
+
+The system has two explicit engines that look at the market the way an experienced analyst would. Each engine produces:
+- a readable report for the dashboard, so you can see the chart and macro picture yourself
+- one numeric **family score** that feeds the meta-model
+
+The research discipline still applies. Every indicator below is a *tested feature*: it earns weight only if it improves out-of-sample results, and each tested variant counts against the trial budget in section 6.3. Popular indicators that lack evidence are computed and shown, but they cannot trigger a trade on their own.
+
+### 5A.1 Technical chart engine (`analysis/technical.py`)
+
+| Area | What it computes | Timeframes | Role |
+|---|---|---|---|
+| Trend structure | 20/50/200-DMA position and slope; swing highs/lows (fractal pivots) giving higher-high/higher-low or lower-high/lower-low structure; EMA 9/21 on 5-min | Daily, 60-min, 15-min, 5-min | Trend-alignment score; the multi-timeframe agreement count is one input |
+| Momentum | RSI(14), MACD histogram, ADX with +DI/−DI, rate of change | Daily, 15-min | Momentum score; RSI extremes as an overextension flag |
+| Volatility | ATR(14), Bollinger bandwidth (squeeze → expansion), opening range, noise band, HAR-IV-ON remaining-day move | Daily, intraday | Sets stops and targets, plus a breakout-quality flag |
+| Volume and flow | Futures VWAP and its bands; anchored VWAP from the day open and from the last swing; previous-day volume profile (POC, value-area high/low); 5-level order-flow imbalance | Intraday | Location score, confirmation and veto |
+| Level map | Prior day/week high, low and close; round 100s; swing pivots; classic pivot/CPR levels (shown, untested); expiry-day OI walls | Daily and intraday | Room-to-run filter, targets and stops |
+| Chart and candle patterns | Inside bar / narrow-range day; engulfing and rejection candles at key levels; flag/consolidation break; double top/bottom at prior extremes | 15-min, daily | Pattern flags (low evidence: feature only, never a trigger) |
+| Breadth and leaders | Nifty 50 advance/decline, % of constituents above VWAP, weighted direction of the top-5 heavyweights (HDFC Bank, Reliance, ICICI Bank, Infosys, Bharti), Bank Nifty vs Nifty relative strength | Intraday | Confirmation score |
+| Intermarket (intraday) | 5-min moves in S&P/Nasdaq futures, USD/INR, Brent, Nikkei/Hang Seng during Indian hours | Intraday | Lead-lag feature (to be tested; no published Indian evidence) |
+
+**Technical family score:**
+- Sign-aligned to the proposed side, winsorized at ±3, built from four sub-scores:
+  - trend alignment
+  - momentum
+  - location (VWAP, value area, levels)
+  - confirmation (breadth, leaders, order flow)
+- Sub-scores are equal-weighted, as the research recommends for small samples. Learned weights come only via the meta-model.
+
+### 5A.2 Fundamental / macro engine (`analysis/macro.py`)
+
+The research showed macro data predicts *range, risk and timing*, not intraday direction (R² 0.002 for open-to-close). The engine is built for those jobs.
+
+| Area | Inputs | Output |
+|---|---|---|
+| Event risk | RBI MPC, Budget, elections, US FOMC/CPI/NFP, index rebalances, heavyweight results | Gate level E0–E3, entry-time rules, range multiplier |
+| Global overnight | US session return, S&P/Nasdaq futures, Asian indices, overnight gap size | Expected gap, overnight-shock range multiplier |
+| Stress (oil, rupee, rates) | Brent level and 5-day change; USD/INR 5-day change; US 10-year and India 10-year 5-day change; dollar index; geopolitical-risk headline flag | 0–9 stress score, which raises the entry hurdle |
+| Flows and positioning | FII/DII cash 5-day sum; FII index-futures long ratio and its flips; PCR-OI z-score | Positioning score (slow tilt) |
+| Domestic macro | Latest CPI/WPI/IIP/GDP change vs previous; RBI rate and stance; India 10-year trend | Monetary/growth regime label: easing, neutral or tightening |
+| Fundamentals | Nifty P/E and P/B percentile vs 10-year history; earnings yield minus India 10-year; EPS revision direction; results season of top weights | Valuation/earnings regime label (slow: weeks to months) |
+| Calendar effects | Post-holiday, expiry day, turn of month (monitor only) | Context flags |
+
+**Macro family score:**
+- A capped direction tilt of at most ±8 probability points. It comes only from the context effects that showed in our data: post-holiday fade, the expiry-Tuesday pattern, and FII-flip events.
+- It also feeds the stress-based hurdle and the range multipliers.
+- The monetary and valuation regime labels are shown on the day card and enter the meta-model as one regime feature, shrunk.
+
+### 5A.3 How the engines combine
+
+1. The day card shows both engines' readings in plain words, for example "Trend: down on daily, up on 15-min; Momentum: oversold; Macro: tightening, stress 5/9, RBI day".
+2. A trade needs the H1 trigger, all gates, and then the meta-model probability.
+3. The meta-model sees the family scores: technical, options-implied and macro/context. Sentiment is a veto.
+4. Every alert lists the chart reasons and macro reasons that supported or opposed it, so you can check the analysis yourself.
+
+---
+
 ## 6. SP2: strategy core + backtester (design constraints for its own design pass)
 
 ### 6.1 Strategy pipeline (pure functions)
@@ -283,7 +378,7 @@ research/experiments.csv   append-only experiment registry (used by SP2)
 
 **5. Meta-model:**
 - Pooled ridge logistic regression with at most 9 columns.
-- One sign-aligned score per signal family (technical, options-implied, context). Sentiment is a veto only.
+- One sign-aligned score per signal family: technical (section 5A.1), options-implied, and macro/context (section 5A.2). Sentiment is a veto only.
 - One regime feature and one days-to-expiry or time feature.
 - Estimates P(target before stop before deadline).
 - Platt recalibration only if needed.
@@ -356,9 +451,13 @@ Orders are limit at mid + 1 tick and never chased more than 2 ticks. An SL-limit
 - **Tech:** FastAPI backend, a single clean page (plain HTML/JS with TradingView Lightweight Charts) and WebSocket updates. Bound to 127.0.0.1 only.
 - **Today tab:**
   - status bar: session, data freshness, trades left, P&L, locks
-  - day card
-  - Nifty and Sensex charts with bands, VWAP and levels
-  - alert card with a 3-minute expiry, "took it / skipped" buttons and a fill box
+  - day card with the technical and macro readings in plain words
+  - Nifty and Sensex charts (1, 5, 15 and 60-minute and daily) with bands, VWAP, EMAs, swing structure, levels, value area, and RSI/MACD panes
+  - a macro panel:
+    - Brent, USD/INR, US and India 10-year, US futures, Asian markets
+    - FII/DII flows and FII futures long ratio
+    - stress score, event gate, and the monetary and valuation regime labels
+  - alert card with a 3-minute expiry, "took it / skipped" buttons, a fill box, and the chart and macro reasons for and against
   - open-position tracker
   - sound and a browser notification on each alert
 - **Journal tab:**
