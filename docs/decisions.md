@@ -1,5 +1,21 @@
 # Decision log
 
+## 2026-10-18: Paper trade 1–2 months with frozen rules; tune only in simulation
+
+**Owner's request:** paper trade 1–2 months and improve the system until the win rate crosses 50%.
+
+**Concern raised:**
+- 1–2 months gives about 8–20 alerts. With 16 trades, the observed win rate varies by about ±12 points from luck alone.
+- A true 40% system shows 50% or more about 1 time in 4.
+- Tuning until paper shows 50% would fit noise.
+- At a 2:1 payoff, breakeven is 40%, so the scoreboard is net profit per trade, not win rate.
+
+**Decision (recommended, pending the owner's confirmation):**
+- All rule changes are made and evaluated in the 2019–2026 simulation, within the trial budget.
+- Paper trading runs 1–2 months with rules frozen.
+- Go live only if the simulation passes its gates *and* paper results are not clearly worse than the simulated range.
+- If the simulation result is borderline, extend paper trading towards about 100 alerts.
+
 ## 2026-10-18: Validation is simulation-first, with a short paper phase
 
 **Decision.** The edge verdict comes from a historical simulation (2019–2026) run under pre-registered gates. After that comes only a 2–4 week paper check of mechanics and costs, then live trading with 1 lot.
