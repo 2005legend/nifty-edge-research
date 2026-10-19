@@ -1,0 +1,483 @@
+
+=== entry t=45 (600 min), dte=0, scen=nodrift, K=22600, delta=0.39, P0=Rs40.9/unit (Rs2660/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                       -154     5        0   0.0  0.28   1364   -748    26  -0.58  targ=0.27 stop=0.64 stal=0.07 dead=0.03
+P1 no stall (dl90)                                            -157     5       -2   1.2  0.30   1337   -802    28  -0.57  targ=0.29 stop=0.67 dead=0.04
+P2 stall30 + dl60                                             -142     5       12   1.9  0.28   1245   -678    23  -0.47  targ=0.23 stop=0.57 stal=0.12 dead=0.08
+P3 no time stops (hard exit only)                             -162     5       -8   1.6  0.31   1353   -830    29  -0.62  targ=0.31 stop=0.69
+P4 P0 + breakeven after +1b                                   -147     4        7   2.0  0.23   1410   -619    22  -0.56  targ=0.23 stop=0.74 stal=0.02
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                -115     6       39   4.2  0.26   1327   -624    27  -0.03  stop=0.64 stop=0.31 stal=0.02 dead=0.03
+P5b trail 1.5b after +1b, no tgt, no time stops               -118     6       36   4.6  0.26   1325   -634    29  -0.03  stop=0.65 stop=0.35
+P5c trail 1.0b after +1b, no tgt, stall45, dl90               -109     5       45   3.7  0.33    919   -616    21  -0.02  stop=0.56 stop=0.43 stal=0.01
+P5d trail 2.0b after +1b, no tgt, stall45, dl90               -127     7       27   4.6  0.22   1717   -661    33  -0.12  stop=0.67 stop=0.20 stal=0.04 dead=0.09
+P6 tgt 2.0x                                                   -153     4        1   2.2  0.33   1060   -751    22  -0.66  targ=0.33 stop=0.61 stal=0.05 dead=0.01
+P7 tgt 3.5x                                                   -147     6        7   3.0  0.23   1840   -743    33  -0.36  targ=0.18 stop=0.66 stal=0.08 dead=0.09
+P8 premium stop at same Rs as index stop (525)                -150     5        4   1.6  0.26   1394   -678    23  -0.57  targ=0.25 stop=0.70 stal=0.04 dead=0.01
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                       -138     4       16   2.6  0.21   1408   -538    18  -0.50  targ=0.20 stop=0.75 stop=0.02 stal=0.02
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                -122     6       32   3.1  0.28   1479   -748    31  -0.04  stop=0.64 stop=0.25 stal=0.07 dead=0.04
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90    -171     6      -17   2.9  0.35   1325   -969    38  -0.66  targ=0.33 stop=0.50 stal=0.13 dead=0.05
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only        -117     6       37   4.6  0.26   1325   -628    28  -0.02  stop=0.65 stop=0.34 stal=0.01
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only        -115     6       39   4.6  0.26   1310   -607    28  -0.02  stop=0.62 stop=0.33 stal=0.04
+P14 tgt 2.5x, stall30/dl60 (all)                              -142     5       12   1.9  0.28   1245   -678    23  -0.47  targ=0.23 stop=0.57 stal=0.12 dead=0.08
+P15 P13 + stop=max(stop,VWAP)                                 -113     5       41   4.6  0.21   1305   -487    21  -0.09  stop=0.71 stop=0.27 stal=0.02
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards     -124    10       30   9.2  0.10   3476   -523    42  -0.07  stop=0.77 stop=0.17 stal=0.02 hard=0.04
+
+=== entry t=45 (600 min), dte=0, scen=const, K=22600, delta=0.39, P0=Rs40.9/unit (Rs2660/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                         17     5        0   0.0  0.36   1373   -744    27   2.24  targ=0.35 stop=0.56 stal=0.06 dead=0.03
+P1 no stall (dl90)                                              21     5        4   1.2  0.38   1349   -799    29   2.36  targ=0.37 stop=0.60 dead=0.04
+P2 stall30 + dl60                                                7     5      -10   1.9  0.35   1282   -673    24   1.98  targ=0.30 stop=0.51 stal=0.12 dead=0.08
+P3 no time stops (hard exit only)                               22     5        5   1.5  0.39   1360   -827    30   2.41  targ=0.39 stop=0.61
+P4 P0 + breakeven after +1b                                     -1     5      -18   2.1  0.30   1416   -611    23   1.85  targ=0.30 stop=0.68 stal=0.02
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                 108     7       91   5.5  0.33   1600   -614    31   3.25  stop=0.58 stop=0.35 stal=0.02 dead=0.05
+P5b trail 1.5b after +1b, no tgt, no time stops                130     8      114   6.6  0.33   1664   -624    33   3.48  stop=0.59 stop=0.41
+P5c trail 1.0b after +1b, no tgt, stall45, dl90                 47     6       31   4.4  0.39   1066   -603    23   2.41  stop=0.50 stop=0.49 stal=0.01 dead=0.01
+P5d trail 2.0b after +1b, no tgt, stall45, dl90                155     8      139   6.2  0.30   2077   -651    38   3.94  stop=0.60 stop=0.23 stal=0.04 dead=0.13
+P6 tgt 2.0x                                                    -14     5      -31   2.2  0.40   1063   -747    23   1.68  targ=0.40 stop=0.54 stal=0.05 dead=0.01
+P7 tgt 3.5x                                                     77     6       61   3.1  0.31   1891   -737    35   3.22  targ=0.25 stop=0.58 stal=0.07 dead=0.09
+P8 premium stop at same Rs as index stop (525)                   5     5      -12   1.7  0.33   1398   -677    24   1.97  targ=0.32 stop=0.63 stal=0.04 dead=0.01
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                        -13     4      -30   2.8  0.27   1413   -530    19   1.56  targ=0.26 stop=0.69 stop=0.02 stal=0.02
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                 109     7       92   4.1  0.36   1629   -744    33   3.49  stop=0.56 stop=0.32 stal=0.06 dead=0.05
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90      52     6       36   3.1  0.44   1341   -944    38   3.14  targ=0.42 stop=0.41 stal=0.12 dead=0.05
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only         129     8      113   6.5  0.33   1664   -618    32   3.46  stop=0.58 stop=0.41 stal=0.01
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only         120     8      104   6.5  0.32   1644   -598    31   3.31  stop=0.56 stop=0.39 stal=0.04
+P14 tgt 2.5x, stall30/dl60 (all)                                 7     5      -10   1.9  0.35   1282   -673    24   1.98  targ=0.30 stop=0.51 stal=0.12 dead=0.08
+P15 P13 + stop=max(stop,VWAP)                                   82     7       65   6.3  0.26   1652   -478    25   2.65  stop=0.65 stop=0.33 stal=0.02
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards      443    17      426  15.4  0.16   5542   -514    57   6.09  stop=0.71 stop=0.19 stal=0.02 hard=0.08
+
+=== entry t=45 (600 min), dte=0, scen=decay30, K=22600, delta=0.39, P0=Rs40.9/unit (Rs2660/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                         83     5        0   0.0  0.39   1380   -742    28   3.40  targ=0.38 stop=0.53 stal=0.07 dead=0.03
+P1 no stall (dl90)                                              82     5       -1   1.2  0.41   1359   -806    30   3.44  targ=0.39 stop=0.56 dead=0.04
+P2 stall30 + dl60                                               81     5       -2   2.0  0.38   1288   -667    25   3.26  targ=0.33 stop=0.47 stal=0.12 dead=0.08
+P3 no time stops (hard exit only)                               78     6       -5   1.6  0.42   1370   -840    31   3.42  targ=0.42 stop=0.58
+P4 P0 + breakeven after +1b                                     70     5      -13   2.1  0.33   1418   -599    24   3.09  targ=0.33 stop=0.65 stal=0.02 dead=0.01
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                 181     8       98   5.6  0.36   1578   -599    32   4.56  stop=0.54 stop=0.39 stal=0.02 dead=0.05
+P5b trail 1.5b after +1b, no tgt, no time stops                179     8       96   6.1  0.36   1574   -609    34   4.57  stop=0.55 stop=0.45
+P5c trail 1.0b after +1b, no tgt, stall45, dl90                125     6       42   4.6  0.43   1081   -590    24   3.73  stop=0.46 stop=0.53 stal=0.01 dead=0.01
+P5d trail 2.0b after +1b, no tgt, stall45, dl90                203     8      121   6.1  0.32   1978   -639    40   4.97  stop=0.56 stop=0.27 stal=0.04 dead=0.13
+P6 tgt 2.0x                                                     50     5      -33   2.3  0.44   1069   -747    23   2.80  targ=0.44 stop=0.50 stal=0.05 dead=0.01
+P7 tgt 3.5x                                                    131     7       49   3.3  0.33   1898   -737    37   4.22  targ=0.27 stop=0.55 stal=0.08 dead=0.10
+P8 premium stop at same Rs as index stop (525)                  75     5       -8   1.7  0.36   1402   -673    25   3.19  targ=0.35 stop=0.60 stal=0.04 dead=0.01
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                         50     5      -33   2.8  0.30   1417   -523    20   2.65  targ=0.29 stop=0.65 stop=0.02 stal=0.03 dead=0.01
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                 177     7       95   4.2  0.39   1624   -742    35   4.71  stop=0.53 stop=0.35 stal=0.07 dead=0.05
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90     125     6       43   3.0  0.46   1349   -931    39   4.45  targ=0.44 stop=0.38 stal=0.12 dead=0.05
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only         179     8       96   6.0  0.36   1575   -603    34   4.56  stop=0.54 stop=0.45 stal=0.01
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only         175     8       92   6.0  0.35   1567   -582    33   4.48  stop=0.52 stop=0.43 stal=0.04
+P14 tgt 2.5x, stall30/dl60 (all)                                81     5       -2   2.0  0.38   1288   -667    25   3.26  targ=0.33 stop=0.47 stal=0.12 dead=0.08
+P15 P13 + stop=max(stop,VWAP)                                  129     7       46   6.0  0.29   1571   -466    26   3.64  stop=0.62 stop=0.36 stal=0.02
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards      181    13       98  12.0  0.16   3738   -504    58   4.54  stop=0.68 stop=0.24 stal=0.02 hard=0.06
+
+=== entry t=45 (600 min), dte=0, scen=revert, K=22600, delta=0.39, P0=Rs40.9/unit (Rs2660/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                       -394     4        0   0.0  0.17   1340   -755    26  -4.48  targ=0.16 stop=0.73 stal=0.07 dead=0.03
+P1 no stall (dl90)                                            -413     4      -19   1.1  0.19   1307   -809    28  -4.75  targ=0.17 stop=0.78 dead=0.04
+P2 stall30 + dl60                                             -351     4       43   1.8  0.18   1146   -687    23  -3.89  targ=0.14 stop=0.66 stal=0.13 dead=0.08
+P3 no time stops (hard exit only)                             -433     4      -39   1.6  0.19   1339   -843    29  -5.02  targ=0.19 stop=0.81
+P4 P0 + breakeven after +1b                                   -340     4       54   1.8  0.14   1401   -623    21  -3.69  targ=0.14 stop=0.83 stal=0.02
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                -410     3      -16   2.6  0.17    661   -629    23  -4.44  stop=0.73 stop=0.25 stal=0.02 dead=0.01
+P5b trail 1.5b after +1b, no tgt, no time stops               -421     3      -27   2.6  0.17    638   -639    24  -4.55  stop=0.74 stop=0.26
+P5c trail 1.0b after +1b, no tgt, stall45, dl90               -321     3       73   2.8  0.25    565   -624    19  -3.29  stop=0.63 stop=0.36 stal=0.01
+P5d trail 2.0b after +1b, no tgt, stall45, dl90               -491     3      -97   2.6  0.12    792   -667    28  -5.49  stop=0.76 stop=0.16 stal=0.04 dead=0.03
+P6 tgt 2.0x                                                   -336     4       58   2.4  0.23   1052   -757    22  -3.71  targ=0.23 stop=0.70 stal=0.06 dead=0.01
+P7 tgt 3.5x                                                   -490     4      -96   2.9  0.11   1599   -752    31  -5.70  targ=0.07 stop=0.76 stal=0.09 dead=0.08
+P8 premium stop at same Rs as index stop (525)                -364     4       30   1.4  0.15   1379   -681    22  -4.03  targ=0.15 stop=0.80 stal=0.04 dead=0.01
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                       -330     3       64   2.4  0.11   1408   -553    17  -3.64  targ=0.11 stop=0.83 stop=0.03 stal=0.03
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                -449     4      -55   1.4  0.17   1024   -755    28  -5.05  stop=0.73 stop=0.16 stal=0.07 dead=0.03
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90    -475     5      -81   2.6  0.22   1294   -973    39  -5.57  targ=0.20 stop=0.59 stal=0.15 dead=0.06
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only        -417     3      -23   2.6  0.17    638   -633    23  -4.51  stop=0.73 stop=0.26 stal=0.01
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only        -404     3      -10   2.7  0.17    628   -612    23  -4.34  stop=0.70 stop=0.25 stal=0.05
+P14 tgt 2.5x, stall30/dl60 (all)                              -351     4       43   1.8  0.18   1146   -687    23  -3.89  targ=0.14 stop=0.66 stal=0.13 dead=0.08
+P15 P13 + stop=max(stop,VWAP)                                 -353     2       41   3.1  0.13    622   -499    17  -3.73  stop=0.78 stop=0.20 stal=0.02
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards     -519     1     -125   3.7  0.03    239   -539    23  -5.83  stop=0.86 stop=0.12 stal=0.02
+
+=== entry t=45 (600 min), dte=0, scen=trendpm, K=22600, delta=0.39, P0=Rs40.9/unit (Rs2660/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                        -59     5        0   0.0  0.32   1379   -748    26   0.88  targ=0.32 stop=0.60 stal=0.06 dead=0.02
+P1 no stall (dl90)                                             -60     5       -1   1.2  0.34   1355   -802    28   0.91  targ=0.33 stop=0.64 dead=0.03
+P2 stall30 + dl60                                              -60     5       -0   1.9  0.32   1282   -681    23   0.81  targ=0.27 stop=0.55 stal=0.11 dead=0.07
+P3 no time stops (hard exit only)                              -61     5       -1   1.5  0.35   1365   -824    28   0.94  targ=0.35 stop=0.65
+P4 P0 + breakeven after +1b                                    -61     5       -1   2.0  0.28   1418   -622    22   0.78  targ=0.27 stop=0.70 stal=0.02
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                  87     8      146   5.7  0.30   1761   -627    30   2.57  stop=0.61 stop=0.32 stal=0.02 dead=0.05
+P5b trail 1.5b after +1b, no tgt, no time stops                125     9      184   7.2  0.30   1885   -636    32   2.92  stop=0.62 stop=0.38
+P5c trail 1.0b after +1b, no tgt, stall45, dl90                 13     6       72   4.5  0.36   1134   -616    22   1.64  stop=0.53 stop=0.45 stal=0.01 dead=0.01
+P5d trail 2.0b after +1b, no tgt, stall45, dl90                137     9      196   6.4  0.27   2303   -664    36   3.20  stop=0.63 stop=0.20 stal=0.04 dead=0.13
+P6 tgt 2.0x                                                    -85     4      -26   2.1  0.37   1065   -751    22   0.42  targ=0.36 stop=0.58 stal=0.05 dead=0.01
+P7 tgt 3.5x                                                      2     6       61   2.9  0.28   1921   -743    33   1.83  targ=0.23 stop=0.62 stal=0.07 dead=0.08
+P8 premium stop at same Rs as index stop (525)                 -59     5        1   1.6  0.30   1404   -679    23   0.84  targ=0.29 stop=0.66 stal=0.04 dead=0.01
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                        -63     4       -4   2.7  0.24   1416   -536    18   0.68  targ=0.24 stop=0.71 stop=0.02 stal=0.02
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                  56     7      116   4.3  0.32   1737   -748    32   2.37  stop=0.60 stop=0.29 stal=0.06 dead=0.05
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90     -60     6       -1   3.0  0.39   1346   -975    37   1.01  targ=0.38 stop=0.47 stal=0.12 dead=0.04
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only         123     9      183   7.2  0.30   1887   -630    31   2.89  stop=0.62 stop=0.38 stal=0.01
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only         119     9      179   7.2  0.29   1873   -610    30   2.82  stop=0.59 stop=0.36 stal=0.04
+P14 tgt 2.5x, stall30/dl60 (all)                               -60     5       -0   1.9  0.32   1282   -681    23   0.81  targ=0.27 stop=0.55 stal=0.11 dead=0.07
+P15 P13 + stop=max(stop,VWAP)                                   85     8      144   6.9  0.24   1880   -485    24   2.33  stop=0.68 stop=0.30 stal=0.02
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards      711    20      770  18.6  0.15   7539   -521    56   7.64  stop=0.74 stop=0.15 stal=0.02 hard=0.09
+
+=== entry t=45 (600 min), dte=0, scen=lowvol-nodrift, K=22600, delta=0.39, P0=Rs40.9/unit (Rs2660/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                       -243     4        0   0.0  0.24   1125   -673    40  -0.23  targ=0.19 stop=0.53 stal=0.16 dead=0.12
+P1 no stall (dl90)                                            -265     4      -22   1.5  0.28   1063   -778    45  -0.25  targ=0.21 stop=0.60 dead=0.19
+P2 stall30 + dl60                                             -202     4       41   2.2  0.26    889   -576    32  -0.13  targ=0.13 stop=0.44 stal=0.24 dead=0.19
+P3 no time stops (hard exit only)                             -320     5      -77   2.7  0.29   1129   -923    55  -0.33  targ=0.30 stop=0.69
+P4 P0 + breakeven after +1b                                   -229     4       14   1.3  0.21   1173   -609    36  -0.22  targ=0.18 stop=0.66 stal=0.10 dead=0.06
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                -228     4       15   2.7  0.22   1132   -603    42   0.07  stop=0.57 stop=0.19 stal=0.11 dead=0.13
+P5b trail 1.5b after +1b, no tgt, no time stops               -279     5      -36   4.1  0.21   1200   -666    53   0.03  stop=0.65 stop=0.35
+P5c trail 1.0b after +1b, no tgt, stall45, dl90               -204     4       39   2.7  0.27    809   -581    35   0.08  stop=0.50 stop=0.37 stal=0.08 dead=0.04
+P5d trail 2.0b after +1b, no tgt, stall45, dl90               -241     5        2   2.6  0.21   1267   -637    46   0.07  stop=0.57 stop=0.07 stal=0.15 dead=0.22
+P6 tgt 2.0x                                                   -231     4       12   1.8  0.28    939   -680    36  -0.32  targ=0.26 stop=0.52 stal=0.15 dead=0.06
+P7 tgt 3.5x                                                   -251     5       -9   2.0  0.22   1258   -667    45  -0.06  targ=0.09 stop=0.53 stal=0.16 dead=0.22
+P8 premium stop at same Rs as index stop (525)                -224     4       19   1.3  0.22   1163   -611    35  -0.22  targ=0.18 stop=0.65 stal=0.11 dead=0.06
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                       -181     3       62   2.5  0.15   1224   -438    24  -0.14  targ=0.14 stop=0.73 stop=0.06 stal=0.05 dead=0.03
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                -240     5        3   2.0  0.24   1137   -673    45   0.05  stop=0.53 stop=0.13 stal=0.16 dead=0.18
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90    -282     5      -39   1.9  0.27   1088   -788    52  -0.22  targ=0.21 stop=0.39 stal=0.24 dead=0.16
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only        -261     5      -18   3.8  0.20   1187   -615    49   0.04  stop=0.60 stop=0.32 stal=0.08
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only        -237     5        6   3.9  0.19   1111   -556    44   0.09  stop=0.53 stop=0.29 stal=0.17 dead=0.01
+P14 tgt 2.5x, stall30/dl60 (all)                              -202     4       41   2.2  0.26    889   -576    32  -0.13  targ=0.13 stop=0.44 stal=0.24 dead=0.19
+P15 P13 + stop=max(stop,VWAP)                                 -190     4       53   3.9  0.14   1119   -408    30   0.04  stop=0.70 stop=0.23 stal=0.07
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards     -238     6        5   5.7  0.06   2538   -430    43   0.10  stop=0.72 stop=0.17 stal=0.07 hard=0.04
+
+=== entry t=45 (600 min), dte=0, scen=lowvol-const, K=22600, delta=0.39, P0=Rs40.9/unit (Rs2660/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                         10     5        0   0.0  0.36   1166   -643    43   4.16  targ=0.30 stop=0.41 stal=0.15 dead=0.13
+P1 no stall (dl90)                                              19     5        9   1.6  0.42   1109   -756    48   4.67  targ=0.33 stop=0.47 dead=0.20
+P2 stall30 + dl60                                               -0     4      -10   2.3  0.36    975   -543    34   3.37  targ=0.20 stop=0.34 stal=0.23 dead=0.22
+P3 no time stops (hard exit only)                               19     5        9   2.7  0.45   1143   -910    59   5.53  targ=0.46 stop=0.53
+P4 P0 + breakeven after +1b                                      2     4       -8   1.4  0.33   1205   -585    39   3.78  targ=0.29 stop=0.54 stal=0.10 dead=0.07
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                  79     6       69   3.7  0.33   1418   -573    49   5.14  stop=0.46 stop=0.21 stal=0.11 dead=0.22
+P5b trail 1.5b after +1b, no tgt, no time stops                198     9      188   7.8  0.33   1897   -640    68   7.18  stop=0.52 stop=0.47 hard=0.01
+P5c trail 1.0b after +1b, no tgt, stall45, dl90                 43     5       33   3.5  0.37   1031   -547    40   4.23  stop=0.40 stop=0.44 stal=0.08 dead=0.08
+P5d trail 2.0b after +1b, no tgt, stall45, dl90                 93     6       83   3.7  0.32   1556   -609    53   5.58  stop=0.45 stop=0.08 stal=0.14 dead=0.33
+P6 tgt 2.0x                                                    -15     4      -25   1.8  0.40    948   -653    37   3.45  targ=0.38 stop=0.41 stal=0.15 dead=0.07
+P7 tgt 3.5x                                                     52     5       42   2.3  0.34   1398   -637    51   5.12  targ=0.17 stop=0.42 stal=0.15 dead=0.26
+P8 premium stop at same Rs as index stop (525)                   1     4       -9   1.5  0.33   1199   -596    38   3.67  targ=0.29 stop=0.54 stal=0.10 dead=0.07
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                        -24     4      -34   2.8  0.24   1249   -424    27   2.55  targ=0.22 stop=0.65 stop=0.05 stal=0.05 dead=0.03
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                  77     6       67   3.0  0.36   1353   -643    51   5.35  stop=0.41 stop=0.19 stal=0.15 dead=0.24
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90      29     5       19   2.0  0.40   1135   -715    53   5.18  targ=0.33 stop=0.27 stal=0.23 dead=0.17
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only         180     9      170   7.3  0.31   1883   -588    63   6.65  stop=0.48 stop=0.43 stal=0.07 hard=0.01
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only         157     9      147   7.1  0.29   1793   -527    56   5.97  stop=0.43 stop=0.38 stal=0.17 dead=0.01 hard=0.01
+P14 tgt 2.5x, stall30/dl60 (all)                                -0     4      -10   2.3  0.36    975   -543    34   3.37  targ=0.20 stop=0.34 stal=0.23 dead=0.22
+P15 P13 + stop=max(stop,VWAP)                                   91     7       81   6.6  0.22   1815   -394    40   4.21  stop=0.62 stop=0.30 stal=0.07
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards      286    12      276  10.6  0.14   4556   -417    65   6.85  stop=0.64 stop=0.19 stal=0.07 hard=0.11
+
+=== entry t=195 (750 min), dte=0, scen=nodrift, K=22600, delta=0.35, P0=Rs26.0/unit (Rs1689/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                       -161     4        0   0.0  0.28   1252   -705    26  -0.55  targ=0.27 stop=0.64 stal=0.07 dead=0.03
+P1 no stall (dl90)                                            -165     5       -4   1.1  0.30   1227   -749    28  -0.55  targ=0.29 stop=0.67 dead=0.04
+P2 stall30 + dl60                                             -147     4       13   1.7  0.26   1211   -629    23  -0.45  targ=0.23 stop=0.58 stal=0.12 dead=0.07
+P3 no time stops (hard exit only)                             -170     5       -9   1.3  0.30   1210   -775    29  -0.59  targ=0.31 stop=0.69
+P4 P0 + breakeven after +1b                                   -147     4       14   1.8  0.24   1295   -590    22  -0.43  targ=0.23 stop=0.74 stal=0.02
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                -124     6       37   4.5  0.23   1357   -576    27  -0.04  stop=0.64 stop=0.31 stal=0.02 dead=0.03
+P5b trail 1.5b after +1b, no tgt, no time stops               -124     6       37   4.9  0.23   1377   -584    29  -0.03  stop=0.65 stop=0.34
+P5c trail 1.0b after +1b, no tgt, stall45, dl90               -114     5       47   3.7  0.30    908   -554    21  -0.00  stop=0.56 stop=0.43 stal=0.01
+P5d trail 2.0b after +1b, no tgt, stall45, dl90               -132     7       29   5.0  0.20   1823   -620    33  -0.03  stop=0.67 stop=0.20 stal=0.04 dead=0.09
+P6 tgt 2.0x                                                   -159     4        2   2.1  0.33    948   -703    22  -0.66  targ=0.33 stop=0.61 stal=0.05 dead=0.01
+P7 tgt 3.5x                                                   -166     5       -5   3.1  0.22   1793   -705    33  -0.43  targ=0.18 stop=0.66 stal=0.08 dead=0.08
+P8 premium stop at same Rs as index stop (456)                -149     4       12   1.7  0.24   1293   -610    22  -0.48  targ=0.24 stop=0.72 stop=0.01 stal=0.02
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                       -153     4        8   1.5  0.25   1262   -624    23  -0.50  targ=0.25 stop=0.68 stal=0.05 dead=0.02
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                -130     6       31   3.3  0.28   1374   -703    31  -0.05  stop=0.64 stop=0.26 stal=0.07 dead=0.04
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90    -189     5      -29   2.8  0.35   1204   -941    41  -0.70  targ=0.34 stop=0.47 stal=0.14 dead=0.05
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only        -122     6       38   4.9  0.23   1376   -579    28  -0.01  stop=0.65 stop=0.34 stal=0.01
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only        -121     6       40   4.9  0.23   1370   -560    27  -0.01  stop=0.63 stop=0.33 stal=0.04
+P14 tgt 2.5x, stall30/dl60 (all)                              -147     4       13   1.7  0.26   1211   -629    23  -0.45  targ=0.23 stop=0.58 stal=0.12 dead=0.07
+P15 P13 + stop=max(stop,VWAP)                                 -117     6       43   4.8  0.21   1364   -510    25  -0.00  stop=0.66 stop=0.30 stal=0.03
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards     -146     9       15   8.6  0.12   3862   -705    48  -0.00  stop=0.78 stop=0.01 stal=0.03 hard=0.17
+
+=== entry t=195 (750 min), dte=0, scen=const, K=22600, delta=0.35, P0=Rs26.0/unit (Rs1689/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                         -0     5        0   0.0  0.36   1256   -698    27   2.38  targ=0.35 stop=0.56 stal=0.06 dead=0.03
+P1 no stall (dl90)                                               3     5        3   1.1  0.38   1234   -745    29   2.50  targ=0.37 stop=0.59 dead=0.04
+P2 stall30 + dl60                                               -4     5       -4   1.8  0.33   1229   -618    24   2.16  targ=0.30 stop=0.51 stal=0.12 dead=0.08
+P3 no time stops (hard exit only)                                2     5        2   1.4  0.39   1217   -771    30   2.54  targ=0.39 stop=0.61
+P4 P0 + breakeven after +1b                                    -15     4      -15   1.9  0.30   1298   -584    23   1.94  targ=0.30 stop=0.67 stal=0.02
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                 101     7      101   5.8  0.30   1674   -564    31   3.35  stop=0.58 stop=0.36 stal=0.02 dead=0.05
+P5b trail 1.5b after +1b, no tgt, no time stops                121     8      121   6.8  0.30   1746   -571    33   3.55  stop=0.59 stop=0.41 hard=0.01
+P5c trail 1.0b after +1b, no tgt, stall45, dl90                 42     6       42   4.4  0.36   1073   -542    23   2.53  stop=0.50 stop=0.49 stal=0.01 dead=0.01
+P5d trail 2.0b after +1b, no tgt, stall45, dl90                141     8      141   6.5  0.27   2161   -610    38   4.00  stop=0.60 stop=0.23 stal=0.04 dead=0.13
+P6 tgt 2.0x                                                    -32     4      -32   2.1  0.40    950   -698    23   1.72  targ=0.40 stop=0.54 stal=0.05 dead=0.01
+P7 tgt 3.5x                                                     51     6       51   3.2  0.30   1827   -696    35   3.31  targ=0.25 stop=0.58 stal=0.07 dead=0.09
+P8 premium stop at same Rs as index stop (456)                 -15     4      -15   1.9  0.31   1294   -608    23   1.93  targ=0.31 stop=0.65 stop=0.01 stal=0.02
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                        -11     5      -11   1.6  0.32   1267   -616    24   2.06  targ=0.32 stop=0.61 stal=0.05 dead=0.02
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                 101     7      102   4.4  0.35   1551   -696    33   3.70  stop=0.56 stop=0.33 stal=0.06 dead=0.05
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90      40     5       40   2.9  0.45   1210   -907    41   3.77  targ=0.44 stop=0.37 stal=0.14 dead=0.05
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only         117     8      117   6.7  0.30   1742   -567    32   3.50  stop=0.58 stop=0.40 stal=0.01 hard=0.01
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only         111     8      111   6.7  0.29   1736   -547    31   3.38  stop=0.56 stop=0.39 stal=0.04 hard=0.01
+P14 tgt 2.5x, stall30/dl60 (all)                                -4     5       -4   1.8  0.33   1229   -618    24   2.16  targ=0.30 stop=0.51 stal=0.12 dead=0.08
+P15 P13 + stop=max(stop,VWAP)                                   93     8       94   6.5  0.27   1728   -501    28   3.06  stop=0.60 stop=0.36 stal=0.03 hard=0.01
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards      318    13      318  11.3  0.20   4427   -699    58   6.08  stop=0.70 stop=0.01 stal=0.03 hard=0.25
+
+=== entry t=195 (750 min), dte=0, scen=decay30, K=22600, delta=0.35, P0=Rs26.0/unit (Rs1689/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                         44     5        0   0.0  0.38   1268   -704    28   3.23  targ=0.37 stop=0.53 stal=0.07 dead=0.03
+P1 no stall (dl90)                                              44     5        0   1.1  0.40   1248   -756    30   3.30  targ=0.39 stop=0.57 dead=0.04
+P2 stall30 + dl60                                               46     5        2   1.8  0.36   1242   -617    25   3.12  targ=0.32 stop=0.48 stal=0.12 dead=0.08
+P3 no time stops (hard exit only)                               40     5       -4   1.4  0.41   1234   -786    31   3.28  targ=0.41 stop=0.59
+P4 P0 + breakeven after +1b                                     38     5       -7   1.9  0.33   1307   -579    23   2.95  targ=0.33 stop=0.65 stal=0.02
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                 153     8      109   5.8  0.32   1633   -554    32   4.46  stop=0.54 stop=0.39 stal=0.02 dead=0.05
+P5b trail 1.5b after +1b, no tgt, no time stops                156     8      112   6.4  0.32   1649   -562    34   4.51  stop=0.55 stop=0.44 hard=0.01
+P5c trail 1.0b after +1b, no tgt, stall45, dl90                106     6       61   4.6  0.39   1097   -531    24   3.69  stop=0.46 stop=0.52 stal=0.01 dead=0.01
+P5d trail 2.0b after +1b, no tgt, stall45, dl90                176     8      131   6.6  0.29   2103   -602    39   4.88  stop=0.57 stop=0.26 stal=0.04 dead=0.13
+P6 tgt 2.0x                                                     20     4      -24   2.3  0.43    959   -702    23   2.70  targ=0.43 stop=0.51 stal=0.05 dead=0.01
+P7 tgt 3.5x                                                     89     6       44   3.4  0.31   1848   -703    36   4.09  targ=0.27 stop=0.56 stal=0.08 dead=0.10
+P8 premium stop at same Rs as index stop (456)                  38     5       -6   1.8  0.34   1303   -607    23   2.95  targ=0.34 stop=0.62 stop=0.01 stal=0.02
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                         31     5      -13   1.6  0.34   1278   -620    25   2.87  targ=0.34 stop=0.59 stal=0.05 dead=0.02
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                 147     7      103   4.4  0.38   1548   -702    35   4.60  stop=0.53 stop=0.35 stal=0.07 dead=0.05
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90      80     6       35   2.8  0.46   1228   -908    41   4.52  targ=0.45 stop=0.36 stal=0.14 dead=0.05
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only         156     8      112   6.4  0.32   1648   -557    34   4.51  stop=0.55 stop=0.44 stal=0.01 hard=0.01
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only         152     8      108   6.3  0.32   1648   -537    33   4.41  stop=0.53 stop=0.43 stal=0.04
+P14 tgt 2.5x, stall30/dl60 (all)                                46     5        2   1.8  0.36   1242   -617    25   3.12  targ=0.32 stop=0.48 stal=0.12 dead=0.08
+P15 P13 + stop=max(stop,VWAP)                                  133     8       89   6.3  0.29   1649   -491    30   4.02  stop=0.57 stop=0.39 stal=0.03
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards      173    12      129  10.7  0.19   4078   -723    61   5.11  stop=0.70 stop=0.02 stal=0.03 hard=0.25
+
+=== entry t=195 (750 min), dte=0, scen=revert, K=22600, delta=0.35, P0=Rs26.0/unit (Rs1689/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                       -470     3        0   0.0  0.12   1235   -713    24  -6.28  targ=0.12 stop=0.79 stal=0.07 dead=0.02
+P1 no stall (dl90)                                            -493     3      -23   0.9  0.13   1209   -754    25  -6.64  targ=0.13 stop=0.84 dead=0.04
+P2 stall30 + dl60                                             -427     3       43   1.5  0.12   1161   -645    21  -5.62  targ=0.10 stop=0.71 stal=0.12 dead=0.06
+P3 no time stops (hard exit only)                             -509     4      -38   1.2  0.14   1203   -777    26  -6.88  targ=0.14 stop=0.86
+P4 P0 + breakeven after +1b                                   -411     3       60   1.5  0.10   1289   -606    20  -5.30  targ=0.10 stop=0.87 stal=0.02
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                -470     2        0   2.2  0.11    575   -597    21  -5.91  stop=0.78 stop=0.20 stal=0.02
+P5b trail 1.5b after +1b, no tgt, no time stops               -479     2       -9   2.3  0.11    552   -605    21  -6.02  stop=0.79 stop=0.21
+P5c trail 1.0b after +1b, no tgt, stall45, dl90               -382     3       88   2.4  0.18    499   -581    18  -4.74  stop=0.68 stop=0.31 stal=0.01
+P5d trail 2.0b after +1b, no tgt, stall45, dl90               -547     2      -77   2.3  0.07    725   -639    25  -6.96  stop=0.81 stop=0.13 stal=0.04 dead=0.02
+P6 tgt 2.0x                                                   -408     3       62   2.2  0.18    945   -709    21  -5.43  targ=0.18 stop=0.76 stal=0.05 dead=0.01
+P7 tgt 3.5x                                                   -559     3      -89   2.6  0.07   1609   -717    27  -7.42  targ=0.05 stop=0.81 stal=0.07 dead=0.06
+P8 premium stop at same Rs as index stop (456)                -411     3       59   1.3  0.11   1288   -614    19  -5.27  targ=0.11 stop=0.86 stop=0.01 stal=0.02
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                       -446     3       24   1.4  0.10   1261   -642    20  -5.99  targ=0.10 stop=0.83 stal=0.05 dead=0.01
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                -515     3      -45   1.2  0.12    883   -712    25  -6.73  stop=0.79 stop=0.12 stal=0.07 dead=0.03
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90    -634     4     -164   2.3  0.16   1181   -983    41  -9.27  targ=0.15 stop=0.65 stal=0.15 dead=0.04
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only        -476     2       -6   2.2  0.11    550   -600    21  -5.96  stop=0.78 stop=0.21 stal=0.01
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only        -463     2        7   2.3  0.11    552   -582    20  -5.78  stop=0.76 stop=0.20 stal=0.04
+P14 tgt 2.5x, stall30/dl60 (all)                              -427     3       43   1.5  0.12   1161   -645    21  -5.62  targ=0.10 stop=0.71 stal=0.12 dead=0.06
+P15 P13 + stop=max(stop,VWAP)                                 -439     2       31   2.5  0.09    538   -539    18  -5.51  stop=0.79 stop=0.18 stal=0.03
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards     -687     2     -217   3.8  0.01   1120   -699    28  -8.94  stop=0.93 stop=0.01 stal=0.03 hard=0.02
+
+=== entry t=195 (750 min), dte=0, scen=trendpm, K=22600, delta=0.35, P0=Rs26.0/unit (Rs1689/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                        -65     5        0   0.0  0.32   1261   -702    26   1.04  targ=0.32 stop=0.60 stal=0.06 dead=0.02
+P1 no stall (dl90)                                             -62     5        3   1.0  0.34   1237   -744    27   1.14  targ=0.34 stop=0.63 dead=0.03
+P2 stall30 + dl60                                              -64     4        1   1.7  0.30   1231   -629    23   0.94  targ=0.27 stop=0.55 stal=0.11 dead=0.07
+P3 no time stops (hard exit only)                              -63     5        2   1.3  0.35   1224   -765    28   1.17  targ=0.35 stop=0.64
+P4 P0 + breakeven after +1b                                    -65     4       -0   1.8  0.28   1301   -592    22   0.91  targ=0.28 stop=0.70 stal=0.02
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                  92     8      157   6.2  0.27   1864   -575    30   2.68  stop=0.61 stop=0.32 stal=0.02 dead=0.05
+P5b trail 1.5b after +1b, no tgt, no time stops                128     9      193   7.6  0.28   1998   -582    32   2.98  stop=0.62 stop=0.37 hard=0.01
+P5c trail 1.0b after +1b, no tgt, stall45, dl90                 15     6       80   4.7  0.33   1156   -553    22   1.75  stop=0.53 stop=0.45 stal=0.01 dead=0.01
+P5d trail 2.0b after +1b, no tgt, stall45, dl90                153     9      218   7.0  0.25   2477   -619    36   3.45  stop=0.63 stop=0.21 stal=0.03 dead=0.13
+P6 tgt 2.0x                                                    -88     4      -23   2.1  0.37    953   -700    22   0.55  targ=0.37 stop=0.58 stal=0.05 dead=0.01
+P7 tgt 3.5x                                                    -11     6       54   3.0  0.27   1848   -702    33   1.96  targ=0.24 stop=0.62 stal=0.07 dead=0.08
+P8 premium stop at same Rs as index stop (456)                 -66     4       -1   1.8  0.29   1298   -610    22   0.90  targ=0.28 stop=0.68 stop=0.01 stal=0.02
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                        -67     4       -2   1.6  0.29   1271   -620    23   0.91  targ=0.29 stop=0.65 stal=0.05 dead=0.02
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                  66     7      131   4.8  0.32   1674   -701    32   2.60  stop=0.60 stop=0.29 stal=0.06 dead=0.05
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90     -77     6      -12   2.8  0.40   1218   -949    40   1.10  targ=0.39 stop=0.44 stal=0.13 dead=0.04
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only         126     9      190   7.5  0.27   1995   -578    31   2.94  stop=0.61 stop=0.37 stal=0.01 hard=0.01
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only         122     9      187   7.5  0.27   1997   -560    30   2.88  stop=0.59 stop=0.36 stal=0.04 hard=0.01
+P14 tgt 2.5x, stall30/dl60 (all)                               -64     4        1   1.7  0.30   1231   -629    23   0.94  targ=0.27 stop=0.55 stal=0.11 dead=0.07
+P15 P13 + stop=max(stop,VWAP)                                  105     9      170   7.3  0.25   1997   -510    27   2.62  stop=0.63 stop=0.33 stal=0.03 hard=0.01
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards      428    14      493  12.6  0.19   5205   -689    54   6.02  stop=0.73 stop=0.01 stal=0.03 hard=0.23
+
+=== entry t=195 (750 min), dte=0, scen=lowvol-nodrift, K=22600, delta=0.35, P0=Rs26.0/unit (Rs1689/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                       -297     4        0   0.0  0.22   1030   -667    40  -0.20  targ=0.19 stop=0.53 stal=0.16 dead=0.12
+P1 no stall (dl90)                                            -329     4      -32   1.3  0.24    985   -753    45  -0.23  targ=0.21 stop=0.60 dead=0.19
+P2 stall30 + dl60                                             -246     3       52   2.0  0.21    908   -544    32  -0.17  targ=0.13 stop=0.44 stal=0.24 dead=0.19
+P3 no time stops (hard exit only)                             -385     4      -88   2.1  0.27    963   -877    52  -0.27  targ=0.27 stop=0.67 hard=0.06
+P4 P0 + breakeven after +1b                                   -277     4       20   1.1  0.20   1062   -612    36  -0.20  targ=0.18 stop=0.66 stal=0.10 dead=0.06
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                -294     4        3   2.7  0.17   1097   -588    42  -0.03  stop=0.57 stop=0.19 stal=0.11 dead=0.13
+P5b trail 1.5b after +1b, no tgt, no time stops               -348     5      -51   3.9  0.16   1292   -657    51   0.04  stop=0.65 stop=0.30 hard=0.05
+P5c trail 1.0b after +1b, no tgt, stall45, dl90               -256     4       41   2.6  0.22    763   -551    35  -0.01  stop=0.50 stop=0.37 stal=0.08 dead=0.04
+P5d trail 2.0b after +1b, no tgt, stall45, dl90               -316     4      -19   2.7  0.17   1209   -629    46  -0.03  stop=0.57 stop=0.07 stal=0.14 dead=0.21
+P6 tgt 2.0x                                                   -275     3       22   1.8  0.27    809   -672    36  -0.30  targ=0.26 stop=0.52 stal=0.15 dead=0.06
+P7 tgt 3.5x                                                   -320     4      -23   2.1  0.18   1217   -660    46  -0.08  targ=0.09 stop=0.53 stal=0.16 dead=0.22
+P8 premium stop at same Rs as index stop (456)                -256     3       41   1.4  0.19   1082   -569    32  -0.19  targ=0.18 stop=0.68 stop=0.05 stal=0.06 dead=0.03
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                       -263     3       34   1.4  0.19   1047   -570    34  -0.22  targ=0.17 stop=0.63 stal=0.12 dead=0.08
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                -308     4      -11   2.0  0.22    994   -665    45  -0.02  stop=0.53 stop=0.13 stal=0.16 dead=0.18
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90    -361     4      -64   1.7  0.24    999   -798    55  -0.17  targ=0.21 stop=0.38 stal=0.25 dead=0.16
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only        -325     5      -28   3.7  0.15   1288   -609    47   0.02  stop=0.60 stop=0.28 stal=0.08 hard=0.04
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only        -297     4        0   3.7  0.14   1269   -543    42  -0.02  stop=0.53 stop=0.25 stal=0.17 dead=0.01 hard=0.03
+P14 tgt 2.5x, stall30/dl60 (all)                              -246     3       52   2.0  0.21    908   -544    32  -0.17  targ=0.13 stop=0.44 stal=0.24 dead=0.19
+P15 P13 + stop=max(stop,VWAP)                                 -269     4       28   3.7  0.12   1268   -484    36  -0.04  stop=0.61 stop=0.23 stal=0.13 dead=0.01 hard=0.03
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards     -373     5      -75   5.0  0.10   2074   -631    52  -0.03  stop=0.67 stop=0.02 stal=0.13 dead=0.01 hard=0.18
+
+=== entry t=195 (750 min), dte=0, scen=lowvol-const, K=22600, delta=0.35, P0=Rs26.0/unit (Rs1689/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                        -70     4        0   0.0  0.34   1056   -642    43   4.18  targ=0.30 stop=0.41 stal=0.15 dead=0.13
+P1 no stall (dl90)                                             -74     4       -3   1.4  0.38   1010   -730    48   4.71  targ=0.33 stop=0.47 dead=0.20
+P2 stall30 + dl60                                              -63     4        7   2.1  0.31    948   -515    34   3.34  targ=0.20 stop=0.35 stal=0.23 dead=0.22
+P3 no time stops (hard exit only)                             -101     5      -31   2.2  0.42    977   -867    56   5.34  targ=0.42 stop=0.51 hard=0.06
+P4 P0 + breakeven after +1b                                    -71     4       -1   1.2  0.31   1084   -591    39   3.75  targ=0.29 stop=0.55 stal=0.10 dead=0.07
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                   0     6       71   3.8  0.28   1436   -564    48   5.16  stop=0.46 stop=0.22 stal=0.11 dead=0.22
+P5b trail 1.5b after +1b, no tgt, no time stops                 50     8      120   6.3  0.27   1864   -632    62   6.63  stop=0.52 stop=0.37 hard=0.11
+P5c trail 1.0b after +1b, no tgt, stall45, dl90                -21     5       49   3.5  0.32   1028   -519    40   4.21  stop=0.40 stop=0.44 stal=0.08 dead=0.07
+P5d trail 2.0b after +1b, no tgt, stall45, dl90                  5     6       75   3.9  0.28   1547   -605    53   5.62  stop=0.45 stop=0.08 stal=0.14 dead=0.33
+P6 tgt 2.0x                                                    -84     4      -14   1.8  0.39    816   -651    37   3.44  targ=0.38 stop=0.41 stal=0.15 dead=0.06
+P7 tgt 3.5x                                                    -43     5       27   2.4  0.30   1340   -632    51   5.14  targ=0.17 stop=0.42 stal=0.15 dead=0.26
+P8 premium stop at same Rs as index stop (456)                 -72     4       -2   1.6  0.29   1099   -562    35   3.36  targ=0.28 stop=0.57 stop=0.05 stal=0.06 dead=0.03
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                        -75     4       -5   1.6  0.29   1071   -548    36   3.42  targ=0.27 stop=0.52 stal=0.11 dead=0.09
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                  -9     6       61   3.2  0.33   1247   -639    51   5.37  stop=0.41 stop=0.19 stal=0.15 dead=0.24
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90     -72     5       -2   1.8  0.37   1026   -728    55   5.46  targ=0.33 stop=0.26 stal=0.24 dead=0.17
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only          50     8      120   6.1  0.26   1886   -585    58   6.17  stop=0.48 stop=0.35 stal=0.08 hard=0.09
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only          35     7      106   5.9  0.23   1878   -522    52   5.45  stop=0.43 stop=0.32 stal=0.17 dead=0.01 hard=0.07
+P14 tgt 2.5x, stall30/dl60 (all)                               -63     4        7   2.1  0.31    948   -515    34   3.34  targ=0.20 stop=0.35 stal=0.23 dead=0.22
+P15 P13 + stop=max(stop,VWAP)                                   22     7       92   5.8  0.21   1881   -466    45   4.73  stop=0.52 stop=0.28 stal=0.12 dead=0.01 hard=0.06
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards       46     8      116   7.2  0.20   2678   -608    65   6.78  stop=0.56 stop=0.01 stal=0.12 dead=0.01 hard=0.30
+
+=== entry t=45 (600 min), dte=1, scen=nodrift, K=22650, delta=0.36, P0=Rs62.7/unit (Rs4073/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                       -140     5        0   0.0  0.30   1210   -710    26  -0.37  targ=0.28 stop=0.63 stal=0.07 dead=0.03
+P1 no stall (dl90)                                            -145     5       -5   1.1  0.31   1211   -759    28  -0.43  targ=0.29 stop=0.67 dead=0.04
+P2 stall30 + dl60                                             -134     4        5   1.7  0.30   1074   -660    23  -0.35  targ=0.24 stop=0.57 stal=0.12 dead=0.07
+P3 no time stops (hard exit only)                             -148     5       -8   1.4  0.31   1247   -778    29  -0.46  targ=0.31 stop=0.69
+P4 P0 + breakeven after +1b                                   -138     4        2   1.9  0.24   1255   -588    22  -0.34  targ=0.24 stop=0.74 stal=0.02
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                -123     5       17   3.5  0.28   1121   -602    28   0.03  stop=0.64 stop=0.31 stal=0.02 dead=0.03
+P5b trail 1.5b after +1b, no tgt, no time stops               -125     5       15   3.8  0.28   1126   -610    29   0.03  stop=0.65 stop=0.35
+P5c trail 1.0b after +1b, no tgt, stall45, dl90               -117     4       22   3.2  0.34    810   -597    21   0.06  stop=0.55 stop=0.43 stal=0.01
+P5d trail 2.0b after +1b, no tgt, stall45, dl90               -123     6       17   3.8  0.25   1426   -632    33   0.05  stop=0.66 stop=0.21 stal=0.04 dead=0.09
+P6 tgt 2.0x                                                   -147     4       -7   1.9  0.34    962   -716    22  -0.56  targ=0.33 stop=0.61 stal=0.05 dead=0.01
+P7 tgt 3.5x                                                   -135     5        5   2.6  0.25   1562   -703    33  -0.21  targ=0.18 stop=0.65 stal=0.07 dead=0.09
+P8 premium stop at same Rs as index stop (503)                -141     4       -1   1.2  0.28   1226   -672    24  -0.38  targ=0.27 stop=0.67 stal=0.05 dead=0.01
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                       -132     4        7   2.5  0.22   1249   -514    18  -0.28  targ=0.21 stop=0.74 stop=0.02 stal=0.03
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                -115     5       25   2.5  0.30   1294   -710    31   0.15  stop=0.63 stop=0.26 stal=0.07 dead=0.04
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90    -143     5       -3   3.0  0.38   1160   -942    40  -0.51  targ=0.34 stop=0.46 stal=0.13 dead=0.07
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only        -125     5       15   3.8  0.28   1124   -605    29   0.02  stop=0.64 stop=0.35 stal=0.01
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only        -123     5       17   3.8  0.28   1100   -587    28   0.03  stop=0.62 stop=0.33 stal=0.04
+P14 tgt 2.5x, stall30/dl60 (all)                              -134     4        5   1.7  0.30   1074   -660    23  -0.35  targ=0.24 stop=0.57 stal=0.12 dead=0.07
+P15 P13 + stop=max(stop,VWAP)                                 -119     5       21   4.0  0.22   1114   -473    22   0.04  stop=0.70 stop=0.28 stal=0.02
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards     -130     8       10   7.2  0.14   2137   -494    43   0.06  stop=0.77 stop=0.18 stal=0.02 hard=0.03
+
+=== entry t=45 (600 min), dte=1, scen=const, K=22650, delta=0.36, P0=Rs62.7/unit (Rs4073/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                         -1     5        0   0.0  0.37   1220   -704    27   2.14  targ=0.35 stop=0.56 stal=0.06 dead=0.03
+P1 no stall (dl90)                                               4     5        6   1.1  0.38   1219   -755    29   2.28  targ=0.36 stop=0.60 dead=0.04
+P2 stall30 + dl60                                               -8     4       -7   1.8  0.36   1113   -650    24   1.94  targ=0.29 stop=0.51 stal=0.11 dead=0.08
+P3 no time stops (hard exit only)                                8     5        9   1.4  0.39   1248   -775    30   2.36  targ=0.39 stop=0.61
+P4 P0 + breakeven after +1b                                    -20     4      -18   1.9  0.30   1264   -577    23   1.80  targ=0.30 stop=0.68 stal=0.02
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                  70     6       71   4.5  0.34   1375   -591    31   3.23  stop=0.58 stop=0.35 stal=0.02 dead=0.05
+P5b trail 1.5b after +1b, no tgt, no time stops                 87     7       88   5.3  0.34   1429   -600    33   3.46  stop=0.59 stop=0.41
+P5c trail 1.0b after +1b, no tgt, stall45, dl90                 20     5       21   3.7  0.39    954   -585    23   2.43  stop=0.50 stop=0.48 stal=0.01 dead=0.01
+P5d trail 2.0b after +1b, no tgt, stall45, dl90                117     7      118   5.0  0.31   1741   -625    38   3.99  stop=0.60 stop=0.23 stal=0.04 dead=0.14
+P6 tgt 2.0x                                                    -32     4      -31   1.9  0.41    963   -711    23   1.55  targ=0.40 stop=0.54 stal=0.05 dead=0.01
+P7 tgt 3.5x                                                     55     6       56   2.6  0.32   1623   -695    35   3.15  targ=0.25 stop=0.58 stal=0.07 dead=0.09
+P8 premium stop at same Rs as index stop (503)                 -10     5       -9   1.3  0.35   1235   -668    25   1.97  targ=0.33 stop=0.60 stal=0.05 dead=0.01
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                        -37     4      -35   2.6  0.27   1257   -508    19   1.45  targ=0.26 stop=0.69 stop=0.02 stal=0.02 dead=0.01
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                  80     6       81   3.3  0.36   1443   -704    33   3.50  stop=0.56 stop=0.32 stal=0.06 dead=0.05
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90      61     6       62   3.2  0.47   1174   -908    40   3.31  targ=0.42 stop=0.37 stal=0.13 dead=0.07
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only          85     7       86   5.2  0.34   1426   -594    33   3.43  stop=0.58 stop=0.40 stal=0.01
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only          79     7       80   5.2  0.33   1401   -577    32   3.31  stop=0.57 stop=0.39 stal=0.04
+P14 tgt 2.5x, stall30/dl60 (all)                                -8     4       -7   1.8  0.36   1113   -650    24   1.94  targ=0.29 stop=0.51 stal=0.11 dead=0.08
+P15 P13 + stop=max(stop,VWAP)                                   40     6       42   5.2  0.27   1418   -466    25   2.60  stop=0.66 stop=0.32 stal=0.02
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards      339    13      340  12.0  0.20   3745   -488    58   6.37  stop=0.71 stop=0.19 stal=0.02 hard=0.08
+
+=== entry t=45 (600 min), dte=1, scen=decay30, K=22650, delta=0.36, P0=Rs62.7/unit (Rs4073/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                         61     5        0   0.0  0.39   1226   -699    28   3.31  targ=0.37 stop=0.53 stal=0.07 dead=0.03
+P1 no stall (dl90)                                              61     5        0   1.1  0.41   1225   -758    30   3.35  targ=0.39 stop=0.57 dead=0.04
+P2 stall30 + dl60                                               60     5       -1   1.8  0.40   1114   -641    25   3.21  targ=0.32 stop=0.47 stal=0.12 dead=0.08
+P3 no time stops (hard exit only)                               58     5       -3   1.5  0.41   1255   -783    31   3.31  targ=0.41 stop=0.59
+P4 P0 + breakeven after +1b                                     45     4      -17   2.0  0.33   1267   -563    23   2.99  targ=0.33 stop=0.65 stal=0.02
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                 135     6       74   4.6  0.37   1344   -576    32   4.49  stop=0.54 stop=0.39 stal=0.02 dead=0.05
+P5b trail 1.5b after +1b, no tgt, no time stops                135     7       74   4.9  0.37   1352   -585    34   4.53  stop=0.55 stop=0.45
+P5c trail 1.0b after +1b, no tgt, stall45, dl90                 91     5       30   3.9  0.43    959   -570    24   3.74  stop=0.46 stop=0.52 stal=0.01 dead=0.01
+P5d trail 2.0b after +1b, no tgt, stall45, dl90                163     7      102   5.0  0.34   1667   -608    40   4.96  stop=0.57 stop=0.26 stal=0.04 dead=0.13
+P6 tgt 2.0x                                                     33     4      -28   2.0  0.44    968   -707    23   2.75  targ=0.43 stop=0.50 stal=0.05 dead=0.01
+P7 tgt 3.5x                                                    108     6       47   2.8  0.34   1634   -689    37   4.16  targ=0.27 stop=0.55 stal=0.08 dead=0.10
+P8 premium stop at same Rs as index stop (503)                  52     5       -9   1.2  0.38   1240   -662    26   3.14  targ=0.36 stop=0.57 stal=0.05 dead=0.02
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                         18     4      -43   2.7  0.29   1262   -497    20   2.47  targ=0.29 stop=0.66 stop=0.02 stal=0.03
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                 140     6       79   3.3  0.39   1427   -699    35   4.66  stop=0.53 stop=0.35 stal=0.07 dead=0.05
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90     123     6       62   3.1  0.49   1185   -891    41   4.50  targ=0.45 stop=0.35 stal=0.13 dead=0.07
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only         135     7       74   4.9  0.37   1350   -579    34   4.52  stop=0.55 stop=0.44 stal=0.01
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only         133     7       72   4.9  0.37   1330   -562    33   4.45  stop=0.53 stop=0.43 stal=0.04
+P14 tgt 2.5x, stall30/dl60 (all)                                60     5       -1   1.8  0.40   1114   -641    25   3.21  targ=0.32 stop=0.47 stal=0.12 dead=0.08
+P15 P13 + stop=max(stop,VWAP)                                   82     6       20   5.0  0.30   1334   -452    26   3.50  stop=0.62 stop=0.36 stal=0.02
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards      102    10       41   8.8  0.20   2346   -473    57   4.15  stop=0.69 stop=0.24 stal=0.02 hard=0.05
+
+=== entry t=45 (600 min), dte=1, scen=revert, K=22650, delta=0.36, P0=Rs62.7/unit (Rs4073/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                       -371     4        0   0.0  0.18   1162   -711    26  -4.47  targ=0.16 stop=0.73 stal=0.08 dead=0.03
+P1 no stall (dl90)                                            -389     4      -18   1.1  0.19   1169   -761    28  -4.76  targ=0.17 stop=0.78 dead=0.05
+P2 stall30 + dl60                                             -333     4       38   1.7  0.20    967   -662    23  -3.88  targ=0.14 stop=0.65 stal=0.13 dead=0.08
+P3 no time stops (hard exit only)                             -406     4      -35   1.5  0.19   1236   -786    29  -5.04  targ=0.19 stop=0.81
+P4 P0 + breakeven after +1b                                   -327     3       44   1.7  0.14   1235   -588    21  -3.68  targ=0.14 stop=0.83 stal=0.02
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                -385     3      -14   2.3  0.18    588   -603    23  -4.44  stop=0.72 stop=0.25 stal=0.02 dead=0.01
+P5b trail 1.5b after +1b, no tgt, no time stops               -395     3      -24   2.3  0.18    576   -612    24  -4.57  stop=0.74 stop=0.26
+P5c trail 1.0b after +1b, no tgt, stall45, dl90               -308     3       63   2.5  0.26    513   -603    19  -3.25  stop=0.62 stop=0.36 stal=0.01
+P5d trail 2.0b after +1b, no tgt, stall45, dl90               -451     3      -80   2.2  0.14    673   -633    28  -5.49  stop=0.76 stop=0.17 stal=0.05 dead=0.03
+P6 tgt 2.0x                                                   -321     4       50   2.1  0.24    946   -717    22  -3.69  targ=0.23 stop=0.70 stal=0.06 dead=0.01
+P7 tgt 3.5x                                                   -450     4      -79   2.5  0.13   1288   -704    31  -5.68  targ=0.07 stop=0.76 stal=0.09 dead=0.08
+P8 premium stop at same Rs as index stop (503)                -357     4       14   1.0  0.17   1188   -670    24  -4.22  targ=0.15 stop=0.77 stal=0.06 dead=0.01
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                       -320     3       51   2.2  0.12   1230   -528    17  -3.63  targ=0.11 stop=0.83 stop=0.03 stal=0.03
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                -415     3      -44   1.2  0.18    918   -711    28  -5.03  stop=0.73 stop=0.16 stal=0.08 dead=0.04
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90    -434     5      -63   2.7  0.25   1080   -931    42  -5.66  targ=0.20 stop=0.54 stal=0.16 dead=0.09
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only        -391     3      -20   2.3  0.18    574   -605    24  -4.52  stop=0.73 stop=0.26 stal=0.01
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only        -379     3       -8   2.4  0.18    555   -588    23  -4.34  stop=0.70 stop=0.25 stal=0.05
+P14 tgt 2.5x, stall30/dl60 (all)                              -333     4       38   1.7  0.20    967   -662    23  -3.88  targ=0.14 stop=0.65 stal=0.13 dead=0.08
+P15 P13 + stop=max(stop,VWAP)                                 -339     2       32   2.8  0.14    557   -485    17  -3.74  stop=0.78 stop=0.20 stal=0.02
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards     -474     1     -103   3.2  0.05    246   -511    23  -5.82  stop=0.86 stop=0.12 stal=0.02
+
+=== entry t=45 (600 min), dte=1, scen=trendpm, K=22650, delta=0.36, P0=Rs62.7/unit (Rs4073/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                        -60     5        0   0.0  0.34   1226   -709    26   1.03  targ=0.32 stop=0.60 stal=0.06 dead=0.02
+P1 no stall (dl90)                                             -58     5        2   1.1  0.35   1224   -758    28   1.09  targ=0.34 stop=0.63 dead=0.03
+P2 stall30 + dl60                                              -59     4        0   1.7  0.34   1106   -660    23   0.98  targ=0.27 stop=0.54 stal=0.11 dead=0.07
+P3 no time stops (hard exit only)                              -56     5        3   1.4  0.35   1252   -774    28   1.14  targ=0.35 stop=0.65
+P4 P0 + breakeven after +1b                                    -68     4       -8   1.9  0.28   1265   -587    22   0.88  targ=0.27 stop=0.70 stal=0.02
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                  45     7      105   4.6  0.31   1465   -601    30   2.61  stop=0.61 stop=0.32 stal=0.02 dead=0.05
+P5b trail 1.5b after +1b, no tgt, no time stops                 78     8      138   6.0  0.32   1574   -610    32   3.00  stop=0.62 stop=0.38
+P5c trail 1.0b after +1b, no tgt, stall45, dl90                -16     5       44   3.8  0.37    972   -595    22   1.70  stop=0.53 stop=0.45 stal=0.01 dead=0.01
+P5d trail 2.0b after +1b, no tgt, stall45, dl90                 95     7      155   5.1  0.29   1874   -634    36   3.36  stop=0.63 stop=0.21 stal=0.04 dead=0.13
+P6 tgt 2.0x                                                    -84     4      -24   1.9  0.38    966   -715    22   0.56  targ=0.37 stop=0.58 stal=0.05 dead=0.01
+P7 tgt 3.5x                                                     -6     6       54   2.5  0.30   1639   -702    33   1.98  targ=0.24 stop=0.62 stal=0.07 dead=0.08
+P8 premium stop at same Rs as index stop (503)                 -64     5       -4   1.2  0.32   1241   -671    24   0.95  targ=0.31 stop=0.63 stal=0.05 dead=0.01
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                        -75     4      -16   2.6  0.25   1260   -513    18   0.71  targ=0.24 stop=0.71 stop=0.02 stal=0.02
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                  33     6       93   3.4  0.34   1503   -709    32   2.51  stop=0.60 stop=0.29 stal=0.06 dead=0.05
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90     -47     6       13   3.1  0.42   1186   -947    39   1.17  targ=0.39 stop=0.43 stal=0.12 dead=0.06
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only          76     8      136   5.9  0.31   1571   -604    32   2.96  stop=0.61 stop=0.38 stal=0.01
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only          73     8      133   5.9  0.31   1546   -586    31   2.90  stop=0.59 stop=0.37 stal=0.04
+P14 tgt 2.5x, stall30/dl60 (all)                               -59     4        0   1.7  0.34   1106   -660    23   0.98  targ=0.27 stop=0.54 stal=0.11 dead=0.07
+P15 P13 + stop=max(stop,VWAP)                                   34     7       94   5.7  0.25   1552   -472    24   2.26  stop=0.68 stop=0.30 stal=0.02
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards      541    17      601  15.1  0.18   5206   -494    57   7.85  stop=0.73 stop=0.16 stal=0.02 hard=0.09
+
+=== entry t=45 (600 min), dte=1, scen=lowvol-nodrift, K=22650, delta=0.36, P0=Rs62.7/unit (Rs4073/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                       -194     4        0   0.0  0.27    969   -615    40  -0.24  targ=0.19 stop=0.53 stal=0.16 dead=0.12
+P1 no stall (dl90)                                            -206     4      -12   1.4  0.31    950   -714    46  -0.23  targ=0.21 stop=0.60 dead=0.19
+P2 stall30 + dl60                                             -172     3       22   2.0  0.29    743   -543    32  -0.21  targ=0.13 stop=0.44 stal=0.24 dead=0.20
+P3 no time stops (hard exit only)                             -235     4      -41   2.4  0.30   1106   -816    56  -0.32  targ=0.30 stop=0.70
+P4 P0 + breakeven after +1b                                   -189     4        5   1.2  0.23   1028   -554    36  -0.24  targ=0.18 stop=0.66 stal=0.11 dead=0.06
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                -187     4        7   2.3  0.25    944   -557    42   0.01  stop=0.57 stop=0.19 stal=0.12 dead=0.13
+P5b trail 1.5b after +1b, no tgt, no time stops               -215     5      -20   3.4  0.25   1002   -611    53   0.07  stop=0.65 stop=0.35
+P5c trail 1.0b after +1b, no tgt, stall45, dl90               -176     4       18   2.4  0.30    695   -546    35   0.02  stop=0.50 stop=0.37 stal=0.09 dead=0.04
+P5d trail 2.0b after +1b, no tgt, stall45, dl90               -192     4        2   2.2  0.24   1062   -583    46   0.01  stop=0.56 stop=0.07 stal=0.15 dead=0.21
+P6 tgt 2.0x                                                   -190     4        5   1.5  0.30    836   -623    36  -0.33  targ=0.26 stop=0.52 stal=0.16 dead=0.06
+P7 tgt 3.5x                                                   -200     4       -6   1.7  0.25   1049   -610    46  -0.15  targ=0.09 stop=0.53 stal=0.16 dead=0.22
+P8 premium stop at same Rs as index stop (503)                -189     4        5   1.0  0.25    993   -585    37  -0.23  targ=0.19 stop=0.60 stal=0.13 dead=0.08
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                       -166     3       28   2.4  0.16   1062   -408    24  -0.21  targ=0.13 stop=0.74 stop=0.05 stal=0.05 dead=0.03
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                -189     4        5   1.6  0.27    988   -615    45   0.03  stop=0.53 stop=0.13 stal=0.16 dead=0.18
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90    -208     4      -14   2.1  0.31    914   -721    55  -0.16  targ=0.21 stop=0.34 stal=0.24 dead=0.21
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only        -205     4      -11   3.1  0.23    978   -564    49   0.04  stop=0.59 stop=0.32 stal=0.08
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only        -193     4        1   3.2  0.23    887   -516    43   0.00  stop=0.53 stop=0.28 stal=0.17 dead=0.01
+P14 tgt 2.5x, stall30/dl60 (all)                              -172     3       22   2.0  0.29    743   -543    32  -0.21  targ=0.13 stop=0.44 stal=0.24 dead=0.20
+P15 P13 + stop=max(stop,VWAP)                                 -169     4       25   3.4  0.17    927   -386    30  -0.02  stop=0.70 stop=0.23 stal=0.07
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards     -204     4      -10   4.3  0.11   1276   -391    43  -0.08  stop=0.73 stop=0.17 stal=0.07 hard=0.03
+
+=== entry t=45 (600 min), dte=1, scen=lowvol-const, K=22650, delta=0.36, P0=Rs62.7/unit (Rs4073/lot), b=0.10% a=0.25%  flipped=0.50
+policy                                                        mean    se  d_vs_P0  se_d   win   avgW   avgL  hold  idxbp  exit mix
+P0 current (stop,2.5x tgt,stall45,dl90)                         45     4        0   0.0  0.39   1033   -592    43   4.17  targ=0.30 stop=0.41 stal=0.15 dead=0.13
+P1 no stall (dl90)                                              59     4       14   1.5  0.44   1010   -700    48   4.64  targ=0.33 stop=0.47 dead=0.20
+P2 stall30 + dl60                                               23     4      -23   2.1  0.40    845   -514    34   3.38  targ=0.21 stop=0.34 stal=0.23 dead=0.22
+P3 no time stops (hard exit only)                               82     5       36   2.4  0.46   1120   -808    59   5.49  targ=0.46 stop=0.54
+P4 P0 + breakeven after +1b                                     28     4      -17   1.3  0.35   1079   -533    39   3.75  targ=0.29 stop=0.55 stal=0.10 dead=0.07
+P5 trail 1.5b after +1b, no tgt, stall45, dl90                 102     5       57   3.1  0.36   1218   -534    49   5.20  stop=0.46 stop=0.21 stal=0.11 dead=0.22
+P5b trail 1.5b after +1b, no tgt, no time stops                205     8      160   6.1  0.37   1546   -591    68   7.26  stop=0.52 stop=0.47 hard=0.01
+P5c trail 1.0b after +1b, no tgt, stall45, dl90                 59     5       14   3.0  0.40    911   -518    40   4.27  stop=0.40 stop=0.44 stal=0.08 dead=0.07
+P5d trail 2.0b after +1b, no tgt, stall45, dl90                124     6       79   3.0  0.36   1336   -560    53   5.68  stop=0.45 stop=0.08 stal=0.14 dead=0.33
+P6 tgt 2.0x                                                     16     4      -30   1.5  0.42    865   -600    37   3.46  targ=0.38 stop=0.41 stal=0.15 dead=0.06
+P7 tgt 3.5x                                                     92     5       46   1.9  0.38   1214   -586    51   5.16  targ=0.17 stop=0.42 stal=0.15 dead=0.26
+P8 premium stop at same Rs as index stop (503)                  33     4      -12   1.1  0.37   1051   -571    40   3.86  targ=0.30 stop=0.48 stal=0.12 dead=0.10
+P9 P0 + VWAP-cross exit (=VWAP ratchet)                        -18     3      -63   2.7  0.25   1110   -397    27   2.52  targ=0.22 stop=0.65 stop=0.05 stal=0.05 dead=0.03
+P10 no tgt; at +2.5b trail 1.0b; stall45, dl90                 109     5       63   2.5  0.39   1194   -592    51   5.41  stop=0.41 stop=0.19 stal=0.15 dead=0.24
+P11 NO index stop (prem backstop Rs1000), tgt, stall45, dl90      96     5       50   2.2  0.45    989   -640    56   5.49  targ=0.33 stop=0.22 stal=0.23 dead=0.22
+P12 trail 1.5b@+1b, no tgt, stall45/dl90 laggards only         184     8      138   5.8  0.35   1521   -543    63   6.71  stop=0.48 stop=0.43 stal=0.08 hard=0.01
+P13 trail 1.5b@+1b, no tgt, stall30/dl60 laggards only         155     7      110   5.6  0.34   1412   -491    56   5.99  stop=0.43 stop=0.38 stal=0.17 dead=0.01 hard=0.01
+P14 tgt 2.5x, stall30/dl60 (all)                                23     4      -23   2.1  0.40    845   -514    34   3.38  targ=0.21 stop=0.34 stal=0.23 dead=0.22
+P15 P13 + stop=max(stop,VWAP)                                   80     6       34   5.4  0.25   1461   -375    40   4.24  stop=0.62 stop=0.30 stal=0.07
+P16 stop=max(-b,VWAP) only, no tgt, stall30/dl60 laggards      247     9      202   8.3  0.20   2777   -379    66   7.05  stop=0.64 stop=0.19 stal=0.07 hard=0.10

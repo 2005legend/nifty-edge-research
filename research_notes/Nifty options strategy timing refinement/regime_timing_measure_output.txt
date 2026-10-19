@@ -1,0 +1,275 @@
+====================================================================================================
+Nifty noise-band breakout DAILY PROXY, regime conditioning.  Sample: 2015-01-02 to 2026-10-05  days: 2894
+pnl = hold-to-close from band entry, in % of index (bp) and in noise units (sigma = 14-day mean |C/O-1|).
+'cons' books both-band days as -1 sigma.  t = t-stat of mean noise-unit pnl on single-breach days.
+====================================================================================================
+
+[A0] Unconditional
+     days   trig%  both%     n  mean_bp  mean_sig      t    hit%  long_sig  short_sig  cons_sig  sig_bp     ER
+all                                                                                                           
+all  2894  52.419  2.211  1517   10.865     0.224  7.348  57.086     0.207      0.237     0.174   57.46  0.482
+----------------------------------------------------------------------------------------------------
+[A1] By India VIX level at prior close
+           days   trig%  both%    n  mean_bp  mean_sig      t    hit%  long_sig  short_sig  cons_sig   sig_bp     ER
+vix                                                                                                                 
+[0, 12)     413  57.143  3.148  236    6.042     0.188  3.022  59.746     0.205      0.177     0.126   35.449  0.477
+[12, 15)    940  51.170  2.872  481   10.460     0.263  5.592  56.757     0.183      0.328     0.196   46.646  0.484
+[15, 20)   1043  53.020  1.342  553   11.008     0.193  3.490  55.515     0.234      0.160     0.163   61.003  0.484
+[20, 25)    359  49.582  1.671  178   12.003     0.245  2.221  54.494     0.139      0.333     0.204   71.419  0.463
+[25, 100)   139  49.640  2.878   69   26.088     0.266  1.916  69.565     0.320      0.203     0.197  133.363  0.517
+----------------------------------------------------------------------------------------------------
+[A2] By India VIX trailing-252d percentile (prior close)
+               days   trig%  both%    n  mean_bp  mean_sig      t    hit%  long_sig  short_sig  cons_sig  sig_bp     ER
+vix_pct                                                                                                                
+(-0.01, 0.33]  1054  54.364  2.467  573    8.554     0.216  4.841  57.592     0.230      0.205     0.163  44.429  0.481
+(0.33, 0.67]    949  52.476  1.686  498   11.986     0.236  4.091  56.627     0.238      0.235     0.198  56.743  0.486
+(0.67, 0.9]     581  49.914  2.410  290   10.769     0.195  3.118  54.138     0.078      0.295     0.140  64.491  0.461
+(0.9, 1.01]     310  50.323  2.581  156   15.949     0.265  2.288  62.179     0.268      0.263     0.204  90.787  0.511
+----------------------------------------------------------------------------------------------------
+[A3] By VIX-of-VIX proxy (20d stdev of daily log VIX change), trailing percentile
+               days   trig%  both%    n  mean_bp  mean_sig      t    hit%  long_sig  short_sig  cons_sig  sig_bp     ER
+vov_pct                                                                                                                
+(-0.01, 0.33]   916  53.821  2.838  493   12.545     0.283  6.385  61.460     0.270      0.294     0.219  49.489  0.487
+(0.33, 0.67]   1051  56.137  2.284  590    8.145     0.173  3.171  53.898     0.161      0.184     0.128  51.962  0.476
+(0.67, 1.01]    927  46.818  1.510  434   12.653     0.225  3.936  56.452     0.198      0.245     0.186  71.570  0.484
+----------------------------------------------------------------------------------------------------
+[A4] By 5-day VIX change (log)
+              days   trig%  both%     n  mean_bp  mean_sig      t    hit%  long_sig  short_sig  cons_sig  sig_bp     ER
+vix5                                                                                                                   
+(-5.0, -0.1]   382  43.979  0.262   168   15.032     0.323  3.294  60.714     0.230      0.393     0.315  69.599  0.493
+(-0.1, 0.1]   2110  52.417  2.370  1106   11.229     0.240  6.741  57.685     0.222      0.254     0.186  54.017  0.484
+(0.1, 0.25]    348  58.908  3.161   205    5.831     0.122  1.553  50.732     0.163      0.083     0.064  59.466  0.459
+(0.25, 5.0]     54  70.370  3.704    38    8.990    -0.130 -0.679  57.895    -0.108     -0.142    -0.173  93.221  0.475
+----------------------------------------------------------------------------------------------------
+[A5] By realised-vol (20d) trailing percentile
+               days   trig%  both%    n  mean_bp  mean_sig      t    hit%  long_sig  short_sig  cons_sig  sig_bp     ER
+rv_pct                                                                                                                 
+(-0.01, 0.33]  1047  58.644  2.674  614    8.809     0.230  4.406  58.632     0.285      0.184     0.176  42.094  0.492
+(0.33, 0.67]    892  51.682  1.794  461   10.819     0.215  4.589  57.701     0.152      0.263     0.175  55.005  0.472
+(0.67, 0.9]     615  48.780  2.764  300   11.388     0.186  2.916  51.333     0.123      0.234     0.123  65.913  0.476
+(0.9, 1.01]     340  41.765  0.882  142   18.795     0.305  2.597  60.563     0.206      0.390     0.278  95.932  0.488
+----------------------------------------------------------------------------------------------------
+[A6] By VRP = VIX - RV20 (vol points)
+           days   trig%  both%    n  mean_bp  mean_sig      t    hit%  long_sig  short_sig  cons_sig  sig_bp     ER
+vrp                                                                                                                
+(-100, 0]   506  39.526  1.383  200   13.359     0.249  3.425  55.500     0.230      0.266     0.207  82.597  0.466
+(0, 3]     1003  50.150  1.795  503    9.311     0.183  4.292  54.871     0.100      0.239     0.142  54.489  0.482
+(3, 6]     1005  57.512  3.085  578    7.603     0.198  3.544  56.920     0.223      0.176     0.137  47.877  0.483
+(6, 100]    380  62.105  2.105  236   20.049     0.353  4.067  63.559     0.351      0.354     0.308  57.176  0.499
+----------------------------------------------------------------------------------------------------
+[A7] By trend state: prior close above 200-DMA
+          days   trig%  both%     n  mean_bp  mean_sig      t    hit%  long_sig  short_sig  cons_sig  sig_bp     ER
+above200                                                                                                           
+False      780  52.179  1.795   407   12.746     0.206  3.937  56.757     0.205      0.207     0.166  75.359  0.492
+True      2114  52.507  2.365  1110   10.175     0.230  6.233  57.207     0.208      0.247     0.177  50.856  0.478
+----------------------------------------------------------------------------------------------------
+[A8] By drawdown from 252d high (prior close)
+                  days   trig%  both%    n  mean_bp  mean_sig      t    hit%  long_sig  short_sig  cons_sig  sig_bp     ER
+dd                                                                                                                        
+(-1.0, -0.1]       481  51.143  1.247  246   15.527     0.218  3.158  58.943     0.202      0.235     0.189  85.807  0.498
+(-0.1, -0.05]      833  52.101  2.281  434   11.625     0.224  4.695  55.760     0.243      0.210     0.173  60.421  0.488
+(-0.05, -0.0001]  1293  54.679  2.552  707    9.258     0.220  4.828  58.416     0.182      0.249     0.166  48.010  0.483
+(-0.0001, 0.01]    287  45.296  2.091  130    8.243     0.254  1.686  50.769     0.234      0.269     0.198  43.933  0.434
+----------------------------------------------------------------------------------------------------
+[A9] By 60d lag-1 autocorrelation of daily returns
+              days   trig%  both%    n  mean_bp  mean_sig      t    hit%  long_sig  short_sig  cons_sig  sig_bp     ER
+ac60                                                                                                                  
+(-1.0, -0.1]   376  46.809  1.596  176   11.463     0.231  2.907  59.659     0.128      0.333     0.190  77.376  0.479
+(-0.1, 0.0]    756  52.381  2.249  396   11.736     0.246  4.216  56.566     0.235      0.254     0.195  56.849  0.505
+(0.0, 0.1]     887  51.973  1.917  461    7.514     0.152  2.450  56.616     0.156      0.149     0.111  55.651  0.467
+(0.1, 1.0]     875  55.314  2.743  484   13.126     0.272  5.417  57.025     0.266      0.276     0.212  51.264  0.478
+----------------------------------------------------------------------------------------------------
+[A10] By recent trendiness: 20d mean of |C-O|/(H-L)
+                days   trig%  both%    n  mean_bp  mean_sig      t    hit%  long_sig  short_sig  cons_sig  sig_bp     ER
+er20                                                                                                                    
+(0.308, 0.46]    965  58.756  3.316  567   11.184     0.259  4.134  57.672     0.210      0.298     0.192  46.314  0.485
+(0.46, 0.506]    964  53.216  2.075  513   14.225     0.279  5.981  59.649     0.231      0.318     0.231  56.467  0.486
+(0.506, 0.662]   965  45.285  1.244  437    6.505     0.113  2.894  53.318     0.174      0.066     0.083  69.598  0.474
+----------------------------------------------------------------------------------------------------
+[A11] By prior US session |S&P 500 return|
+               days   trig%  both%    n  mean_bp  mean_sig      t    hit%  long_sig  short_sig  cons_sig  sig_bp     ER
+abs_spx                                                                                                                
+(0.0, 0.005]   1464  54.781  2.459  802    8.652     0.200  4.322  54.613     0.187      0.211     0.149  52.301  0.481
+(0.005, 0.01]   732  50.683  2.186  371   11.415     0.254  4.822  60.377     0.274      0.238     0.202  54.967  0.474
+(0.01, 0.02]    535  51.215  1.869  274   13.700     0.245  3.982  59.124     0.204      0.280     0.201  63.428  0.483
+(0.02, 1.0]     162  42.593  1.235   69   22.356     0.252  1.821  59.420     0.088      0.379     0.217  95.682  0.522
+----------------------------------------------------------------------------------------------------
+[A12] By Brent 5-day change
+               days   trig%  both%     n  mean_bp  mean_sig      t    hit%  long_sig  short_sig  cons_sig  sig_bp     ER
+brent5                                                                                                                  
+(-5.0, -0.05]   399  53.133  1.504   212   15.048     0.247  3.547  57.075     0.283      0.222     0.212  69.682  0.484
+(-0.05, 0.05]  2097  52.647  2.337  1104   10.878     0.229  6.225  57.971     0.187      0.263     0.176  53.380  0.482
+(0.05, 5.0]     398  50.503  2.261   201    6.380     0.174  2.099  52.239     0.250      0.119     0.123  66.704  0.479
+----------------------------------------------------------------------------------------------------
+[A13] By USD/INR 5-day change
+                 days   trig%  both%    n  mean_bp  mean_sig      t    hit%  long_sig  short_sig  cons_sig  sig_bp     ER
+inr5                                                                                                                     
+(-5.0, -0.005]    493  46.450  0.811  229   10.060     0.205  3.425  55.022     0.188      0.217     0.184  62.239  0.474
+(-0.005, 0.005]  1762  53.121  2.838  936    9.740     0.216  5.118  56.731     0.206      0.224     0.155  54.017  0.478
+(0.005, 0.01]     399  51.629  1.504  206    9.683     0.228  3.176  56.311     0.245      0.215     0.193  57.314  0.488
+(0.01, 5.0]       240  60.833  1.667  146   21.002     0.296  3.352  63.699     0.185      0.387     0.261  73.168  0.519
+----------------------------------------------------------------------------------------------------
+[A14] By year
+      days   trig%  both%    n  mean_bp  mean_sig      t    hit%  long_sig  short_sig  cons_sig  sig_bp     ER
+year                                                                                                          
+2015   244  58.607  0.410  143   11.515     0.217  2.525  54.545     0.085      0.306     0.208  66.245  0.497
+2016   244  49.590  0.820  121   12.698     0.152  0.879  59.504     0.350      0.007     0.133  61.938  0.506
+2017   248  50.403  3.226  125    9.368     0.268  3.009  57.600     0.196      0.337     0.192  38.376  0.477
+2018   245  52.653  3.673  129   11.545     0.241  3.681  62.791     0.170      0.303     0.160  54.756  0.528
+2019   241  53.527  2.075  129   16.424     0.319  3.641  61.240     0.369      0.284     0.270  57.946  0.480
+2020   250  49.200  2.000  123   20.323     0.321  2.355  56.098     0.099      0.513     0.269  95.694  0.470
+2021   248  54.032  1.613  134   11.337     0.195  2.250  55.970     0.238      0.162     0.161  60.815  0.461
+2022   248  48.387  0.806  120   11.366     0.228  2.433  54.167     0.262      0.201     0.208  63.461  0.499
+2023   245  57.959  3.673  142    2.109     0.102  1.227  55.634     0.241     -0.012     0.036  40.083  0.447
+2024   246  43.902  4.065  108   18.580     0.426  2.750  62.963     0.271      0.560     0.306  52.167  0.450
+2025   249  55.823  2.008  139    6.746     0.185  2.333  56.115     0.277      0.106     0.143  46.825  0.500
+2026   186  55.914  2.151  104   -1.029     0.049  0.422  48.077    -0.169      0.179     0.010  48.708  0.463
+----------------------------------------------------------------------------------------------------
+[A15] Top vs bottom bucket of each regime variable: difference in mean noise-unit pnl per single-breach trade
+  vix_level(<12 vs >=20)       bottom +0.188 (n=236)  top +0.251 (n=247)  diff +0.062  Welch t +0.58
+  vix_pct(<=.33 vs >.67)       bottom +0.216 (n=573)  top +0.220 (n=446)  diff +0.004  Welch t +0.05
+  vov_pct(<=.33 vs >.67)       bottom +0.283 (n=493)  top +0.225 (n=434)  diff -0.059  Welch t -0.81
+  vix5(<=-0.1 vs >0.1)         bottom +0.323 (n=168)  top +0.082 (n=243)  diff -0.241  Welch t -1.97
+  rv_pct(<=.33 vs >.67)        bottom +0.230 (n=614)  top +0.224 (n=442)  diff -0.005  Welch t -0.07
+  vrp(<=0 vs >6)               bottom +0.249 (n=200)  top +0.353 (n=236)  diff +0.103  Welch t +0.91
+  above200(F vs T)             bottom +0.206 (n=407)  top +0.230 (n=1110)  diff +0.024  Welch t +0.38
+  dd(<=-10% vs >-5%)           bottom +0.218 (n=246)  top +0.226 (n=837)  diff +0.008  Welch t +0.10
+  ac60(<=0 vs >0.1)            bottom +0.241 (n=572)  top +0.272 (n=484)  diff +0.030  Welch t +0.44
+  er20(low vs high tercile)    bottom +0.259 (n=567)  top +0.113 (n=437)  diff -0.147  Welch t -1.98
+  abs_spx(<=0.5% vs >1%)       bottom +0.200 (n=803)  top +0.246 (n=343)  diff +0.046  Welch t +0.63
+  brent5(<=-5% vs >5%)         bottom +0.247 (n=212)  top +0.174 (n=201)  diff -0.073  Welch t -0.67
+  inr5(<=-0.5% vs >1%)         bottom +0.205 (n=229)  top +0.296 (n=146)  diff +0.091  Welch t +0.85
+  0 of 13 spreads have |t|>2; about 0.7 expected by chance at 5% (cuts are correlated).
+----------------------------------------------------------------------------------------------------
+[A-null] Same proxy on simulated driftless Brownian days (375 one-minute steps, empirical gap/sigma ratios)
+  constant vol                          : trig% 59.9  both% 1.9  mean_sig +0.117 (se 0.006)  hit% 53.6  cons_sig +0.084  mean |C-O|/(H-L) 0.479
+  vol clustering (empirical sigma path) : trig% 57.7  both% 2.7  mean_sig +0.154 (se 0.007)  hit% 54.5  cons_sig +0.102  mean |C-O|/(H-L) 0.481
+  -> Excess edge = observed mean_sig minus this null. Regime comparisons difference the null out only if the null is regime-invariant.
+----------------------------------------------------------------------------------------------------
+
+[B] Always-on (band x1.0) vs raised hurdle (band x1.5) vs off, by regime (noise units per DAY, cons variant)
+    per-day mean includes zero on no-trade days; 'per_trade' = mean over traded days.
+               days  on_per_day   on_t  on_trades  on_per_trade  x1.5_per_day  x1.5_t  x1.5_trades  x1.5_per_trade
+vix_pct                                                                                                           
+(-0.01, 0.33]  1054       0.093  3.704        599         0.163         0.058   2.989          338           0.181
+(0.33, 0.67]    949       0.107  3.468        514         0.198         0.063   2.369          279           0.214
+(0.67, 1.01]    891       0.085  2.890        468         0.163         0.028   1.098          291           0.085
+----------------------------------------------------------------------------------------------------
+               days  on_per_day   on_t  on_trades  on_per_trade  x1.5_per_day  x1.5_t  x1.5_trades  x1.5_per_trade
+rv_pct                                                                                                            
+(-0.01, 0.33]  1047       0.108  3.452        642         0.176         0.054   1.986          374           0.151
+(0.33, 0.67]    892       0.093  3.735        477         0.175         0.043   2.259          281           0.136
+(0.67, 1.01]    955       0.083  3.037        462         0.171         0.054   2.346          253           0.203
+----------------------------------------------------------------------------------------------------
+          days  on_per_day   on_t  on_trades  on_per_trade  x1.5_per_day  x1.5_t  x1.5_trades  x1.5_per_trade
+above200                                                                                                     
+False      780       0.090  3.195        421         0.166         0.047   2.152          236           0.155
+True      2114       0.097  4.888       1160         0.177         0.052   3.053          672           0.162
+----------------------------------------------------------------------------------------------------
+
+[C] Strategy momentum: does the proxy's own trailing P&L predict the next period? (cons variant, noise units)
+  monthly prev1 -> next month: Spearman -0.005 (p=0.954); next-month mean if trailing>0: +1.999 (n=105), if <=0: +1.687 (n=31)
+  monthly prev3 -> next month: Spearman +0.045 (p=0.605); next-month mean if trailing>0: +1.832 (n=119), if <=0: +2.597 (n=17)
+  monthly prev6 -> next month: Spearman +0.029 (p=0.733); next-month mean if trailing>0: +1.941 (n=123), if <=0: +1.803 (n=13)
+  equity-curve filter trail20>0: kept trades n=1144 mean +0.144 sig (t=+4.22); skipped trades n=437 mean +0.254 (t=+4.17); Welch diff t=-1.58
+  equity-curve filter trail60>0: kept trades n=1380 mean +0.146 sig (t=+4.63); skipped trades n=201 mean +0.367 (t=+4.11); Welch diff t=-2.34
+  2015-2019: trail60>0 mean +0.166 (n=609) vs <=0 mean +0.459 (n=63)
+  2020-2026: trail60>0 mean +0.130 (n=771) vs <=0 mean +0.326 (n=138)
+
+[D] Regime detectors: detection lag around Nifty drawdowns >= 10% and false-alarm behaviour
+  Drawdown episodes (peak, trough, recovery):
+    peak 2015-03-03  trough 2016-02-25  depth -22.5%  recovered 2017-03-14
+    peak 2018-01-29  trough 2018-03-23  depth -10.2%  recovered 2018-07-24
+    peak 2018-08-28  trough 2018-10-26  depth -14.6%  recovered 2019-04-16
+    peak 2019-06-03  trough 2019-09-19  depth -11.4%  recovered 2019-11-27
+    peak 2020-01-14  trough 2020-03-23  depth -38.4%  recovered 2020-11-09
+    peak 2021-10-18  trough 2022-06-17  depth -17.2%  recovered 2022-11-24
+    peak 2024-09-26  trough 2025-03-04  depth -15.8%  recovered 2025-11-27
+    peak 2026-01-02  trough 2026-03-30  depth -15.2%  recovered not yet
+
+  Detector summary 2015-2026 (bad = risk-off flag).  lag = trading days from drawdown peak to first flag; dd@flag = drawdown already suffered when flagged; exit = trading days after trough until flag clears; spells/yr = entries into 'bad' per year; short% = spells lasting < 5 days; agree = share of days agreeing with the ex-post (smoothed) JM lam=20 label.
+                                     time_bad%  spells/yr  mean_spell_d  short%                    lags_d  med_dd@flag                 exit_lags_d  agree_expost
+detector                                                                                                                                                        
+JM online lam=5 (full-sample fit)       54.699      2.552        52.767  23.333       8,7,16,13,12,25,6,8       -0.046    60,20,89,26,106,32,47,na         0.943
+JM online lam=5 (fit 2014-19)           55.805      2.977        46.143  22.857      6,6,15,11,12,24,6,10       -0.038    60,19,88,25,107,32,48,na         0.942
+JM online lam=20 (full-sample fit)      52.833      1.616        80.474  10.526   15,11,19,27,15,28,16,13       -0.053    64,24,92,29,161,36,64,na         0.913
+JM online lam=20 (fit 2014-19)          53.490      1.616        81.474   5.263   13,10,18,27,15,28,13,13       -0.048    64,23,91,29,161,35,64,na         0.921
+JM online lam=50 (full-sample fit)      47.132      1.106       104.923   7.692   31,24,24,36,30,37,26,22       -0.065    69,30,96,36,165,40,72,na         0.844
+JM online lam=50 (fit 2014-19)          51.002      1.191       105.429   0.000   19,17,23,34,25,32,21,19       -0.064    69,30,95,36,166,40,77,na         0.866
+JM online lam=100 (full-sample fit)     49.205      1.106       109.538   0.000   38,34,28,42,34,48,35,40       -0.088  93,35,103,48,175,113,86,na         0.775
+JM online lam=100 (fit 2014-19)         50.898      1.106       113.308   0.000   33,28,26,40,32,41,31,39       -0.078   91,51,100,45,175,59,85,na         0.787
+VIX>20 (prior close)                    17.173      4.678         9.036  65.455  44,6,26,182,32,27,131,40       -0.086          3,0,0,0,101,14,0,5         0.565
+VIX pct>0.80                            19.074      5.019         9.356  62.712    40,0,9,180,30,68,23,39       -0.055         3,10,31,0,42,2,0,23         0.546
+RV20 pct>0.80                           21.113      3.487        14.902  34.146      3,4,12,0,32,82,39,20       -0.030        12,16,21,0,45,0,0,25         0.591
+Close<200DMA                            26.987      4.508        14.736  64.151   34,33,24,40,30,90,34,14       -0.090       32,2,15,1,78,30,29,na         0.745
+Var-CUSUM h=3 (x1.5, hold 20d)          16.966      1.616        25.842   0.000    43,4,17,0,32,82,131,20       -0.070        12,27,21,0,29,0,0,25         0.572
+Var-CUSUM h=5 (x1.5, hold 20d)          11.852      1.191        24.500   0.000    45,6,24,0,37,83,135,47       -0.091          0,0,23,0,29,0,0,25         0.536
+
+  Proxy by online JM state (lam=20, fit 2014-19), 2020-2026 only (out-of-sample for the JM):
+             days   trig%  both%    n  mean_bp  mean_sig      t    hit%  long_sig  short_sig  cons_sig  sig_bp     ER
+jm_bad_prev                                                                                                          
+False         743  55.047  2.557  409   11.530     0.295  4.505  58.924     0.289      0.301     0.238  45.131  0.468
+True          929  49.623  2.153  461    8.251     0.138  2.822  52.711     0.103      0.165     0.090  69.520  0.472
+----------------------------------------------------------------------------------------------------
+  JM good vs bad, single-breach trades: diff +0.158 sigma, Welch t +1.93
+    2020-2022: good +0.299 (n=167) vs bad +0.206 (n=210)
+    2023-2026: good +0.293 (n=242) vs bad +0.081 (n=251)
+  Variance-CUSUM run lengths by simulation (1,000 paths x up to 20,000 days; i.i.d. returns, known baseline sigma):
+    h=3 normal: days to false alarm (no change) mean   314.3, median    225 (censored 0.0%);  days to detect sigma x1.5 mean  14.7, median   12
+    h=5 normal: days to false alarm (no change) mean  2708.9, median   1859 (censored 0.1%);  days to detect sigma x1.5 mean  24.1, median   21
+    h=3 t4    : days to false alarm (no change) mean    95.7, median     69 (censored 0.0%);  days to detect sigma x1.5 mean  20.5, median   15
+    h=5 t4    : days to false alarm (no change) mean   206.8, median    132 (censored 0.0%);  days to detect sigma x1.5 mean  31.8, median   24
+
+  Detector states on the last 5 sessions (True = risk-off flag):
+                                 09-28  09-29  09-30  10-01  10-05
+JM online lam=5 (fit 2014-19)     True   True   True   True   True
+JM online lam=20 (fit 2014-19)    True   True   True   True   True
+JM online lam=50 (fit 2014-19)    True   True   True   True   True
+JM online lam=100 (fit 2014-19)   True   True   True   True   True
+VIX>20 (prior close)             False  False  False  False  False
+VIX pct>0.80                     False  False  False  False  False
+RV20 pct>0.80                    False  False  False  False  False
+Close<200DMA                      True   True   True   True   True
+Var-CUSUM h=3 (x1.5, hold 20d)   False  False  False  False  False
+Var-CUSUM h=5 (x1.5, hold 20d)   False  False  False  False  False
+  Latest regime inputs: VIX 14.77 (252d pct 0.73); 5d VIX log chg +0.195; RV20 10.8 (pct 0.52); drawdown from 252d high -14.3%
+
+  Regime persistence (probability the flag is the same next day; mean spell length in days):
+    VIX>20 (prior close)                     P(same) 0.962
+    RV20 pct>0.80                            P(same) 0.972
+    Close<200DMA                             P(same) 0.964
+    JM online lam=20 (full-sample fit)       P(same) 0.987
+    JM online lam=100 (full-sample fit)      P(same) 0.991
+
+[E] Structural periods (proxy, single-breach days; noise units)
+                                     days     VIX    RV20    VRP   sig_bp   trig%  both%  mean_sig      t  cons_sig     ER  ac1_daily  intraday_bp/d  overnight_bp/d
+period                                                                                                                                                              
+2015-2019 pre-COVID                  1222  15.695  12.997  2.698   55.789  52.946  2.046     0.240  5.155     0.194  0.498      0.061         -9.339          12.487
+COVID crash 2020-02-20..2020-05-31     64  42.466  49.356 -6.891  180.266  46.875  1.562     0.459  1.994     0.412  0.537     -0.196        -30.516          -6.302
+2020-06..2021-12 recovery/bull        398  19.918  15.632  4.286   64.239  51.759  2.010     0.231  2.539     0.185  0.448      0.060         -7.765          22.693
+2022 rate hikes Jan-Jun               123  21.374  20.117  1.258   72.652  49.593  0.813     0.244  1.688     0.224  0.484     -0.017         -4.480          -3.249
+2022-07..2024-11-19                   588  14.312  11.615  2.697   47.353  51.020  2.721     0.235  3.276     0.173  0.464     -0.052         -4.165          10.951
+SEBI reforms 2024-11-20..2025-08-31   193  14.576  13.108  1.469   52.374  52.332  4.145     0.221  2.267     0.132  0.487      0.002         -0.734           2.697
+Tue expiry 2025-09-01..2025-12-31      84  11.044   7.993  3.051   37.654  55.952  1.190     0.122  0.998     0.099  0.499      0.217          1.947           6.075
+2026 YTD (war/oil/rates)              186  14.886  13.374  1.512   48.708  55.914  2.151     0.049  0.422     0.010  0.463     -0.089         -6.051          -1.856
+
+  2025-09 .. 2026-10 monthly detail
+         nifty_ret%     VIX    RV20   trig%   both%  mean_sig  cons_sum     dd
+month                                                                         
+2025-09       0.754  10.710   8.588  45.455   0.000     0.306     3.061 -0.060
+2025-10       4.514  11.010   7.878  71.429   0.000     0.124     1.865 -0.007
+2025-11       1.869  12.332   7.599  57.895   5.263     0.014    -0.842  0.000
+2025-12      -0.280  10.296   7.848  50.000   0.000     0.059     0.645 -0.011
+2026-01      -3.096  11.621   8.083  65.000  10.000     0.278     1.615 -0.035
+2026-02      -0.561  12.905  13.184  45.000   0.000    -0.120    -1.081 -0.032
+2026-03     -11.308  21.360  17.574  68.421   5.263     0.180     1.336 -0.133
+2026-04       7.461  20.441  26.186  40.000   0.000    -0.550    -4.403 -0.082
+2026-05      -1.874  17.882  14.945  63.158   0.000    -0.052    -0.626 -0.092
+2026-06       1.350  14.666  12.500  47.619   0.000     0.080     0.797 -0.090
+2026-07       2.170  12.904  12.145  43.478   0.000     0.210     2.096 -0.076
+2026-08      -1.243  11.510  10.009  66.667   4.762     0.166     1.321 -0.082
+2026-09      -6.063  11.880   7.055  66.667   0.000    -0.006    -0.085 -0.137
+2026-10      -0.286  13.975  10.266  50.000   0.000     0.079     0.079 -0.148
+
+  Nifty 2026 YTD to 2026-10-05: -13.7%;  India VIX last 14.77; VIX max 2026 27.89 on 2026-03-30; USD/INR last 96.28; Brent last 100.88
+  Share of days with India VIX close > 20, by year: {2014: 0.128, 2015: 0.179, 2016: 0.081, 2017: 0.0, 2018: 0.028, 2019: 0.12, 2020: 0.703, 2021: 0.357, 2022: 0.368, 2023: 0.0, 2024: 0.061, 2025: 0.024, 2026: 0.103}
