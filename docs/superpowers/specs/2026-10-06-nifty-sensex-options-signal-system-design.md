@@ -784,7 +784,12 @@ The pilot's own calls are logged but not scored.
 
 1. Can Angel One serve expired futures 1-minute candles? This decides the source of VWAP (section 5.6).
 2. Angel One's websocket token limit per connection and the OI update frequency.
-3. The current Sensex lot size and tick sizes: confirm from the instrument master.
+3. ~~The current Sensex lot size and tick sizes.~~ **Settled 2026-10-20** from Angel One's live instrument master:
+   - Sensex lot 20, Nifty lot 65.
+   - Option tick ₹0.05 on both.
+   - Strike steps 100 and 50.
+   - Index tokens 99926000 / 99919000 / 99926017 confirmed.
+   - The master also shows the Nifty weekly of 10 Nov 2026 shifted to Monday 9 Nov (holiday). This confirms expiries must come from the master.
 4. The India VIX expiry rule, needed for business-time scaling.
 5. A cheap source of historical expired-option 1-minute data, only if the pricing check fails.
 6. Whether Angel One supports index-triggered or trailing orders on options. If not, trail ratchets stay manual, and backtests model a 1–2 minute exit latency.

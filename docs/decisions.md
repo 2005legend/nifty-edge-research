@@ -93,3 +93,23 @@ Source: `reports/Nifty options strategy timing refinement.md`, section "Six deci
 ## 2026-10-07: Capital ₹10,000, risk ₹400 per trade, target ≥1.5× net
 
 **Why.** At ₹5,000, a ₹400–500 risk per trade was 8–10% of capital, above Kelly at plausible edges. At ₹10,000, ₹400 is 4%.
+
+## 2026-10-20: SP1 data foundation built; live smoke run waits for Angel One credentials
+
+**Built:** 17 of 18 plan tasks, with 99 offline tests. A first live run without broker credentials worked:
+- NSE holiday API
+- all 9 news feeds (516 items)
+- Federal Reserve, OECD and Nasdaq calendar via OpenBB
+- yfinance
+- Angel One's public instrument master (lot sizes, ticks and index tokens verified)
+
+**Still open (needs the owner):**
+- `.env` with Angel One SmartAPI credentials
+- the live smoke tests (`pytest -m live`)
+- one full recorded session on a trading day
+- websocket token limit and expired-futures checks (spec §9 items 1–2)
+- FBIL G-sec and NSE index P/E URLs (series show `failed` until configured)
+
+**Notes:**
+- 20 Oct 2026 was a market holiday (Dussehra).
+- GDELT's newest GKG file returned 404 during the run; the collector reports it and continues.
