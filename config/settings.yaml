@@ -10,9 +10,9 @@ angel:
   relogin_time: "08:45"
   instrument_master_url: https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json
   index_tokens:
-    NIFTY: {exchange: NSE, token: "99926000"}
-    SENSEX: {exchange: BSE, token: "99919000"}
-    INDIAVIX: {exchange: NSE, token: "99926017"}
+    NIFTY: {exchange: NSE, token: "99926000", symbol: "Nifty 50"}
+    SENSEX: {exchange: BSE, token: "99919000", symbol: "SENSEX"}
+    INDIAVIX: {exchange: NSE, token: "99926017", symbol: "India VIX"}
 
 recorder:
   strike_width: 15

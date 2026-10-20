@@ -137,6 +137,72 @@ class FakeStream:
         return ws
 
 
+class ScriptedStream:
+    """Recorder-facing stream double. Ticks (quantdesk Tick objects) are delivered when the
+    fake clock passes their exchange_ts; deliver_until() is driven by ScriptedSleep."""
+
+    def __init__(self, ticks, clock, stale_seconds=30):
+        self.pending = sorted(ticks, key=lambda t: t.exchange_ts)
+        self.clock = clock
+        self.stale_seconds = stale_seconds
+        self.on_tick = self.on_stale = None
+        self.subscribed: list[dict] = []
+        self.added: list[dict] = []
+        self.started = False
+        self.closed = False
+        self._last = None
+        self._stale_reported = False
+
+    def bind(self, on_tick, on_stale):
+        self.on_tick, self.on_stale = on_tick, on_stale
+        return self
+
+    def subscribe(self, tokens):
+        self.subscribed.append(tokens)
+        self._last = self.clock.now()
+
+    def add_tokens(self, tokens):
+        self.added.append(tokens)
+
+    def start(self):
+        self.started = True
+
+    def deliver_until(self, now):
+        while self.pending and self.pending[0].exchange_ts <= now:
+            tick = self.pending.pop(0)
+            self._last = tick.exchange_ts
+            self._stale_reported = False
+            self.on_tick(tick)
+
+    def check_stale(self):
+        if self._last is None or self._stale_reported:
+            return
+        now = self.clock.now()
+        if (now - self._last).total_seconds() > self.stale_seconds:
+            self._stale_reported = True
+            self.on_stale(self._last, now)
+
+    def close(self):
+        self.closed = True
+
+
+class ScriptedSleep:
+    """Advances the fake clock in small steps, delivering scripted ticks as time passes."""
+
+    def __init__(self, clock, stream_holder: dict):
+        self.clock = clock
+        self.holder = stream_holder
+
+    def __call__(self, seconds):
+        end = self.clock.now() + timedelta(seconds=seconds)
+        while self.clock.now() < end:
+            step = min(1.0, (end - self.clock.now()).total_seconds())
+            self.clock.advance(step)
+            stream = self.holder.get("stream")
+            if stream is not None and stream.on_tick is not None:
+                stream.deliver_until(self.clock.now())
+
+
 class FakeSleep:
     """Callable that records requested sleeps and advances the fake clock."""
 
