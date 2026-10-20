@@ -1,0 +1,16 @@
+# India market news feeds. URLs verified live on 6 Oct 2026
+# (research_notes/Nifty options multifactor quant strategy/sentiment_signals.md).
+feeds:
+  - {name: et_markets, url: "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms"}
+  - {name: et_economy, url: "https://economictimes.indiatimes.com/news/economy/rssfeeds/1373380680.cms"}
+  - {name: bs_markets, url: "https://www.business-standard.com/rss/markets-106.rss"}
+  - {name: mint_markets, url: "https://www.livemint.com/rss/markets"}
+  - {name: ndtv_profit, url: "https://feeds.feedburner.com/ndtvprofit-latest"}
+  - {name: nse_announcements, url: "https://nsearchives.nseindia.com/content/RSS/Online_announcements.xml"}
+  - {name: bse_notices, url: "https://www.bseindia.com/data/xml/notices.xml"}
+  - {name: rbi_press, url: "https://www.rbi.org.in/pressreleases_rss.xml"}
+  - {name: pib_economy, url: "https://pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=3"}
+gdelt_lastupdate: "https://data.gdeltproject.org/gdeltv2/lastupdate.txt"
+gdelt_themes: [ECON_STOCKMARKET, ECON_INTEREST_RATES, ECON_INFLATION, ECON_CURRENCY_EXCHANGE_RATE, ECON_CENTRALBANK]
+schedule: {active: ["07:00", "19:30"], active_every_minutes: 5, idle_every_minutes: 60}
+excluded: ["moneycontrol (RSS stale since Apr 2024)"]
