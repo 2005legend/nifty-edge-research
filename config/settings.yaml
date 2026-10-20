@@ -32,4 +32,39 @@ urls:
   nse_participant_oi: https://nsearchives.nseindia.com/content/nsccl/fao_participant_oi_{ddmmyyyy}.csv
   nse_fii_dii: https://www.nseindia.com/api/fiidiiTradeReact
   nse_nifty50_list: https://nsearchives.nseindia.com/content/indices/ind_nifty50list.csv
+  fbil_gsec: ""       # unverified: fill in during the SP1 smoke run (Task 18)
+  nse_index_pe: ""    # unverified: fill in during the SP1 smoke run (Task 18)
+
+macro:
+  daily_times: ["07:30", "18:30"]
+  daily_lookback_days: 10
+  intraday_every_minutes: 5
+  intraday_window: ["09:00", "15:30"]
+  intraday_tickers: ["ES=F", "NQ=F", "INR=X", "BZ=F", "^N225", "^HSI"]
+  fred_sources: [openbb_fred, openbb_fred_brent]
+  series:
+    - {id: brent, source: yfinance, symbol: "BZ=F"}
+    - {id: usdinr, source: yfinance, symbol: "INR=X"}
+    - {id: dxy, source: yfinance, symbol: "DX-Y.NYB"}
+    - {id: es, source: yfinance, symbol: "ES=F"}
+    - {id: nq, source: yfinance, symbol: "NQ=F"}
+    - {id: spx, source: yfinance, symbol: "^GSPC"}
+    - {id: n225, source: yfinance, symbol: "^N225"}
+    - {id: hsi, source: yfinance, symbol: "^HSI"}
+    - {id: kospi, source: yfinance, symbol: "^KS11"}
+    - {id: nifty_yf, source: yfinance, symbol: "^NSEI"}
+    - {id: sensex_yf, source: yfinance, symbol: "^BSESN"}
+    - {id: banknifty_yf, source: yfinance, symbol: "^NSEBANK"}
+    - {id: indiavix_yf, source: yfinance, symbol: "^INDIAVIX"}
+    - {id: us10y, source: openbb_federal_reserve_treasury, field: year_10}
+    - {id: dgs10, source: openbb_fred, symbol: DGS10}
+    - {id: dexinus, source: openbb_fred, symbol: DEXINUS}
+    - {id: brent_fred, source: openbb_fred_brent}
+    - {id: india_cpi_oecd, source: openbb_oecd_cpi, country: india, lookback_days: 400}
+    - {id: india_gdp_oecd, source: openbb_oecd_gdp_real, country: india, lookback_days: 800}
+    - {id: india_rates_oecd, source: openbb_oecd_rates, country: india, lookback_days: 400}
+    - {id: india_cpi_imf, source: openbb_imf_cpi, country: IND, lookback_days: 400}
+    - {id: econ_calendar, source: openbb_nasdaq_calendar}
+    - {id: india_gsec10y, source: fbil}
+    - {id: nifty_fundamentals, source: nse_index_fundamentals}
 eod: {retry_until: "23:00", min_request_interval_s: 1.5}
