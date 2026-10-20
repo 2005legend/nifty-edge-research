@@ -24,4 +24,12 @@ recorder:
   max_tokens_per_connection: 1000
 
 backfill: {minute_start: "2019-01-01", daily_start: "2015-01-01"}
+
+urls:
+  nse_home: https://www.nseindia.com
+  nse_fo_bhavcopy: https://nsearchives.nseindia.com/content/fo/BhavCopy_NSE_FO_0_0_0_{yyyymmdd}_F_0000.csv.zip
+  bse_fo_bhavcopy: https://www.bseindia.com/download/Bhavcopy/Derivative/BhavCopy_BSE_FO_0_0_0_{yyyymmdd}_F_0000.CSV
+  nse_participant_oi: https://nsearchives.nseindia.com/content/nsccl/fao_participant_oi_{ddmmyyyy}.csv
+  nse_fii_dii: https://www.nseindia.com/api/fiidiiTradeReact
+  nse_nifty50_list: https://nsearchives.nseindia.com/content/indices/ind_nifty50list.csv
 eod: {retry_until: "23:00", min_request_interval_s: 1.5}
