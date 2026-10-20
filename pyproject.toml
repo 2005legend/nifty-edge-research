@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quantdesk"
+version = "0.1.0"
+description = "Personal data foundation and alert system for Nifty/Sensex weekly options research"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=3.0",
+    "pyarrow",
+    "duckdb",
+    "pyyaml",
+    "python-dotenv",
+    "requests",
+    "feedparser",
+    "yfinance",
+    "smartapi-python",
+    "pyotp",
+    "websocket-client",
+    "logzero",
+    "tzdata",
+]
+
+[project.optional-dependencies]
+macro = [
+    "openbb-core",
+    "openbb-fred",
+    "openbb-federal-reserve",
+    "openbb-oecd",
+    "openbb-imf",
+    "openbb-nasdaq",
+    "openbb-ecb",
+    "openbb-mcp-server",
+]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["quantdesk*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["live: needs real credentials/network"]
+addopts = "-m 'not live'"

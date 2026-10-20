@@ -1,0 +1,27 @@
+# All tunable values for quantdesk. No secrets here: those live in .env.
+timezone: Asia/Kolkata
+session: {open: "09:15", close: "15:30", minutes: 375}
+paths: {data_dir: data}
+
+angel:
+  rate_limits: [[3, 1.0], [180, 60.0], [5000, 3600.0]]   # (calls, seconds); limiter uses calls-1 per window
+  candle_max_days: {ONE_MINUTE: 30, THREE_MINUTE: 60, FIVE_MINUTE: 100, TEN_MINUTE: 100,
+                    FIFTEEN_MINUTE: 200, THIRTY_MINUTE: 200, ONE_HOUR: 400, ONE_DAY: 2000}
+  relogin_time: "08:45"
+  instrument_master_url: https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json
+  index_tokens:
+    NIFTY: {exchange: NSE, token: "99926000"}
+    SENSEX: {exchange: BSE, token: "99919000"}
+    INDIAVIX: {exchange: NSE, token: "99926017"}
+
+recorder:
+  strike_width: 15
+  fallback_width: 10
+  recenter_strikes: 5
+  depth_width: 3
+  opening_ticks: ["09:15", "09:30"]
+  stale_seconds: 30
+  max_tokens_per_connection: 1000
+
+backfill: {minute_start: "2019-01-01", daily_start: "2015-01-01"}
+eod: {retry_until: "23:00", min_request_interval_s: 1.5}
