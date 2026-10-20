@@ -1,4 +1,5 @@
 from datetime import date
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -44,3 +45,19 @@ def test_report_round_trip(tmp_path):
     store.write_report("eod", DAY, {"a": 1})
     assert store.read_report("eod", DAY) == {"a": 1}
     assert store.read_report("eod", date(2026, 1, 1)) is None
+
+
+def test_failed_parquet_write_leaves_no_partial_part(tmp_path, monkeypatch):
+    store = Store(tmp_path)
+
+    def broken(self, path, *args, **kwargs):
+        Path(path).write_bytes(b"PAR1 truncated")
+        raise OSError("killed mid-write")
+
+    monkeypatch.setattr(pd.DataFrame, "to_parquet", broken)
+    with pytest.raises(OSError):
+        store.append_parquet("bars", DAY, pd.DataFrame({"x": [1]}))
+    monkeypatch.undo()
+    assert not list((tmp_path / "raw" / "bars").rglob("*.parquet"))
+    store.append_parquet("bars", DAY, pd.DataFrame({"x": [1]}))
+    assert len(store.read("bars", DAY)) == 1

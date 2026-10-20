@@ -23,10 +23,24 @@ class Tick:
     ask: float | None = None
     ask_qty: int | None = None
     depth: tuple | None = None  # ((side, level, price, qty), ...) buys then sells
+    atp: float | None = None  # exchange average traded price (VWAP) for the day
+    total_buy_qty: int | None = None
+    total_sell_qty: int | None = None
+    last_traded_qty: int | None = None
+    last_traded_ts_raw: int | None = None  # as sent by the feed; unit to be confirmed live
+    seq: int | None = None
+    day_open: float | None = None
+    day_high: float | None = None
+    day_low: float | None = None
+    prev_close: float | None = None
 
 
 def _rupees(paise) -> float | None:
     return None if paise is None else float(paise) / 100.0
+
+
+def _int(value) -> int | None:
+    return None if value is None else int(value)
 
 
 def _levels(side: str, rows) -> list[tuple]:
@@ -59,6 +73,16 @@ def normalize_tick(raw: dict, received_at: datetime) -> Tick:
         ask=sells[0][2] if sells else None,
         ask_qty=sells[0][3] if sells else None,
         depth=depth,
+        atp=_rupees(raw.get("average_traded_price")),
+        total_buy_qty=_int(raw.get("total_buy_quantity")),
+        total_sell_qty=_int(raw.get("total_sell_quantity")),
+        last_traded_qty=_int(raw.get("last_traded_quantity")),
+        last_traded_ts_raw=_int(raw.get("last_traded_timestamp")),
+        seq=_int(raw.get("sequence_number")),
+        day_open=_rupees(raw.get("open_price_of_the_day")),
+        day_high=_rupees(raw.get("high_price_of_the_day")),
+        day_low=_rupees(raw.get("low_price_of_the_day")),
+        prev_close=_rupees(raw.get("closed_price")),
     )
 
 
@@ -68,7 +92,7 @@ def _token_list(tokens: dict[int, set[str] | list[str]]) -> list[dict]:
 
 class TickStream:
     def __init__(self, auth_token, api_key, client_code, feed_token, *, on_tick, on_stale, clock,
-                 ws_factory, stale_seconds: int = 30, sleep=_time.sleep, max_reconnects: int = 50):
+                 ws_factory, stale_seconds: int = 30, sleep=_time.sleep, max_reconnects: int = 10_000):
         self._args = (auth_token, api_key, client_code, feed_token)
         self._on_tick = on_tick
         self._on_stale = on_stale
@@ -84,6 +108,7 @@ class TickStream:
         self._closing = False
         self._last_tick_at: datetime | None = None
         self._stale_reported = False
+        self._attempt = 0
 
     # subscriptions --------------------------------------------------------
     def _merge(self, tokens: dict) -> dict[int, set[str]]:
@@ -102,16 +127,24 @@ class TickStream:
             self._last_tick_at = self._clock.now()
         new = self._merge(tokens)
         if self._connected and new:
-            self._ws.subscribe("qd", self._mode, _token_list(new))
+            self._send_subscribe(new)
 
     def add_tokens(self, tokens: dict) -> None:
         self.subscribe(tokens, self._mode)
 
     # callbacks ------------------------------------------------------------
+    def _send_subscribe(self, tokens: dict) -> None:
+        """A failed send marks the stream disconnected; every token is resubscribed on the next open."""
+        try:
+            self._ws.subscribe("qd", self._mode, _token_list(tokens))
+        except Exception:  # noqa: BLE001 - dead socket; the reconnect loop recovers
+            self._connected = False
+
     def _on_open(self, wsapp) -> None:
         self._connected = True
+        self._attempt = 0  # a successful connection resets the reconnect budget
         if self._subscribed:
-            self._ws.subscribe("qd", self._mode, _token_list(self._subscribed))
+            self._send_subscribe({ex: set(toks) for ex, toks in self._subscribed.items()})
 
     def _on_data(self, wsapp, message) -> None:
         now = self._clock.now()
@@ -135,8 +168,9 @@ class TickStream:
 
     # lifecycle ------------------------------------------------------------
     def run(self) -> None:
-        attempt = 0
-        while not self._closing and attempt <= self._max_reconnects:
+        """Connect and reconnect until close(). max_reconnects caps *consecutive* failed attempts."""
+        self._attempt = 0
+        while not self._closing and self._attempt <= self._max_reconnects:
             self._ws = self._ws_factory(*self._args)
             self._ws.on_open = self._on_open
             self._ws.on_data = self._on_data
@@ -149,8 +183,8 @@ class TickStream:
             self._connected = False
             if self._closing:
                 break
-            attempt += 1
-            self._sleep(min(2 ** min(attempt, 5), 30))
+            self._attempt += 1
+            self._sleep(min(2 ** min(self._attempt, 5), 30))
 
     def close(self) -> None:
         self._closing = True

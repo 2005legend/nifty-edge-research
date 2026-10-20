@@ -70,7 +70,9 @@ def cmd_record(app, args) -> int:
     app.store.write_report("recording", day, asdict(summary))
     report = _health(app, day)
     print(f"recording {summary.status}: {summary.minutes_written} minutes; problems: {report['problems']}")
-    return 0
+    for error in summary.errors:
+        print(f"  error: {error}")
+    return 1 if summary.status == "no_session" else 0
 
 
 def cmd_backfill(app, args) -> int:

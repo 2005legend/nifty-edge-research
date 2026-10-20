@@ -35,9 +35,18 @@ def _fetch(session, store: Store, day: date, urls: dict, exchange: str) -> Path:
         raise NotPublishedError(f"{exchange} F&O bhavcopy for {day} not published")
     if response.status_code != 200:
         raise BadDownloadError(f"{exchange} F&O bhavcopy for {day}: HTTP {response.status_code}")
-    if not response.content or looks_like_html(response.content):
-        raise BadDownloadError(f"{exchange} F&O bhavcopy for {day}: got an HTML page, not the file")
+    if not _looks_valid(exchange, response.content):
+        raise BadDownloadError(f"{exchange} F&O bhavcopy for {day}: body is not a bhavcopy file")
     return store.write_raw(source, day, name, response.content)
+
+
+def _looks_valid(exchange: str, content: bytes) -> bool:
+    """Positive check, because raw files are immutable: a wrong body saved once would block the real file."""
+    if not content or looks_like_html(content):
+        return False
+    if exchange == "NSE":
+        return content[:2] == b"PK"  # NSE serves a zip
+    return content.lstrip(b"\xef\xbb\xbf \r\n").startswith(b"TradDt")  # BSE serves the UDiFF CSV
 
 
 def fetch_nse_fo_bhavcopy(session, store: Store, day: date, urls: dict) -> Path:

@@ -67,6 +67,53 @@ def test_stale_fires_after_30_seconds_without_ticks():
     assert len(stale_events) == 2
 
 
+def test_normalize_tick_keeps_research_fields():
+    tick = normalize_tick(raw_tick(average_traded_price=1230000, total_buy_quantity=6500,
+                                   total_sell_quantity=13000, last_traded_quantity=65,
+                                   last_traded_timestamp=1792561499, sequence_number=42,
+                                   open_price_of_the_day=1220000, high_price_of_the_day=1240000,
+                                   low_price_of_the_day=1210000, closed_price=1215000), received_at=START)
+    assert tick.atp == 12300.0
+    assert (tick.total_buy_qty, tick.total_sell_qty, tick.last_traded_qty) == (6500, 13000, 65)
+    assert tick.last_traded_ts_raw == 1792561499
+    assert tick.seq == 42
+    assert (tick.day_open, tick.day_high, tick.day_low, tick.prev_close) == (12200.0, 12400.0, 12100.0, 12150.0)
+
+
+def test_reconnect_counter_resets_after_successful_open():
+    clock = FakeClock(START)
+    holder = {}
+
+    def finish(ws):
+        holder["stream"].close()
+
+    factory = FakeStream([["drop"], ["drop"], ["drop"], ["drop"], [finish]])
+    stream = TickStream("jwt", "key", "C1", "feed", on_tick=lambda t: None, on_stale=lambda *a: None,
+                        clock=clock, ws_factory=factory, stale_seconds=30, sleep=FakeSleep(clock),
+                        max_reconnects=2)
+    holder["stream"] = stream
+    stream.subscribe({2: ["a"]})
+    stream.run()
+    assert len(factory.connections) == 5
+
+
+def test_subscribe_send_failure_is_contained():
+    """add_tokens is called from the recorder thread; a dead socket must not raise there."""
+    clock = FakeClock(START)
+
+    class DeadWs:
+        def subscribe(self, *args):
+            raise ConnectionError("socket closed")
+
+    stream = TickStream("jwt", "key", "C1", "feed", on_tick=lambda t: None, on_stale=lambda *a: None,
+                        clock=clock, ws_factory=FakeStream([]), stale_seconds=30, sleep=FakeSleep(clock))
+    stream.subscribe({2: ["a"]})
+    stream._ws, stream._connected = DeadWs(), True
+    stream.add_tokens({2: ["b"]})          # must not raise
+    assert stream._connected is False      # next connection resubscribes everything
+    assert stream._subscribed[2] == {"a", "b"}
+
+
 def test_reconnect_resubscribes_all_tokens():
     clock = FakeClock(START)
     ticks = []

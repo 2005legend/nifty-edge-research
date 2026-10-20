@@ -19,6 +19,7 @@ recorder:
   fallback_width: 10
   recenter_strikes: 5
   depth_width: 3
+  prestart: "09:10"            # log in and subscribe before the open so the first ticks are kept
   opening_ticks: ["09:15", "09:30"]
   stale_seconds: 30
   max_tokens_per_connection: 1000

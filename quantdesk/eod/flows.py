@@ -23,7 +23,8 @@ class EodReport:
     status: dict = field(default_factory=dict)
 
 
-def _download(session, store: Store, day: date, source: str, name: str, url: str) -> Path:
+def _download(session, store: Store, day: date, source: str, name: str, url: str,
+              must_contain: bytes) -> Path:
     if store.raw_exists(source, day, name):
         return store.raw_path(source, day, name)
     response = session.get(url)
@@ -31,7 +32,7 @@ def _download(session, store: Store, day: date, source: str, name: str, url: str
         raise NotPublishedError(f"{source} for {day} not published")
     if response.status_code != 200:
         raise BadDownloadError(f"{source} for {day}: HTTP {response.status_code}")
-    if not response.content or looks_like_html(response.content):
+    if not response.content or looks_like_html(response.content) or must_contain not in response.content[:4096]:
         raise BadDownloadError(f"{source} for {day}: got an HTML page, not data")
     return store.write_raw(source, day, name, response.content)
 
@@ -39,7 +40,7 @@ def _download(session, store: Store, day: date, source: str, name: str, url: str
 def fetch_participant_oi(session, store: Store, day: date, urls: dict) -> Path:
     stamp = day.strftime("%d%m%Y")
     return _download(session, store, day, "participant_oi", f"fao_participant_oi_{stamp}.csv",
-                     urls["nse_participant_oi"].format(ddmmyyyy=stamp))
+                     urls["nse_participant_oi"].format(ddmmyyyy=stamp), must_contain=b"Client Type")
 
 
 def _snake(name: str) -> str:
@@ -85,7 +86,8 @@ def parse_fii_dii(path: Path) -> pd.DataFrame:
 
 
 def fetch_nifty50_list(session, store: Store, day: date, urls: dict) -> Path:
-    return _download(session, store, day, "nifty50_list", "ind_nifty50list.csv", urls["nse_nifty50_list"])
+    return _download(session, store, day, "nifty50_list", "ind_nifty50list.csv", urls["nse_nifty50_list"],
+                     must_contain=b"Symbol")
 
 
 def _vix_daily(client, store: Store, day: date, settings: dict) -> None:

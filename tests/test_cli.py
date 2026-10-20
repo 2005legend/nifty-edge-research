@@ -91,3 +91,11 @@ def test_record_saves_recording_report(app, angel_env, monkeypatch):
     assert cli.main(["record"]) == 0
     assert app.store.read_report("recording", date(2026, 10, 19))["status"] == "ok"
     assert app.store.read_report("health", date(2026, 10, 19)) is not None
+
+
+def test_record_no_session_exits_nonzero_with_reason(app, angel_env, monkeypatch, capsys):
+    monkeypatch.setattr(cli, "run_recording", lambda day, **kw: RecordingSummary(
+        status="no_session", errors=["ltp NIFTY (99926000): LoginError: AB1050 invalid totp"]))
+    assert cli.main(["record"]) == 1
+    out = capsys.readouterr().out
+    assert "no_session" in out and "LoginError" in out

@@ -83,3 +83,9 @@ def test_run_eod_marks_missing_after_deadline(tmp_path):
     report, _ = make_run(tmp_path, (404, b""))
     assert report.status["participant_oi"] == "not_published"
     assert report.status["nse_fo"] == "ok"
+
+
+def test_participant_body_without_header_is_bad_download(tmp_path):
+    report, _ = make_run(tmp_path, (200, b"Service temporarily unavailable"))
+    assert report.status["participant_oi"] == "bad_download"
+    assert not (tmp_path / "raw" / "participant_oi").exists()

@@ -81,3 +81,21 @@ def test_backfill_skips_existing_and_records_status(tmp_path):
     session, _, sleep = session_with({nse_url(d3): (200, content)})
     status = backfill_bhavcopy(session, store, [d1, d2, d3], URLS, exchange="NSE")
     assert status == {d1: "skipped_existing", d2: "not_published", d3: "ok"}
+
+
+def test_non_zip_nse_body_rejected(tmp_path):
+    store = Store(tmp_path)
+    session, _, _ = session_with({nse_url(DAY): (200, b'{"error": "try later"}')})
+    with pytest.raises(BadDownloadError):
+        fetch_nse_fo_bhavcopy(session, store, DAY, URLS)
+    assert not (tmp_path / "raw" / "nse_fo").exists()
+
+
+def test_bse_body_without_udiff_header_rejected(tmp_path):
+    from quantdesk.eod.bhavcopy import fetch_bse_fo_bhavcopy
+
+    url = URLS["bse_fo_bhavcopy"].format(yyyymmdd=DAY.strftime("%Y%m%d"))
+    session, _, _ = session_with({url: (200, b"Sorry, file not found\r\n")})
+    with pytest.raises(BadDownloadError):
+        fetch_bse_fo_bhavcopy(session, Store(tmp_path), DAY, URLS)
+    assert not (tmp_path / "raw" / "bse_fo").exists()

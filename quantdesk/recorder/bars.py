@@ -8,11 +8,16 @@ import pandas as pd
 
 from quantdesk.broker.ws import Tick
 
-BAR_COLUMNS = ["minute", "token", "open", "high", "low", "close", "volume", "n_ticks"]
+BAR_COLUMNS = ["minute", "token", "open", "high", "low", "close", "volume", "n_ticks",
+               "atp", "total_buy_qty", "total_sell_qty"]
 SNAPSHOT_COLUMNS = ["minute", "token", "ltp", "bid", "bid_qty", "ask", "ask_qty", "volume", "oi",
-                    "zero_quote", "exchange_ts", "received_at"]
+                    "zero_quote", "atp", "total_buy_qty", "total_sell_qty", "last_traded_qty",
+                    "exchange_ts", "received_at"]
 DEPTH_COLUMNS = ["minute", "token", "side", "level", "price", "qty"]
 INDEX_JUMP_LIMIT = 0.05
+JUMP_REFERENCE_MAX_AGE_S = 60      # an older reference price is not used for the jump check
+JUMP_REACCEPT_AFTER = 3            # consecutive rejected ticks that agree => accept the new level
+JUMP_AGREEMENT = 0.01
 
 
 def is_bad_tick(tick: Tick, last_ltp: float | None, is_index: bool) -> str | None:
@@ -42,20 +47,40 @@ class MinuteAggregator:
         self.index_tokens = set(index_tokens)
         self._buckets: dict[datetime, dict[str, list[Tick]]] = defaultdict(lambda: defaultdict(list))
         self._last_ltp: dict[str, float] = {}
+        self._last_ts: dict[str, datetime] = {}
+        self._rejected: dict[str, list[float]] = defaultdict(list)
         self._last_volume: dict[str, int] = {}
         self._dropped: dict[str, int] = defaultdict(int)
+        self._flushed_until: datetime | None = None
 
     def add_tokens(self, option_tokens: set[str] = frozenset(), depth_tokens: set[str] = frozenset()) -> None:
         self.option_tokens |= set(option_tokens)
         self.depth_tokens |= set(depth_tokens)
 
+    def _reference(self, tick: Tick) -> float | None:
+        ts = self._last_ts.get(tick.token)
+        if ts is None or (tick.exchange_ts - ts).total_seconds() > JUMP_REFERENCE_MAX_AGE_S:
+            return None
+        return self._last_ltp.get(tick.token)
+
     def add(self, tick: Tick) -> str | None:
-        reason = is_bad_tick(tick, self._last_ltp.get(tick.token), tick.token in self.index_tokens)
+        minute = tick.exchange_ts.replace(second=0, microsecond=0)
+        if self._flushed_until is not None and minute < self._flushed_until:
+            self._dropped["late"] += 1
+            return "late"
+        reason = is_bad_tick(tick, self._reference(tick), tick.token in self.index_tokens)
+        if reason == "index_jump":
+            recent = self._rejected[tick.token]
+            recent.append(tick.ltp)
+            last = recent[-JUMP_REACCEPT_AFTER:]
+            if len(last) == JUMP_REACCEPT_AFTER and max(last) / min(last) - 1 <= JUMP_AGREEMENT:
+                reason = None  # the market really moved: accept the new level
         if reason:
             self._dropped[reason] += 1
             return reason
+        self._rejected.pop(tick.token, None)
         self._last_ltp[tick.token] = tick.ltp
-        minute = tick.exchange_ts.replace(second=0, microsecond=0)
+        self._last_ts[tick.token] = tick.exchange_ts
         self._buckets[minute][tick.token].append(tick)
         return None
 
@@ -67,8 +92,10 @@ class MinuteAggregator:
             base = self._last_volume.get(token, volumes[0])
             volume = max(0, volumes[-1] - base)
             self._last_volume[token] = volumes[-1]
+        last = ticks[-1]
         return {"minute": minute, "token": token, "open": prices[0], "high": max(prices),
-                "low": min(prices), "close": prices[-1], "volume": volume, "n_ticks": len(ticks)}
+                "low": min(prices), "close": prices[-1], "volume": volume, "n_ticks": len(ticks),
+                "atp": last.atp, "total_buy_qty": last.total_buy_qty, "total_sell_qty": last.total_sell_qty}
 
     def flush(self, minute_end: datetime) -> FlushResult:
         bars, snaps, depth = [], [], []
@@ -82,6 +109,8 @@ class MinuteAggregator:
                     snaps.append({"minute": minute, "token": token, "ltp": last.ltp, "bid": last.bid,
                                   "bid_qty": last.bid_qty, "ask": last.ask, "ask_qty": last.ask_qty,
                                   "volume": last.volume, "oi": last.oi, "zero_quote": zero,
+                                  "atp": last.atp, "total_buy_qty": last.total_buy_qty,
+                                  "total_sell_qty": last.total_sell_qty, "last_traded_qty": last.last_traded_qty,
                                   "exchange_ts": last.exchange_ts, "received_at": last.received_at})
                 else:
                     bars.append(self._bar(minute, token, ticks))
@@ -89,6 +118,8 @@ class MinuteAggregator:
                     for side, level, price, qty in last.depth:
                         depth.append({"minute": minute, "token": token, "side": side,
                                       "level": level, "price": price, "qty": qty})
+        if self._flushed_until is None or minute_end > self._flushed_until:
+            self._flushed_until = minute_end
         dropped = dict(self._dropped)
         self._dropped.clear()
         return FlushResult(bars=pd.DataFrame(bars, columns=BAR_COLUMNS),

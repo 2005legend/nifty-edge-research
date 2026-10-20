@@ -6,6 +6,7 @@
 """
 
 import json
+import os
 import uuid
 from datetime import date, datetime
 from pathlib import Path
@@ -47,7 +48,13 @@ class Store:
         folder.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now().strftime("%H%M%S%f")
         path = folder / f"part-{stamp}-{uuid.uuid4().hex[:8]}.parquet"
-        df.to_parquet(path, index=False)
+        tmp = path.with_suffix(".tmp")  # readers glob *.parquet, so a half-written file is invisible
+        try:
+            df.to_parquet(tmp, index=False)
+            os.replace(tmp, path)
+        except BaseException:
+            tmp.unlink(missing_ok=True)
+            raise
         return path
 
     def _parquet_glob(self, kind: str, day: date | None) -> str | None:

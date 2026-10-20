@@ -8,3 +8,5 @@ env.txt
 *.env
 .env.*
 !.env.example
+logs/
+*.egg-info/

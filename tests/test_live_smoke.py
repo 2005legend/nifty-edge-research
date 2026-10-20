@@ -50,6 +50,15 @@ def test_live_master_index_tokens(app):
     assert (nifty["strike"] % 50 == 0).all()
 
 
+def test_live_index_ltp_used_at_recorder_start(app):
+    """The recorder plans each chain from this exact call; a wrong symbol loses that index's options for the day."""
+    plausible = {"NIFTY": (10_000, 60_000), "SENSEX": (30_000, 200_000), "INDIAVIX": (5, 100)}
+    for name, spec in app.settings["angel"]["index_tokens"].items():
+        price = app.client().ltp(spec["exchange"], spec["symbol"], spec["token"])
+        low, high = plausible[name]
+        assert low < price < high, f"{name}: {price}"
+
+
 def test_live_candles_one_day(app):
     day = last_trading_day(app)
     start = datetime(day.year, day.month, day.day, 9, 15, tzinfo=IST)

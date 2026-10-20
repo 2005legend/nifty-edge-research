@@ -65,13 +65,13 @@ class AngelClient:
 
     @classmethod
     def from_env(cls, settings: dict) -> "AngelClient":
-        from SmartApi import SmartConnect
+        from quantdesk.broker.sdk import smart_connect_factory
 
         clock = SystemClock()
         limiter = MultiWindowLimiter(settings["angel"]["rate_limits"], clock=clock, sleep=_time.sleep)
         return cls(get_secret("ANGEL_API_KEY"), get_secret("ANGEL_CLIENT_CODE"),
                    get_secret("ANGEL_PIN"), get_secret("ANGEL_TOTP_SECRET"),
-                   smart_factory=lambda key: SmartConnect(api_key=key), limiter=limiter,
+                   smart_factory=smart_connect_factory, limiter=limiter,
                    clock=clock, sleep=_time.sleep, settings=settings)
 
     # session --------------------------------------------------------------

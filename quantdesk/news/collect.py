@@ -34,8 +34,11 @@ def _sha1(text: str) -> str:
     return hashlib.sha1(text.encode("utf-8")).hexdigest()
 
 
-def _title_key(title: str) -> str:
-    return _sha1(re.sub(r"\s+", " ", title.strip().lower()))
+def _story_key(feed: str, title: str, summary: str) -> str:
+    """Same story re-posted under another link: same feed, title and summary.
+    Titles alone repeat legitimately (NSE announcements are titled with the company name)."""
+    norm = lambda text: re.sub(r"\s+", " ", text.strip().lower())  # noqa: E731
+    return _sha1(f"{feed}|{norm(title)}|{norm(summary)}")
 
 
 class SeenIndex:
@@ -94,7 +97,9 @@ def poll_once(feeds: list[dict], *, http_get, store: Store, clock, seen: SeenInd
         except Exception:  # noqa: BLE001 - one bad feed never stops the others
             report.failed.append(name)
             continue
-        store.write_raw("news", now.date(), f"{name}-{now:%H%M%S%f}.xml", content)
+        raw_name = f"{name}-{hashlib.sha1(content).hexdigest()[:16]}.xml"  # unchanged feed => same file
+        if not store.raw_exists("news", now.date(), raw_name):
+            store.write_raw("news", now.date(), raw_name, content)
         parsed = feedparser.parse(content)
         count, newest = 0, None
         for entry in parsed.entries:
@@ -103,11 +108,12 @@ def poll_once(feeds: list[dict], *, http_get, store: Store, clock, seen: SeenInd
             pub = _pub_date(entry)
             if pub and (newest is None or pub > newest):
                 newest = pub
-            item_id, title_hash = _sha1(link or title), _title_key(title)
-            if item_id in seen or title_hash in seen:
+            summary = entry.get("summary", "")
+            item_id, story_key = _sha1(link or title), _story_key(name, title, summary)
+            if item_id in seen or story_key in seen:
                 continue
-            seen.add(item_id, title_hash)
-            rows.append({"item_id": item_id, "title_hash": title_hash, "feed": name, "title": title,
+            seen.add(item_id, story_key)
+            rows.append({"item_id": item_id, "story_key": story_key, "feed": name, "title": title,
                          "link": link, "summary": entry.get("summary", "")[:2000], "pub_date": pub,
                          "first_seen": now, "price_restatement": is_price_restatement(title)})
             count += 1

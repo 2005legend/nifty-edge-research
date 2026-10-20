@@ -64,6 +64,40 @@ def test_depth_rows_only_for_depth_tokens():
     assert set(rows.columns) >= {"minute", "token", "side", "level", "price", "qty"}
 
 
+def test_index_jump_reference_expires_after_60s():
+    agg = MinuteAggregator(option_tokens=set(), depth_tokens=set(), index_tokens={"IDX"})
+    assert agg.add(tick("IDX", 22500, seconds=0, exchange_type=1)) is None
+    assert agg.add(tick("IDX", 23700, seconds=61, exchange_type=1)) is None
+
+
+def test_index_reaccepts_after_three_consistent_rejections():
+    agg = MinuteAggregator(option_tokens=set(), depth_tokens=set(), index_tokens={"IDX"})
+    assert agg.add(tick("IDX", 22500, seconds=0, exchange_type=1)) is None
+    assert agg.add(tick("IDX", 23700, seconds=1, exchange_type=1)) == "index_jump"
+    assert agg.add(tick("IDX", 23710, seconds=2, exchange_type=1)) == "index_jump"
+    assert agg.add(tick("IDX", 23705, seconds=3, exchange_type=1)) is None   # third agreeing tick re-accepted
+    assert agg.add(tick("IDX", 23720, seconds=4, exchange_type=1)) is None
+
+
+def test_late_tick_after_flush_dropped_not_duplicated():
+    agg = MinuteAggregator(option_tokens=set(), depth_tokens=set(), index_tokens=set())
+    agg.add(tick("FUT", 100, seconds=10, volume=1))
+    agg.flush(T0 + timedelta(minutes=1))
+    assert agg.add(tick("FUT", 101, seconds=59, volume=2)) == "late"
+    assert agg.flush(T0 + timedelta(minutes=2)).bars.empty
+
+
+def test_bars_carry_atp_and_order_book_totals():
+    agg = MinuteAggregator(option_tokens={"OPT"}, depth_tokens=set(), index_tokens=set())
+    agg.add(tick("FUT", 100, seconds=5, volume=10, atp=99.5, total_buy_qty=650, total_sell_qty=1300))
+    agg.add(tick("OPT", 50, seconds=5, bid=49.9, ask=50.1, atp=49.8, total_buy_qty=65, total_sell_qty=130))
+    result = agg.flush(T0 + timedelta(minutes=1))
+    assert result.bars.iloc[0]["atp"] == 99.5
+    assert result.bars.iloc[0]["total_buy_qty"] == 650
+    assert result.snapshots.iloc[0]["atp"] == 49.8
+    assert result.snapshots.iloc[0]["total_sell_qty"] == 130
+
+
 def test_flush_keeps_later_minutes():
     agg = MinuteAggregator(option_tokens=set(), depth_tokens=set(), index_tokens=set())
     agg.add(tick("FUT", 100, seconds=10, volume=1))

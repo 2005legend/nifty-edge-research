@@ -84,12 +84,13 @@ class App:
         return equity_tokens(self.master(day), nifty50_symbols(content))
 
     def stream_factory(self, on_tick, on_stale) -> ThreadedStream:
+        from quantdesk.broker.sdk import websocket_factory
+
         client = self.client()
-        from SmartApi.smartWebSocketV2 import SmartWebSocketV2
 
         stream = TickStream(client.jwt_token, client.api_key, client.client_code, client.feed_token,
                             on_tick=on_tick, on_stale=on_stale, clock=self.clock,
-                            ws_factory=lambda *args: SmartWebSocketV2(*args),
+                            ws_factory=websocket_factory,
                             stale_seconds=self.settings["recorder"]["stale_seconds"], sleep=self.sleep)
         return ThreadedStream(stream)
 

@@ -4,6 +4,7 @@ Storage kinds: bars, option_snapshots, depth, opening_ticks, recorder_events.
 """
 
 import contextlib
+import json
 import os
 import sys
 import threading
@@ -18,7 +19,8 @@ from quantdesk.recorder.plan import plan_subscriptions, recenter
 from quantdesk.storage import Store
 
 LOOP_STEP_S = 1.0
-FLUSH_GRACE_S = 2.0
+FLUSH_GRACE_S = 1.0          # flush minute M once the feed's exchange time passes M+1 by this much
+PC_FALLBACK_GRACE_S = 10.0   # ...or once the PC clock passes M+1 by this much (quiet feed)
 RECENTER_EVERY_S = 60.0
 
 
@@ -37,6 +39,7 @@ class RecordingSummary:
     recenter_events: int = 0
     subscription_count: int = 0
     reduced: bool = False
+    errors: list = field(default_factory=list)
 
 
 def pid_alive(pid: int) -> bool:
@@ -96,38 +99,61 @@ def run_recording(day: date, *, client, stream_factory, master: pd.DataFrame, co
         return RecordingSummary(status="holiday")
 
     with run_lock(store):
+        rec = settings["recorder"]
         open_t = _at(day, settings["session"]["open"])
         close_t = _at(day, settings["session"]["close"])
-        rec = settings["recorder"]
+        prestart_t = _at(day, rec.get("prestart", settings["session"]["open"]))
         opening_start, opening_end = (_at(day, t).time() for t in rec["opening_ticks"])
 
         if clock.now() >= close_t:
-            return RecordingSummary(status="no_session")
-        wait = (open_t + timedelta(seconds=5) - clock.now()).total_seconds()
+            return RecordingSummary(status="no_session", errors=["started after the session close"])
+        wait = (prestart_t - clock.now()).total_seconds()
         if wait > 0:
             sleep(wait)
 
+        # Spots for planning come from the REST last price; before the open that is the previous close.
         index_specs = settings["angel"]["index_tokens"]
-        try:
-            spots = {u: client.ltp(index_specs[u]["exchange"], index_specs[u]["symbol"], index_specs[u]["token"])
-                     for u in ("NIFTY", "SENSEX")}
-        except Exception:  # noqa: BLE001 - no usable session means nothing to record
-            return RecordingSummary(status="no_session")
+        spots, errors = {}, []
+        for underlying in ("NIFTY", "SENSEX"):
+            spec = index_specs[underlying]
+            try:
+                spots[underlying] = client.ltp(spec["exchange"], spec["symbol"], spec["token"])
+            except Exception as exc:  # noqa: BLE001 - recorded; the other underlying may still work
+                errors.append(f"ltp {underlying} ({spec['token']}): {type(exc).__name__}: {exc}"[:300])
+        if not spots:
+            return RecordingSummary(status="no_session", errors=errors)
         spot_token = {index_specs[u]["token"]: u for u in ("NIFTY", "SENSEX")}
 
         plan = plan_subscriptions(master, spots, day, constituents, settings)
         option_tokens = set(plan.option_meta["token"])
+        jump_tokens = set(spot_token)  # India VIX legitimately moves >5%: never jump-filtered
         agg = MinuteAggregator(option_tokens=option_tokens, depth_tokens=plan.depth_tokens,
-                               index_tokens=plan.index_tokens)
-        summary = RecordingSummary(status="ok", subscription_count=plan.count(), reduced=plan.reduced)
+                               index_tokens=jump_tokens)
+        summary = RecordingSummary(status="ok", subscription_count=plan.count(), reduced=plan.reduced,
+                                   errors=errors)
         lock = threading.Lock()
         opening_rows: list[dict] = []
         events: list[dict] = [{"event": "subscribed", "time": clock.now(), "count": plan.count(),
                                "reduced": plan.reduced, "width": plan.width}]
+        events += [{"event": "error", "time": clock.now(), "detail": e} for e in errors]
         stale_open: dict = {"since": None}
+        latest = {"exchange_ts": None, "received_at": None, "outside": 0}
+        stale_after = timedelta(seconds=rec["stale_seconds"])
+
+        def record_error(where: str, exc: Exception) -> None:
+            message = f"{where}: {type(exc).__name__}: {exc}"[:300]
+            with lock:
+                summary.errors.append(message)
+                events.append({"event": "error", "time": clock.now(), "detail": message})
 
         def on_tick(tick):
             with lock:
+                if not (open_t <= tick.exchange_ts < close_t):
+                    latest["outside"] += 1
+                    return
+                if latest["exchange_ts"] is None or tick.exchange_ts > latest["exchange_ts"]:
+                    latest["exchange_ts"] = tick.exchange_ts
+                latest["received_at"] = tick.received_at
                 if stale_open["since"] is not None:
                     period = (stale_open["since"], tick.exchange_ts)
                     summary.stale_periods.append(period)
@@ -138,24 +164,38 @@ def run_recording(day: date, *, client, stream_factory, master: pd.DataFrame, co
                     spots[spot_token[tick.token]] = tick.ltp
                 if agg.add(tick) is None and tick.token in option_tokens \
                         and opening_start <= tick.exchange_ts.time() < opening_end:
-                    opening_rows.append({"token": tick.token, "ltp": tick.ltp, "bid": tick.bid,
-                                         "bid_qty": tick.bid_qty, "ask": tick.ask, "ask_qty": tick.ask_qty,
-                                         "volume": tick.volume, "oi": tick.oi,
-                                         "exchange_ts": tick.exchange_ts, "received_at": tick.received_at})
+                    opening_rows.append({
+                        "token": tick.token, "ltp": tick.ltp, "bid": tick.bid, "bid_qty": tick.bid_qty,
+                        "ask": tick.ask, "ask_qty": tick.ask_qty, "volume": tick.volume, "oi": tick.oi,
+                        "atp": tick.atp, "total_buy_qty": tick.total_buy_qty,
+                        "total_sell_qty": tick.total_sell_qty, "last_traded_qty": tick.last_traded_qty,
+                        "last_traded_ts_raw": tick.last_traded_ts_raw, "seq": tick.seq,
+                        "day_open": tick.day_open, "day_high": tick.day_high, "day_low": tick.day_low,
+                        "prev_close": tick.prev_close,
+                        "depth": json.dumps(tick.depth) if tick.depth else None,
+                        "exchange_ts": tick.exchange_ts, "received_at": tick.received_at})
 
-        def on_stale(since, now):
+        def check_stale(now):
+            """Silence during the session only: no in-session tick for stale_seconds opens a period."""
+            if now < open_t:
+                return
             with lock:
-                if stale_open["since"] is None:
-                    stale_open["since"] = since
+                reference = latest["received_at"] or open_t
+                if stale_open["since"] is None and now - reference > stale_after:
+                    stale_open["since"] = latest["exchange_ts"] or open_t
 
-        stream = stream_factory(on_tick, on_stale)
+        stream = stream_factory(on_tick, lambda since, now: None)
         stream.subscribe(plan.tokens)
         stream.start()
 
         def write(kind, rows_or_frame):
             frame = rows_or_frame if isinstance(rows_or_frame, pd.DataFrame) else pd.DataFrame(rows_or_frame)
-            if not frame.empty:
+            if frame.empty:
+                return
+            try:
                 store.append_parquet(kind, day, frame)
+            except Exception as exc:  # noqa: BLE001 - one failed write never ends the session
+                record_error(f"write {kind}", exc)
 
         def flush(minute_end):
             with lock:
@@ -164,6 +204,7 @@ def run_recording(day: date, *, client, stream_factory, master: pd.DataFrame, co
                 opening_rows.clear()
                 pending_events = list(events)
                 events.clear()
+                outside, latest["outside"] = latest["outside"], 0
             write("bars", result.bars)
             write("option_snapshots", result.snapshots)
             write("depth", result.depth)
@@ -171,36 +212,52 @@ def run_recording(day: date, *, client, stream_factory, master: pd.DataFrame, co
             write("recorder_events", pending_events)
             if not result.bars.empty:
                 summary.minutes_written += result.bars["minute"].nunique()
-            for reason, n in result.dropped.items():
+            dropped = dict(result.dropped)
+            if outside:
+                dropped["outside_session"] = outside
+            for reason, n in dropped.items():
                 summary.dropped[reason] = summary.dropped.get(reason, 0) + n
             summary.zero_quotes += result.zero_quotes
             summary.crossed += result.crossed
 
         now = clock.now()
-        next_minute = now.replace(second=0, microsecond=0) + timedelta(minutes=1)
+        next_minute = max(now.replace(second=0, microsecond=0), open_t) + timedelta(minutes=1)
         last_recenter = now
         try:
             while next_minute <= close_t:
                 sleep(LOOP_STEP_S)
-                stream.check_stale()
                 now = clock.now()
-                if (now - last_recenter).total_seconds() >= RECENTER_EVERY_S:
+                check_stale(now)
+                if now >= open_t and (now - last_recenter).total_seconds() >= RECENTER_EVERY_S:
                     last_recenter = now
-                    plan, added = recenter(plan, dict(spots), master, settings)
-                    if added:
-                        new_options = set(plan.option_meta["token"]) - option_tokens
-                        option_tokens |= new_options
-                        with lock:
-                            agg.add_tokens(option_tokens=new_options, depth_tokens=plan.depth_tokens)
-                            events.append({"event": "recenter", "time": now,
-                                           "count": sum(len(v) for v in added.values())})
-                        stream.add_tokens(added)
-                        summary.recenter_events += 1
-                if now >= next_minute + timedelta(seconds=FLUSH_GRACE_S):
+                    try:
+                        plan, added = recenter(plan, dict(spots), master, settings)
+                        if added:
+                            new_options = set(plan.option_meta["token"]) - option_tokens
+                            option_tokens |= new_options
+                            with lock:
+                                agg.add_tokens(option_tokens=new_options, depth_tokens=plan.depth_tokens)
+                                events.append({"event": "recenter", "time": now,
+                                               "count": sum(len(v) for v in added.values())})
+                            summary.recenter_events += 1
+                            try:
+                                stream.add_tokens(added)
+                            except Exception as exc:  # noqa: BLE001
+                                record_error("add_tokens", exc)
+                    except Exception as exc:  # noqa: BLE001
+                        record_error("recenter", exc)
+                with lock:
+                    feed_time = latest["exchange_ts"]
+                due = (feed_time is not None and feed_time >= next_minute + timedelta(seconds=FLUSH_GRACE_S)) \
+                    or now >= next_minute + timedelta(seconds=PC_FALLBACK_GRACE_S)
+                if due:
                     flush(next_minute)
                     next_minute += timedelta(minutes=1)
         finally:
-            stream.close()
+            try:
+                stream.close()
+            except Exception as exc:  # noqa: BLE001
+                record_error("stream close", exc)
             with lock:
                 if stale_open["since"] is not None:
                     period = (stale_open["since"], clock.now())

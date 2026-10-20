@@ -43,3 +43,4 @@ include = ["quantdesk*"]
 testpaths = ["tests"]
 markers = ["live: needs real credentials/network"]
 addopts = "-m 'not live'"
+filterwarnings = ["ignore:ssl.OP_NO_SSL:DeprecationWarning:SmartApi.smartConnect"]  # third-party SDK code

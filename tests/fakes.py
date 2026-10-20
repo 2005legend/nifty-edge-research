@@ -141,10 +141,13 @@ class ScriptedStream:
     """Recorder-facing stream double. Ticks (quantdesk Tick objects) are delivered when the
     fake clock passes their exchange_ts; deliver_until() is driven by ScriptedSleep."""
 
-    def __init__(self, ticks, clock, stale_seconds=30):
+    def __init__(self, ticks, clock, stale_seconds=30, skew_s=0.0, fail_add_tokens=False):
         self.pending = sorted(ticks, key=lambda t: t.exchange_ts)
         self.clock = clock
         self.stale_seconds = stale_seconds
+        self.skew_s = skew_s  # PC clock ahead of the exchange by this many seconds
+        self.fail_add_tokens = fail_add_tokens
+        self.subscribed_at = None
         self.on_tick = self.on_stale = None
         self.subscribed: list[dict] = []
         self.added: list[dict] = []
@@ -159,16 +162,19 @@ class ScriptedStream:
 
     def subscribe(self, tokens):
         self.subscribed.append(tokens)
+        self.subscribed_at = self.subscribed_at or self.clock.now()
         self._last = self.clock.now()
 
     def add_tokens(self, tokens):
+        if self.fail_add_tokens:
+            raise ConnectionError("socket closed")
         self.added.append(tokens)
 
     def start(self):
         self.started = True
 
     def deliver_until(self, now):
-        while self.pending and self.pending[0].exchange_ts <= now:
+        while self.pending and self.pending[0].exchange_ts + timedelta(seconds=self.skew_s) <= now:
             tick = self.pending.pop(0)
             self._last = tick.exchange_ts
             self._stale_reported = False

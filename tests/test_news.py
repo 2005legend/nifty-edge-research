@@ -125,3 +125,14 @@ def test_gdelt_keeps_india_market_rows_only(tmp_path):
                            themes=["ECON_INTEREST_RATES", "ECON_STOCKMARKET"])
     assert kept == 1
     assert list(store.read("news_gdelt")["url"]) == ["https://in.example/rbi"]
+
+
+def test_recurring_titles_with_different_links_kept(tmp_path):
+    def feed(items):
+        return rss("".join(f"<item><title>Reliance Industries Limited</title><link>https://nse/{i}</link>"
+                           f"<description>{d}</description></item>" for i, d in items))
+    store = Store(tmp_path)
+    seen = SeenIndex(tmp_path / "s.txt")
+    poll(store, seen, FakeClock(NOW), {"https://f/a": (200, feed([(1, "Board meeting"), (2, "Financial results")]))})
+    poll(store, seen, FakeClock(NOW), {"https://f/a": (200, feed([(3, "Dividend record date")]))})
+    assert len(store.read("news")) == 3
