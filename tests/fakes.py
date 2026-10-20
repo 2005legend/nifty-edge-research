@@ -96,6 +96,47 @@ class FakeSmartConnect:
         return {"status": True, "data": []}
 
 
+class FakeWs:
+    """One fake websocket connection. Plays a script on connect():
+    dict -> delivered to on_data; callable -> called with this ws; "drop" -> on_close then return."""
+
+    def __init__(self, script):
+        self.script = list(script)
+        self.subscribe_calls: list[tuple] = []
+        self.on_open = self.on_data = self.on_error = self.on_close = None
+        self.closed = False
+
+    def connect(self):
+        self.on_open(self)
+        for item in self.script:
+            if item == "drop":
+                self.on_close(self)
+                return
+            if callable(item):
+                item(self)
+            else:
+                self.on_data(self, item)
+
+    def subscribe(self, correlation_id, mode, token_list):
+        self.subscribe_calls.append((correlation_id, mode, token_list))
+
+    def close_connection(self):
+        self.closed = True
+
+
+class FakeStream:
+    """ws_factory for TickStream: hands out one FakeWs per connection attempt."""
+
+    def __init__(self, scripts):
+        self.scripts = list(scripts)
+        self.connections: list[FakeWs] = []
+
+    def __call__(self, *args, **kwargs):
+        ws = FakeWs(self.scripts.pop(0) if self.scripts else [])
+        self.connections.append(ws)
+        return ws
+
+
 class FakeSleep:
     """Callable that records requested sleeps and advances the fake clock."""
 
