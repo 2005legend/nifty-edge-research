@@ -23,14 +23,14 @@ class Store:
         self.root = Path(root)
 
     # raw original files -------------------------------------------------
-    def _raw_file(self, source: str, day: date, name: str) -> Path:
+    def raw_path(self, source: str, day: date, name: str) -> Path:
         return self.root / "raw" / source / day.isoformat() / name
 
     def raw_exists(self, source: str, day: date, name: str) -> bool:
-        return self._raw_file(source, day, name).exists()
+        return self.raw_path(source, day, name).exists()
 
     def write_raw(self, source: str, day: date, name: str, content: bytes) -> Path:
-        path = self._raw_file(source, day, name)
+        path = self.raw_path(source, day, name)
         if path.exists():
             raise RawExistsError(str(path))
         path.parent.mkdir(parents=True, exist_ok=True)
