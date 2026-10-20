@@ -66,10 +66,18 @@ class PollReport:
 
 
 def _pub_date(entry):
-    parsed = entry.get("published_parsed") or entry.get("updated_parsed")
-    if not parsed:
+    parsed = entry.get("published_parsed") or ("updated_parsed" in entry.keys() and entry["updated_parsed"])
+    if parsed:
+        return datetime(*parsed[:6], tzinfo=timezone.utc).astimezone(IST)
+    raw = entry.get("published") or entry.get("updated")
+    if not raw:
         return None
-    return datetime(*parsed[:6], tzinfo=timezone.utc).astimezone(IST)
+    try:  # Indian feeds (NSE, RBI) give local times without a timezone
+        stamp = pd.to_datetime(raw, format="mixed", dayfirst=True)
+    except (ValueError, TypeError):
+        return None
+    stamp = stamp.tz_localize(IST) if stamp.tzinfo is None else stamp.tz_convert(IST)
+    return stamp.to_pydatetime()
 
 
 def poll_once(feeds: list[dict], *, http_get, store: Store, clock, seen: SeenIndex) -> PollReport:
@@ -104,7 +112,8 @@ def poll_once(feeds: list[dict], *, http_get, store: Store, clock, seen: SeenInd
                          "first_seen": now, "price_restatement": is_price_restatement(title)})
             count += 1
         report.new_items[name] = count
-        if newest is None or (now - newest).total_seconds() > STALE_AFTER_S:
+        # A feed with no entries is stale; one without parseable dates can't be judged by date.
+        if not parsed.entries or (newest is not None and (now - newest).total_seconds() > STALE_AFTER_S):
             report.stale.append(name)
     if rows:
         frame = pd.DataFrame(rows)
@@ -117,7 +126,10 @@ def poll_gdelt_once(*, http_get, store: Store, clock, lastupdate_url: str, theme
     """Keep GKG records located in India whose themes match `themes`. Returns rows kept."""
     listing = http_get(lastupdate_url).content.decode("utf-8", errors="replace").split()
     gkg_url = next(token for token in listing if token.endswith(".gkg.csv.zip"))
-    data = http_get(gkg_url).content
+    response = http_get(gkg_url)
+    if response.status_code != 200 or response.content[:2] != b"PK":
+        raise ConnectionError(f"GDELT GKG file unavailable (HTTP {response.status_code}): {gkg_url}")
+    data = response.content
     with zipfile.ZipFile(io.BytesIO(data)) as zf:
         text = zf.read(zf.namelist()[0]).decode("utf-8", errors="replace")
     wanted = set(themes)

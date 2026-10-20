@@ -63,6 +63,34 @@ def test_stale_feed_flagged(tmp_path):
     assert report.stale == ["a"]
 
 
+def rss(items_xml: str) -> bytes:
+    return (f'<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>{items_xml}</channel></rss>').encode()
+
+
+def test_naive_pubdate_parsed_as_ist(tmp_path):
+    feed = rss("<item><title>NSE circular</title><link>https://n/1</link>"
+               "<pubDate>20-Oct-2026 19:42:31</pubDate></item>")
+    store = Store(tmp_path)
+    poll(store, SeenIndex(tmp_path / "s.txt"), FakeClock(datetime(2026, 10, 20, 20, 0, tzinfo=IST)),
+         {"https://f/a": (200, feed)})
+    assert store.read("news").iloc[0]["pub_date"] == datetime(2026, 10, 20, 19, 42, 31, tzinfo=IST)
+
+
+def test_feed_without_dates_not_marked_stale(tmp_path):
+    feed = rss("<item><title>PIB release</title><link>https://p/1</link></item>")
+    report = poll(Store(tmp_path), SeenIndex(tmp_path / "s.txt"), FakeClock(NOW), {"https://f/a": (200, feed)})
+    assert report.stale == []
+    assert report.new_items == {"a": 1}
+
+
+def test_gdelt_missing_gkg_raises_clear_error(tmp_path):
+    lastupdate = b"3 c http://data.gdeltproject.org/gdeltv2/20261019043000.gkg.csv.zip\n"
+    http = FakeHttp({"https://g/last": (200, lastupdate)})
+    with pytest.raises(ConnectionError, match="GKG"):
+        poll_gdelt_once(http_get=http.get, store=Store(tmp_path), clock=FakeClock(NOW),
+                        lastupdate_url="https://g/last", themes=["ECON_STOCKMARKET"])
+
+
 def test_next_interval_follows_schedule():
     assert next_interval(NOW, lambda d: True, SCHEDULE) == 300
     assert next_interval(datetime(2026, 10, 19, 21, 0, tzinfo=IST), lambda d: True, SCHEDULE) == 3600
