@@ -4,3 +4,7 @@ __pycache__/
 .env
 data/
 .pytest_cache/
+env.txt
+*.env
+.env.*
+!.env.example
