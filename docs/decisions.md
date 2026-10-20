@@ -113,3 +113,33 @@ Source: `reports/Nifty options strategy timing refinement.md`, section "Six deci
 **Notes:**
 - 20 Oct 2026 was a market holiday (Dussehra).
 - GDELT's newest GKG file returned 404 during the run; the collector reports it and continues.
+
+## 2026-10-20: SP1 final review — fixes, rulings, deferred items
+
+A fresh whole-branch review found 1 critical and 8 important issues. All are fixed, each with a test that failed first, and the suite is 124 passed (5 live tests deselected). Two minors were promoted and fixed: atomic Parquet writes, and positive checks on downloaded files.
+
+**Critical fix:** the Angel One SDK printed and wrote the PIN, API key and JWT on failed requests. Its logging is now silenced and its log file closed, and `logs/` is git-ignored.
+
+**Rulings (with what they cost if wrong):**
+- The recorder starts at 09:10 and plans strikes from the previous close; recentring fixes the chain after the open. *Cost:* on a big gap, the first minutes cover shifted strikes.
+- If one index's start-up price call fails, that index's options are skipped for the day; the error is printed and saved. The live test `test_live_index_ltp_used_at_recorder_start` checks both symbols first. *Cost:* one index's options lost on such a day.
+- Minutes flush on exchange time; late ticks are dropped and counted. *Cost:* a few late ticks missing from a bar's close.
+- The websocket token limit (1000) and the `last_traded_timestamp` unit are guesses until the first live session.
+- Special sessions (Budget Sunday, Muhurat) are not recorded. *Cost:* 1–2 short sessions a year.
+- Survivorship bias from today's Nifty 50 list in the 2019 backfill is left to the SP2 design.
+
+**Deferred minor items (backlog):**
+1. Holiday check runs after the master and constituents downloads; a failed constituents fetch blocks option recording.
+2. Run lock: a reused stale PID blocks recording; switch to `msvcrt.locking`.
+3. Health report never shows the master-fallback flag.
+4. A frozen feed on an open socket is only logged, not reconnected.
+5. First bar per token undercounts volume.
+6. GDELT rows are tripled by 5-minute polling.
+7. EOD: errors are not retried hourly; `vix_daily` duplicates on re-run; no holiday check; bhavcopy backfill aborts on one network error.
+8. The option token-to-contract map is not saved daily (NSE reuses tokens).
+9. News loop: no exception guard or single-instance guard; runbook's 12-hour stop.
+10. `manifest.jsonl` lives in `data/raw`; move it to `data/state`.
+11. Session-expiry errors (HTTP 403, camelCase `errorCode`) may not trigger relogin — verify live.
+12. `_subscribed` is shared across threads without a lock.
+13. `last_traded_timestamp` fallback assumes milliseconds.
+14. `recenter` does not re-check the token budget.
