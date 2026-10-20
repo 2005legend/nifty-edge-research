@@ -58,6 +58,44 @@ class FakeHttp:
         return FakeResponse(status, content, url)
 
 
+class FakeSmartConnect:
+    """Mimics SmartApi.SmartConnect responses (dicts with status/data/errorcode)."""
+
+    def __init__(self, api_key=None, *, login_responses=None, candle_responses=None, ltp_value=22550.0):
+        self.api_key = api_key
+        self.login_calls: list[tuple] = []
+        self.candle_calls: list[dict] = []
+        self.login_responses = list(login_responses or [])
+        self.candle_responses = list(candle_responses or [])
+        self.ltp_value = ltp_value
+
+    def generateSession(self, client_code, pin, totp):
+        self.login_calls.append((client_code, pin, totp))
+        if self.login_responses:
+            return self.login_responses.pop(0)
+        return {"status": True, "data": {"jwtToken": "jwt-1", "refreshToken": "ref-1", "feedToken": "feed-1"}}
+
+    def getfeedToken(self):
+        return "feed-1"
+
+    def getProfile(self, refresh_token):
+        return {"status": True, "data": {"name": "TEST USER", "clientcode": "X1"}}
+
+    def ltpData(self, exchange, tradingsymbol, symboltoken):
+        return {"status": True, "data": {"ltp": self.ltp_value}}
+
+    def getCandleData(self, params):
+        self.candle_calls.append(dict(params))
+        if self.candle_responses:
+            response = self.candle_responses.pop(0)
+            if isinstance(response, Exception):
+                raise response
+            if callable(response):
+                return response(params)
+            return response
+        return {"status": True, "data": []}
+
+
 class FakeSleep:
     """Callable that records requested sleeps and advances the fake clock."""
 
