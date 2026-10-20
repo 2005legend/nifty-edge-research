@@ -1,0 +1,25 @@
+# Dated market events. Every entry must carry a source_url (spec section 5.8).
+# Holidays: NSE F&O segment list fetched 2026-10-20 from the NSE holiday-master API.
+events:
+  - {date: "2026-01-15", time: null, type: holiday_nse, gate: E3, title: "Municipal Corporation Election - Maharashtra", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-01-26", time: null, type: holiday_nse, gate: E3, title: "Republic Day", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-02-15", time: null, type: holiday_nse, gate: E3, title: "Mahashivratri", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-03-03", time: null, type: holiday_nse, gate: E3, title: "Holi", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-03-21", time: null, type: holiday_nse, gate: E3, title: "Id-Ul-Fitr (Ramadan Eid)", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-03-26", time: null, type: holiday_nse, gate: E3, title: "Shri Ram Navami", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-03-31", time: null, type: holiday_nse, gate: E3, title: "Shri Mahavir Jayanti", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-04-03", time: null, type: holiday_nse, gate: E3, title: "Good Friday", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-04-14", time: null, type: holiday_nse, gate: E3, title: "Dr. Baba Saheb Ambedkar Jayanti", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-05-01", time: null, type: holiday_nse, gate: E3, title: "Maharashtra Day", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-05-28", time: null, type: holiday_nse, gate: E3, title: "Bakri Id", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-06-26", time: null, type: holiday_nse, gate: E3, title: "Muharram", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-08-15", time: null, type: holiday_nse, gate: E3, title: "Independence Day", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-09-14", time: null, type: holiday_nse, gate: E3, title: "Ganesh Chaturthi", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-10-02", time: null, type: holiday_nse, gate: E3, title: "Mahatma Gandhi Jayanti", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-10-20", time: null, type: holiday_nse, gate: E3, title: "Dussehra", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-11-08", time: null, type: holiday_nse, gate: E3, title: "Diwali Laxmi Pujan", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-11-10", time: null, type: holiday_nse, gate: E3, title: "Diwali-Balipratipada", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-11-24", time: null, type: holiday_nse, gate: E3, title: "Prakash Gurpurb Sri Guru Nanak Dev", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-12-25", time: null, type: holiday_nse, gate: E3, title: "Christmas", source_url: "https://www.nseindia.com/api/holiday-master?type=trading"}
+  - {date: "2026-10-07", time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC policy decision", source_url: "https://www.business-standard.com/amp/economy/news/rbi-s-panel-starts-monetary-policy-deliberations-0-25-bps-rate-hike-likely-126100500635_1.html"}
+  - {date: "2026-10-28", time: null, type: us_fomc, gate: E1, title: "US FOMC decision (announced after Indian close)", source_url: "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"}
