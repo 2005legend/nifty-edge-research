@@ -223,9 +223,8 @@ research/experiments.csv   append-only experiment registry (used by SP2)
   - the Nifty 50 constituents
   - Nifty and Sensex futures, if Angel One serves expired contracts
 - The run resumes where it stopped, writes a manifest of what was fetched, and can be re-run safely.
-- **Open item to settle while building SP1:**
-  - Check whether expired futures 1-minute data can be fetched.
-  - If not, VWAP for the backtest comes from constituent volume (index weights × constituent VWAP), and that substitution is documented.
+- **Settled 2026-10-21:** Angel One serves no 1-minute data for expired futures, and only the live contracts' last 95 days are fetched. VWAP everywhere is the stock-volume proxy of §6.0.
+- Angel One returns at most 8,000 candles per request and drops the oldest, so a request that hits the cap is split and fetched again.
 - Daily history is backfilled for 2015 to today as a cross-check against Yahoo data already in `data/`.
 
 ### 5.7 End-of-day jobs (`eod/`), run after 18:30
@@ -393,7 +392,7 @@ The research discipline still applies. Every indicator below is a *tested featur
 | Trend structure | 20/50/200-DMA position and slope; swing highs/lows (fractal pivots) giving higher-high/higher-low or lower-high/lower-low structure; EMA 9/21 on 5-min | Daily, 60-min, 15-min, 5-min | Displayed; the slow-trend part feeds the hurdle layer (RV-3) |
 | Momentum | RSI(14), MACD histogram, ADX with +DI/−DI, rate of change | Daily, 15-min | Displayed |
 | Volatility | ATR(14), Bollinger bandwidth, opening range, noise band, HAR-IV-ON remaining-day move and its percentile (or the forecaster chosen by pilot 7 in §6.3) | Daily, intraday | Sets stops and targets. The HAR percentile is the meta-model's regime feature. |
-| Volume and flow | Futures VWAP and its bands; anchored VWAP from the day open and from the last swing; previous-day volume profile (POC, value-area high/low); 5-level order-flow imbalance | Intraday | Location score, trailing-stop anchor, OFI veto |
+| Volume and flow | VWAP (the stock-volume proxy, §6.0) and its bands; anchored VWAP from the day open and from the last swing; previous-day volume profile (POC, value-area high/low); 5-level order-flow imbalance | Intraday | Location score, trailing-stop anchor, OFI veto |
 | Level map | Prior day/week high, low and close; round 100s; swing pivots; classic pivot/CPR (shown only); expiry-day OI walls | Daily and intraday | Room-to-run gate, targets and stops |
 | Chart and candle patterns | Inside bar / narrow-range day; engulfing and rejection candles at key levels; flag/consolidation break; double top/bottom at prior extremes | 15-min, daily | Displayed only |
 | Breadth and leaders | Nifty 50 advance/decline, % of constituents above VWAP, weighted direction of the top-5 heavyweights, Bank Nifty vs Nifty relative strength | Intraday | Confirmation gate |
@@ -432,6 +431,36 @@ The research showed macro data predicts *range, risk and timing*, not intraday d
 ---
 
 ## 6. SP2: strategy core + backtester (design constraints for its own design pass)
+
+### 6.0 Data conventions (decided 2026-10-21)
+
+The owner asked for the most reliable long-term choice on each. Reasons are in `docs/decisions.md`.
+
+**VWAP: the stock-volume proxy, in the backtest and live alike.**
+- For minute t: VWAP_t = Σ_{s≤t} I_s × TV_s / Σ_{s≤t} TV_s.
+  - I_s is the index's typical price (high + low + close) / 3 in minute s.
+  - TV_s is the summed traded value (price × volume) of the Nifty 50 stocks that traded in minute s.
+  - Sensex uses the same TV_s, since its 30 stocks are almost all Nifty 50 members.
+- Anchored VWAPs (from the open, or from the last swing) and VWAP bands use the same weights.
+- The live engine computes the same proxy from the recorded stock ticks, so backtest and live agree (the parity test). The real futures VWAP is recorded and drawn on the chart, but no rule uses it.
+- **Check before any P&L look (a zero-trial pilot):**
+  - Data: front-month futures minutes, from the live contracts' history and every recorded day.
+  - Compare the side of price relative to VWAP (index vs proxy against futures vs futures VWAP), and the gap between the two VWAPs after removing the futures premium.
+  - It passes if the sides disagree in at most 5% of minutes and the median gap is at most 0.1 × the median structural stop b.
+  - If it fails, every VWAP rule switches to an index-only anchor in both backtest and live: the average typical price since the open. That switch is decided before any P&L is seen.
+
+**Charges: today's schedule for every trade.**
+- Every backtest trade pays the current schedule in `quantdesk/costs.py`, and verdicts and gates use those figures.
+- Each date's own schedule is reported beside them.
+- When charges change, the validation figures are recomputed at the new schedule.
+- Lot sizes, expiry weekdays and the closing auction still follow each historical date (§6.2).
+
+**Time to expiry: weighted business time.**
+- Each continuous-session minute gets a weight proportional to the mean squared 1-minute Nifty return at that time of day.
+- Each overnight gap, weekend and holiday gets its own weight, fitted from NSE bhavcopy at-the-money implied vols on days 1–6 before expiry, compared with India VIX.
+- Both are fitted on 2019–2022 data and then frozen. T for Black-76 is the business time left to the 15:30 expiry.
+- σ is India VIX converted to this clock, which needs the VIX expiry rule (§9 item 4).
+- The recorded chains then check the clock (median premium-change error ≤ 15%, §6.2). It is refitted only if that check fails, and the refit is logged in `docs/decisions.md`.
 
 ### 6.1 Strategy pipeline (pure functions)
 
@@ -520,9 +549,9 @@ The research showed macro data predicts *range, risk and timing*, not intraday d
   - ×1.5 for 09:30–10:00
 - **Rules applied as they were on each historical date:**
   - lot sizes
-  - STT rates
   - expiry weekdays (Thursday → Tuesday in Sep 2025)
   - closing auction from 3 Aug 2026
+- **Charges** (STT and exchange fees) are today's for every trade, with each date's own shown beside them (§6.0).
 - **Report splits** at June 2024, 20 Nov 2024, 1 Sep 2025 and 3 Aug 2026.
 - **Costs** come from a unit-tested cost model (brokerage ₹20 per order, STT, exchange charges, SEBI fee, GST, stamp duty) plus the spread and slippage table.
 
@@ -819,7 +848,7 @@ The pilot's own calls are logged but not scored.
 1. ~~Can Angel One serve expired futures 1-minute candles?~~ **Settled 2026-10-21: no.**
    - The Nifty Sep-2026 future (token 68407, from NSE's bhavcopy) returned 0 candles.
    - Control: the still-trading Oct future (token 48704, identical in NSE's file and Angel's master) returned 376 candles for the same day.
-   - So historical futures VWAP (2019–2026) cannot come from Angel One. Choosing the VWAP source for the backtest is an SP2 design-pass decision.
+   - So historical futures VWAP (2019–2026) cannot come from Angel One. **Decided 2026-10-21:** the stock-volume proxy of §6.0, in the backtest and live alike.
    - F&O trades through the 15:15 closing auction: futures have bars to 15:30, while the index pauses.
 2. Angel One's websocket token limit per connection and the OI update frequency.
 3. ~~The current Sensex lot size and tick sizes.~~ **Settled 2026-10-20** from Angel One's live instrument master:
@@ -828,7 +857,7 @@ The pilot's own calls are logged but not scored.
    - Strike steps 100 and 50.
    - Index tokens 99926000 / 99919000 / 99926017 confirmed.
    - The master also shows the Nifty weekly of 10 Nov 2026 shifted to Monday 9 Nov (holiday). This confirms expiries must come from the master.
-4. The India VIX expiry rule, needed for business-time scaling.
+4. The India VIX expiry rule, needed to convert VIX to the weighted business-time clock of §6.0 (the clock itself was decided on 2026-10-21).
 5. A cheap source of historical expired-option 1-minute data, only if the pricing check fails.
 6. Whether Angel One supports index-triggered or trailing orders on options. If not, trail ratchets stay manual, and backtests model a 1–2 minute exit latency.
 7. The desk pilot's outcome (Path A or B).

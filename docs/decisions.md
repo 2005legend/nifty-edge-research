@@ -296,3 +296,23 @@ Each changes what the backtest can claim, so this needs the owner's decision.
   - The recorder now holds a Windows keep-awake request while it runs (`quantdesk/power.py`), the request a video player makes, so no power setting needs changing.
   - If the router loses power in a cut, the feed still stops.
 - After a fresh macro run, all 24 macro series report ok, including the NSE bond index and Nifty fundamentals.
+
+## 2026-10-21: SP2 data conventions (owner: "go with the most reliable long-term design")
+
+The full rules are in spec §6.0.
+
+- **VWAP comes from the stock-volume proxy, in the backtest and live alike.**
+  - Each minute's index price is weighted by the Nifty 50 stocks' traded value in that minute.
+  - Why: it uses data we already download and reflects each day's real volume. Using it live too keeps the backtest and the live engine on the same number.
+  - Rejected: dropping VWAP, because the D1 exit research rests on it, and paid futures history, because of the cost and the daily futures-premium adjustment.
+  - A zero-trial check against real front-month futures VWAP comes before any P&L look. If it fails (sides disagree in more than 5% of minutes, or the median gap is over 0.1 × the median stop), every VWAP rule switches to the open-anchored average price, in the backtest and live.
+  - *Cost if wrong:* entries and trails sit slightly off the level traders watch. The check measures how far.
+- **Charges are today's for every trade, with each date's own shown beside them.**
+  - Why: today's charges are what the owner will pay, and they are the higher figure, so the error can only make results look worse.
+  - The difference is about ₹3 per round trip, under 1% of the ₹400 risk.
+  - *Cost if wrong:* old periods look slightly worse than they were.
+- **Time to expiry uses weighted business time.**
+  - Minute weights come from the 1-minute Nifty history. Night, weekend and holiday weights come from bhavcopy at-the-money implied vols against India VIX. Both are fitted on 2019–2022 and then frozen.
+  - The recorded chains check the clock (median premium-change error ≤ 15%), and it is refitted only if that check fails.
+  - Why: calendar time misprices expiry-day options by about half, and a plain trading-minute clock ignores overnight gaps, which overprices intraday options.
+  - *Cost if wrong:* modelled premiums are off. The recorded-chain check catches it before any verdict.
