@@ -12,9 +12,9 @@ The design is in [the spec](superpowers/specs/2026-10-06-nifty-sensex-options-si
 
 | Part | What it does | Status |
 |---|---|---|
-| SP1 data foundation | Records live ticks and option chains, downloads history, EOD files, macro data and news | Built. Needs your credentials, a live check and the backlog below |
-| SP4 analyst desk | Groq LLM writes an evening brief and a morning update. Commentary only, never a trade vote | Not started. The pilot comes next |
-| SP2 strategy core and backtester | Chart and macro engines, the H1 signal pipeline, the 2019–2026 simulation, the pre-registered validation | Not started. Needs a design pass first |
+| SP1 data foundation | Records live ticks and option chains, downloads history, EOD files, macro data and news | Built and verified live; runs every weekday from Task Scheduler. Done after 5 clean days in a row |
+| SP4 analyst desk | Groq LLM writes an evening brief and a morning update. Commentary only, never a trade vote | Pilot runs nightly at 19:30 for 10 runs; then Path A or B is built |
+| SP2 strategy core and backtester | Chart and macro engines, the H1 signal pipeline, the 2019–2026 simulation, the pre-registered validation | Cost model and Black-76 built. The design pass is next and needs your data decisions |
 | SP3 live engine, dashboard, journal | Alerts at `127.0.0.1:8000`, paper trades, trade journal, locks, kill-switches | Not started. Needs a design pass with dashboard mockups |
 
 So yes, most of the system is still ahead. SP2 is the largest piece and the one that decides whether the system ever sends an alert.
@@ -41,11 +41,13 @@ The research also says the most likely result of SP2 is that no configuration pa
 3. During market hours, run `.venv\Scripts\python -m pytest -m live -v` (5 tests).
 4. Set up the Windows Task Scheduler jobs from the runbook.
 5. Start both one-off backfills (`backfill --what history` and `backfill --what bhavcopy`). They take hours and resume safely.
-6. After the first recorded day, run `python -m quantdesk status`. Expect 375 minutes recorded and an empty problem list.
+6. After the first recorded day, run `python -m quantdesk status`. Expect 360 minutes recorded (375 before the closing auction began on 3 Aug 2026) and an empty problem list.
 7. Answer spec §9 items 1 and 2 and write the answers into `decisions.md`:
    - Does Angel One serve 1-minute candles for expired futures?
    - What is the real per-connection websocket token limit? `max_tokens_per_connection: 1000` is a guess.
-8. Find working URLs for FBIL G-sec yields and the NSE index P/E file, and put them in `config/settings.yaml` (`urls.fbil_gsec`, `urls.nse_index_pe`). Each source also needs a small fetch-and-parse function in `quantdesk/macro/sources.py`; both currently raise `NotImplementedError`.
+8. Find sources for the India 10-year bond and Nifty P/E. Done: both come from NSE's free daily index file; FBIL was ruled out by its paid-subscription terms (`decisions.md`, 21 Oct 2026).
+
+Steps 1–5, 7 and 8 were done on 21 Oct 2026.
 
 Phase 1 is done after 5 trading days in a row with full recordings and no unexplained problems in the health report.
 
@@ -132,7 +134,7 @@ Monitoring runs as in spec §7. Moving above 1 lot needs all four:
 ## Rules when you write code here
 
 - Work on a branch from `main` (for example `git switch -c fix/option-meta`) and merge back when the whole suite passes.
-- Write the failing test first, then the code. Run `.venv\Scripts\python -m pytest -q`: 124 tests, all offline, about 10 seconds.
+- Write the failing test first, then the code. Run `.venv\Scripts\python -m pytest -q`: 218 tests, all offline, about 12 seconds.
 - Normal tests never touch the network. Pass the clock, sleep, HTTP and stream in as arguments and use the fakes in `tests/fakes.py` (`FakeClock`, `FakeHttp`, `FakeSmartConnect`, `ScriptedStream` and others). A test that needs Angel One gets `@pytest.mark.live`.
 - Never edit or overwrite anything under `data/raw`; `Store.write_raw` refuses. Tables go through `Store.append_parquet`.
 - No order-placing code. `test_no_order_methods_exist` in `tests/test_angel.py` enforces this. The app sends alerts; you place orders yourself.

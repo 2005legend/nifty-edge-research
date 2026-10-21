@@ -282,3 +282,17 @@ Each changes what the backtest can claim, so this needs the owner's decision.
   - Checked against Hull's example (1.12), put-call parity, finite differences and an IV round trip.
   - On live data at 14:35, the Nifty 22700 call and put both gave 14.34% IV, with India VIX at 15.88.
   - The business-time clock is still SP2 (spec §9 item 4).
+
+## 2026-10-21 (evening): Three data faults found after the first full day
+
+- **Angel One caps candle replies at 8,000 and drops the oldest.**
+  - A 30-day one-minute chunk with 22 trading days needs 8,250 candles, so it lost the first 250 minutes of its first day.
+  - 150 of the first 1,329 chunks were cut.
+  - A reply at the cap is now split in two and fetched again. Cut chunks are refetched: their manifest rows have no `pieces` field.
+  - Readers already de-duplicate on (target, ts), so the overlap is harmless.
+- **NSE's index files before mid-2015 write dates as 24/03/2015.** The parser now reads both forms. The first fundamentals backfill skipped those days, and `backfill --what fundamentals --start 2015-01-01 --end 2015-06-30` refetches only that gap.
+- **The 13:50 sleep was a power cut.**
+  - The laptop went on battery, which sleeps after 15 idle minutes. The plugged-in setting is 3 hours.
+  - The recorder now holds a Windows keep-awake request while it runs (`quantdesk/power.py`), the request a video player makes, so no power setting needs changing.
+  - If the router loses power in a cut, the feed still stops.
+- After a fresh macro run, all 24 macro series report ok, including the NSE bond index and Nifty fundamentals.

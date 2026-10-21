@@ -40,25 +40,25 @@ powershell -ExecutionPolicy Bypass -File scripts\schedule_tasks.ps1
 
 Run it again after changing a time; it updates the jobs in place. `-Remove` deletes them all. The jobs are named `quantdesk-news`, `-macro-morning`, `-record`, `-macro-intraday`, `-eod` and `-macro-evening`. Each one:
 - runs hidden while you are logged in, so there is no window to close by accident
-- appends its output to `logs	asks\<job>.log`
+- appends its output to `logs\tasks\<job>.log`
 - is never started twice while it is still running
 - starts later if the PC was off at its time, and keeps running on battery
 
 `record` and `eod` may also wake the PC from sleep. The news poller runs continuously, so its job has no time limit. Don't also run `python -m quantdesk news` in a terminal, or every headline is stored twice.
 
-The PC must be on and awake during market hours. Set Windows > Power > "When plugged in, put my device to sleep after" to **Never**. On 21 Oct 2026, Modern Standby at 13:50 stopped the live feed.
+The recorder asks Windows to stay awake while it runs, as a video player does, so neither the plugged-in nor the battery sleep setting stops it. The screen may still turn off. On 21 Oct 2026 a power cut put the laptop on battery, which sleeps after 15 idle minutes, and 73 minutes were lost. The laptop must still be on, with internet: if the router loses power in a cut, the feed stops anyway.
 
 ### Long one-off jobs (backfills)
 
 Don't run long jobs in a terminal inside an app such as the Claude desktop app or VS Code: they die when that app closes or restarts, which happened on 21 Oct 2026. Run them as one-off scheduled jobs instead:
 
 ```
-powershell -ExecutionPolicy Bypass -File scriptsun_detached.ps1 -Name backfill-history -Run "-m quantdesk backfill --what history"
-powershell -ExecutionPolicy Bypass -File scriptsun_detached.ps1 -Name backfill-bhavcopy -Run "-m quantdesk backfill --what bhavcopy"
-powershell -ExecutionPolicy Bypass -File scriptsun_detached.ps1 -Name backfill-fundamentals -Run "-m quantdesk backfill --what fundamentals"
+powershell -ExecutionPolicy Bypass -File scripts\run_detached.ps1 -Name backfill-history -Run "-m quantdesk backfill --what history"
+powershell -ExecutionPolicy Bypass -File scripts\run_detached.ps1 -Name backfill-bhavcopy -Run "-m quantdesk backfill --what bhavcopy"
+powershell -ExecutionPolicy Bypass -File scripts\run_detached.ps1 -Name backfill-fundamentals -Run "-m quantdesk backfill --what fundamentals"
 ```
 
-Each job is hidden, logs to `logs	asks\<Name>.log` and resumes where it stopped if run again. Check on it in Task Scheduler (`quantdesk-oneoff-*`) or in its log.
+Each job is hidden, logs to `logs\tasks\<Name>.log` and resumes where it stopped if run again. Check on it in Task Scheduler (`quantdesk-oneoff-*`) or in its log.
 
 ## Reading the health report
 
@@ -78,7 +78,7 @@ Each job is hidden, logs to `logs	asks\<Name>.log` and resumes where it stopped 
 | `macro india_gsec10y_price: failed` / `nifty_fundamentals: failed` | NSE's daily index file could not be fetched (block page or network) | Re-run `python -m quantdesk macro` later |
 | `news feed stale: X` | Feed X published nothing for 24 h | Fine on holidays; otherwise check the URL in `config/news_feeds.yaml` |
 | `feed stale periods: N` | The live feed stopped for 30+ seconds N times | The recorder reconnects by itself. Check your internet if N is large. |
-| `NIFTY: N minutes missing` | Recording started late or the PC slept | Check the PC sleep settings |
+| `NIFTY: N minutes missing` | Recording started late, or the PC or internet was off | Check `logs\tasks\record.log` for when it started and stopped |
 | `record already running (pid N) - nothing to do` | A recorder is already running (often the scheduled one) | Nothing. Leave that one running |
 
 ## Notes
