@@ -10,12 +10,17 @@ import json
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 
+import pandas as pd
+
 from quantdesk.broker.angel import chunk_ranges
 from quantdesk.clock import IST
 from quantdesk.instruments import UNDERLYING_SEGMENTS, current_future
 from quantdesk.storage import Store
 
 FUTURES_LOOKBACK_DAYS = 95
+# getCandleData returns at most 8,000 candles and drops the oldest beyond that: a 30-day one-minute chunk with
+# 22 trading days (8,250 minutes) lost its first 250 (150 of the first 1,329 chunks, found 21 Oct 2026).
+MAX_CANDLES = 8000
 
 
 @dataclass(frozen=True)
@@ -69,7 +74,8 @@ def _load_done(store: Store) -> dict[tuple, str]:
     for line in lines:
         row = json.loads(line)
         key = (row["target"], row["interval"], row["chunk_start"])
-        if row["status"] in ("ok", "empty"):
+        cut = row.get("rows", 0) >= MAX_CANDLES and "pieces" not in row  # stored by a run before the split
+        if row["status"] in ("ok", "empty") and not cut:
             done[key] = max(done.get(key, ""), row["chunk_end"])
         else:
             done.pop(key, None)
@@ -81,6 +87,18 @@ def _append_manifest(store: Store, row: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(row) + "\n")
+
+
+def _fetch(client, target: Target, start: datetime, end: datetime) -> tuple[pd.DataFrame | None, int]:
+    """Candles for [start, end] and the number of requests that made them; a reply at the cap is split in two."""
+    frame = client.candles(target.exchange, target.token, target.interval, start, end)
+    if frame is None or len(frame) < MAX_CANDLES or start.date() == end.date():
+        return frame, 1
+    middle = start.date() + (end.date() - start.date()) // 2
+    first, n1 = _fetch(client, target, start, datetime.combine(middle, time(23, 59), tzinfo=start.tzinfo))
+    second, n2 = _fetch(client, target, datetime.combine(middle + timedelta(days=1), time(0, 0), tzinfo=start.tzinfo), end)
+    parts = [f for f in (first, second) if f is not None and not f.empty]
+    return (pd.concat(parts, ignore_index=True) if parts else first), n1 + n2
 
 
 def run_backfill(targets: list[Target], client, store: Store, clock, settings: dict) -> BackfillReport:
@@ -99,17 +117,17 @@ def run_backfill(targets: list[Target], client, store: Store, clock, settings: d
             row = {"target": target.name, "interval": target.interval,
                    "chunk_start": chunk_start.isoformat(), "chunk_end": chunk_end.isoformat()}
             try:
-                frame = client.candles(target.exchange, target.token, target.interval, chunk_start, chunk_end)
+                frame, pieces = _fetch(client, target, chunk_start, chunk_end)
             except Exception as exc:  # noqa: BLE001 - recorded, run continues
                 _append_manifest(store, {**row, "rows": 0, "status": "error", "error": str(exc)[:200]})
                 report.errors += 1
                 continue
             if frame is None or frame.empty:
-                _append_manifest(store, {**row, "rows": 0, "status": "empty"})
+                _append_manifest(store, {**row, "rows": 0, "status": "empty", "pieces": pieces})
             else:
                 frame = frame.assign(target=target.name)
                 store.append_parquet(kind, chunk_start.date(), frame)
-                _append_manifest(store, {**row, "rows": len(frame), "status": "ok"})
+                _append_manifest(store, {**row, "rows": len(frame), "status": "ok", "pieces": pieces})
                 report.rows += len(frame)
             report.chunks_done += 1
     return report

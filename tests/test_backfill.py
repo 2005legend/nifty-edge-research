@@ -106,3 +106,50 @@ def test_progress_in_the_old_raw_location_is_still_honoured(tmp_path):
     report = run_backfill(small_targets(), second, store, FakeClock(NOW), load_settings())
     assert second.calls == []
     assert report.chunks_skipped == len(first.calls)
+
+
+class CappedCandleClient:
+    """Angel One's getCandleData: 375 one-minute candles per weekday, and at most 8,000 per reply,
+    keeping the newest (seen on 150 of the first 1,329 chunks, 21 Oct 2026)."""
+
+    def __init__(self):
+        self.calls = []
+
+    def candles(self, exchange, token, interval, start, end):
+        self.calls.append((start, end))
+        days = pd.bdate_range(start.date(), end.date())
+        ts = [datetime.combine(d.date(), datetime.min.time(), tzinfo=IST) + timedelta(minutes=555 + m)
+              for d in days for m in range(375)]
+        ts = [t for t in ts if start <= t <= end][-8000:]
+        return pd.DataFrame({"ts": ts, "open": 1.0, "high": 1.0, "low": 1.0, "close": 1.0, "volume": 0})
+
+
+CAPPED_NOW = datetime(2025, 1, 28, 23, 59, tzinfo=IST)  # 30 Dec 2024 - 28 Jan 2025: 22 weekdays, 8,250 minutes
+
+
+def capped_target():
+    return [Target("CIPLA", "NSE", "694", "ONE_MINUTE", date(2024, 12, 30))]
+
+
+def test_a_reply_at_the_candle_cap_is_split_until_nothing_is_cut(tmp_path):
+    store = Store(tmp_path)
+    run_backfill(capped_target(), CappedCandleClient(), store, FakeClock(CAPPED_NOW), load_settings())
+    stored = store.read("history_one_minute")
+    assert stored["ts"].nunique() == 22 * 375
+    assert (stored["ts"].dt.date == date(2024, 12, 30)).sum() == 375  # the day Angel drops first
+    row = manifest(store)[-1]
+    assert (row["rows"], row["status"], row["pieces"]) == (8250, "ok", 2)
+
+
+def test_chunks_cut_at_the_cap_by_an_older_run_are_fetched_again(tmp_path):
+    store = Store(tmp_path)
+    path = store.root / "state" / "history_manifest.jsonl"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps({"target": "CIPLA", "interval": "ONE_MINUTE",
+                                "chunk_start": "2024-12-30T00:00:00+05:30", "chunk_end": "2025-01-28T23:59:00+05:30",
+                                "rows": 8000, "status": "ok"}) + "\n")
+    client = CappedCandleClient()
+    report = run_backfill(capped_target(), client, store, FakeClock(CAPPED_NOW), load_settings())
+    assert report.chunks_skipped == 0 and len(client.calls) == 3  # the full chunk, then its two halves
+    second = run_backfill(capped_target(), CappedCandleClient(), store, FakeClock(CAPPED_NOW), load_settings())
+    assert second.chunks_skipped == 1
