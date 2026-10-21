@@ -52,6 +52,21 @@ class DerivedStore:
         staging.rename(final)
         return self._record(name)
 
+    def write_parts(self, name: str, con, queries: dict) -> dict:
+        """Store table `name` from one query per Hive partition, e.g. {"year=2019": sql, ...}: a large table
+        is built a slice at a time instead of in one query that has to fit in memory."""
+        self.root.mkdir(parents=True, exist_ok=True)
+        staging = self.root / f".{name}.{uuid.uuid4().hex[:8]}"
+        for part, sql in queries.items():
+            folder = staging / part
+            folder.mkdir(parents=True)
+            con.execute(f"copy ({sql}) to '{(folder / 'part-0.parquet').as_posix()}' (format parquet)")
+        final = self._dir(name)
+        if final.exists():
+            shutil.rmtree(final)
+        staging.rename(final)
+        return self._record(name)
+
     def read(self, name: str, where: str | None = None, columns: str = "*") -> pd.DataFrame:
         sql = f"select {columns} from read_parquet('{self.glob(name)}', hive_partitioning=true)"
         if where:

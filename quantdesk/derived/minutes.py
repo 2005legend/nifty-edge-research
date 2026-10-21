@@ -19,23 +19,29 @@ REGULAR_SHARE = 0.95  # a regular day has at least 95% of its expected bars
 
 def build_minutes(store, derived: DerivedStore) -> dict:
     source = (store.root / "raw" / "history_one_minute" / "**" / "*.parquet").as_posix()
-    sql = f"""
-        with raw as (
-            select target, ts, open, high, low, close, volume, filename,
-                   timezone('Asia/Kolkata', ts) as local
-            from read_parquet('{source}', filename=true, hive_partitioning=false, union_by_name=true)
-        ), ranked as (
-            select *, row_number() over (partition by target, ts order by filename desc) as rn from raw
-        )
-        select target, ts, open, high, low, close, volume,
-               ts + interval 1 minute as available_at,
-               cast(local as date) as day,
-               year(local) as year
-        from ranked
-        where rn = 1 and cast(local as time) >= time '09:15' and cast(local as time) < time '15:30'
-        order by target, ts
-    """
-    return derived.write_query("minutes", duckdb.connect(), sql, partition_by="year")
+    con = duckdb.connect()
+    con.execute("set preserve_insertion_order = false")
+    years = [y for (y,) in con.execute(
+        f"select distinct year(timezone('Asia/Kolkata', ts)) from read_parquet('{source}', hive_partitioning=false) order by 1"
+    ).fetchall()]
+    queries = {}
+    for year in years:  # one year at a time: the whole table does not fit in memory
+        queries[f"year={year}"] = f"""
+            with raw as (
+                select target, ts, open, high, low, close, volume, filename,
+                       timezone('Asia/Kolkata', ts) as local
+                from read_parquet('{source}', filename=true, hive_partitioning=false, union_by_name=true)
+                where ts >= timestamptz '{year}-01-01 00:00:00+05:30' and ts < timestamptz '{year + 1}-01-01 00:00:00+05:30'
+            ), ranked as (
+                select *, row_number() over (partition by target, ts order by filename desc) as rn from raw
+            )
+            select target, ts, open, high, low, close, volume,
+                   ts + interval 1 minute as available_at,
+                   cast(local as date) as day
+            from ranked
+            where rn = 1 and cast(local as time) >= time '09:15' and cast(local as time) < time '15:30'
+        """
+    return derived.write_parts("minutes", con, queries)
 
 
 def build_sessions(derived: DerivedStore, session: dict) -> dict:
@@ -57,7 +63,7 @@ def build_sessions(derived: DerivedStore, session: dict) -> dict:
         auction_day = row.day >= since
         expected = 361 if auction_day else 375      # 09:15-15:14 plus the 15:29 auction print, or 09:15-15:29
         last_ok = row.last_bar >= (time(15, 14) if auction_day else time(15, 29))
-        regular = (row.day.weekday() < 5 and row.first_bar == time(9, 15) and last_ok
+        regular = (row.day.weekday() < 5 and row.first_bar <= time(9, 20) and last_ok
                    and row.bars >= REGULAR_SHARE * expected)
         return "regular" if regular else "irregular"
 

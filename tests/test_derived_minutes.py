@@ -33,6 +33,8 @@ def test_minutes_are_deduplicated_session_filtered_and_stamped(tmp_path):
 def test_sessions_mark_special_and_short_days_irregular(tmp_path):
     raw = Store(tmp_path / "raw")
     regular, short, weekend, late = date(2024, 3, 4), date(2021, 2, 24), date(2024, 3, 2), date(2026, 7, 23)
+    missing_open = date(2022, 1, 4)                                                      # Angel lacks the 09:15 bar
+    raw.append_parquet("history_one_minute", missing_open, bars("NIFTY", missing_open, start="09:16", n=374))
     auction = date(2026, 10, 19)
     raw.append_parquet("history_one_minute", regular, bars("NIFTY", regular))
     raw.append_parquet("history_one_minute", short, bars("NIFTY", short, n=145))        # the 2021 outage
@@ -46,6 +48,7 @@ def test_sessions_mark_special_and_short_days_irregular(tmp_path):
     sessions = derived.read("sessions").set_index("day")
     assert sessions.loc[regular, "kind"] == "regular"
     assert sessions.loc[auction, "kind"] == "regular"
+    assert sessions.loc[missing_open, "kind"] == "regular"
     assert sessions.loc[short, "kind"] == "irregular"
     assert sessions.loc[weekend, "kind"] == "irregular"
     assert sessions.loc[late, "kind"] == "irregular"
