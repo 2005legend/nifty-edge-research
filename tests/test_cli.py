@@ -199,3 +199,18 @@ def test_news_refuses_a_second_copy(app, monkeypatch, capsys):
     with run_lock(app.store, "news"):
         assert cli.main(["news", "--once"]) == 0
     assert "already running" in capsys.readouterr().out
+
+
+def test_label_sample_writes_a_sheet_for_pilot_8(app, capsys):
+    import pandas as pd
+
+    t = datetime(2026, 10, 19, 10, 0, tzinfo=IST)
+    app.store.append_parquet("news", date(2026, 10, 19), pd.DataFrame([
+        {"item_id": "a", "story_key": "a", "feed": "rbi_press", "title": "RBI keeps repo rate unchanged",
+         "link": "x", "summary": "s", "pub_date": t, "first_seen": t, "price_restatement": False},
+        {"item_id": "b", "story_key": "b", "feed": "et_markets", "title": "Sensex tanks 800 points",
+         "link": "y", "summary": "s", "pub_date": t, "first_seen": t, "price_restatement": True}]))
+    assert cli.main(["label-sample", "--n", "300"]) == 0
+    sheet = pd.read_csv(app.store.root / "labels" / "pilot8_headlines.csv", encoding="utf-8-sig")
+    assert list(sheet["title"]) == ["RBI keeps repo rate unchanged"]
+    assert "1 headlines" in capsys.readouterr().out

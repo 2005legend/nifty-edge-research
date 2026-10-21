@@ -10,3 +10,4 @@ env.txt
 !.env.example
 logs/
 *.egg-info/
+.venv-desk/

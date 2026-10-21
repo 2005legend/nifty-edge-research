@@ -16,6 +16,7 @@ from quantdesk.eod.flows import run_eod
 from quantdesk.history.backfill import default_targets, run_backfill
 from quantdesk.macro.collect import run_macro_daily, run_macro_intraday
 from quantdesk.news.collect import SeenIndex, poll_gdelt_once, poll_once, run_news_loop
+from quantdesk.news.labels import sample_for_labelling, write_label_sheet
 from quantdesk.quality import build_health_report, write_health_report
 from quantdesk.recorder.live import AlreadyRunningError, RecordingSummary, run_lock, run_recording
 
@@ -196,6 +197,27 @@ def cmd_news(app, args) -> int:
     return 0
 
 
+LABEL_GUIDE = """Pilot 8 headline labels (spec section 6.3). Label every row BEFORE any model scores these headlines.
+tone: negative / neutral / positive - for the Indian index market (Nifty/Sensex), not for one company.
+market_moving: yes / no - could it move Nifty or Sensex by about 0.3% or more within the day?
+notes: optional. Leave a row's labels empty if you cannot tell; it will be skipped.
+Save as CSV (keep the file name). Then tell Claude the labels are done.
+"""
+
+
+def cmd_label_sample(app, args) -> int:
+    path = app.store.root / "labels" / "pilot8_headlines.csv"
+    sheet = sample_for_labelling(app.store.read("news"), n=args.n, seed=args.seed)
+    try:
+        write_label_sheet(sheet, path)
+    except FileExistsError as exc:
+        print(exc)
+        return 1
+    (path.parent / "README.txt").write_text(LABEL_GUIDE, encoding="utf-8")
+    print(f"wrote {len(sheet)} headlines from {sheet['feed'].nunique()} feeds to {path}")
+    return 0
+
+
 def cmd_status(app, args) -> int:
     day = _day(args.day, app)
     report = app.store.read_report("health", day) or _health(app, day)
@@ -226,6 +248,10 @@ def build_parser() -> argparse.ArgumentParser:
     news = sub.add_parser("news", help="India news collector")
     news.add_argument("--once", action="store_true")
     news.set_defaults(func=cmd_news)
+    label = sub.add_parser("label-sample", help="headlines for the owner to label (pilot 8)")
+    label.add_argument("--n", type=int, default=300)
+    label.add_argument("--seed", type=int, default=8)
+    label.set_defaults(func=cmd_label_sample)
     status = sub.add_parser("status", help="data health summary")
     status.add_argument("--day")
     status.set_defaults(func=cmd_status)
