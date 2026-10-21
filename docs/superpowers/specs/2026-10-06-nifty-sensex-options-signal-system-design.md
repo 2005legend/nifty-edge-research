@@ -178,7 +178,7 @@ research/experiments.csv   append-only experiment registry (used by SP2)
 - Re-logs in automatically at 08:45 and whenever a session error comes back.
 
 **Candles:**
-- `getCandleData` wrapper with a token-bucket limiter set below the published limits (3 requests/second, 180/minute, 5,000/hour).
+- `getCandleData` wrapper with a token-bucket limiter set below the published limits (3 requests/second, 120/minute, 5,000/hour, counted per client code; corrected 21 Oct 2026 from the RateLimit page).
 - Exponential backoff on HTTP 429/5xx errors.
 - Chunks requests to the per-interval maximum day span.
 

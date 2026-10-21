@@ -10,7 +10,9 @@ session:
 paths: {data_dir: data}
 
 angel:
-  rate_limits: [[3, 1.0], [180, 60.0], [5000, 3600.0]]   # (calls, seconds); limiter uses calls-1 per window
+  # getCandleData limits from the SmartAPI RateLimit page (21 Oct 2026), counted per client code across all
+  # our processes; ltpData allows more (10/s, 500/min). (calls, seconds); limiter uses calls-1 per window.
+  rate_limits: [[3, 1.0], [120, 60.0], [5000, 3600.0]]
   candle_max_days: {ONE_MINUTE: 30, THREE_MINUTE: 60, FIVE_MINUTE: 100, TEN_MINUTE: 100,
                     FIFTEEN_MINUTE: 200, THIRTY_MINUTE: 200, ONE_HOUR: 400, ONE_DAY: 2000}
   relogin_time: "08:45"

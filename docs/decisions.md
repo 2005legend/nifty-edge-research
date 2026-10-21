@@ -186,3 +186,14 @@ The first recording started at 11:45, so the day is partial.
 - Without this change, the report would have flagged "14 minutes missing" every day, and real gaps would get lost in that noise.
 
 **Still to observe.** Do Sensex and VIX also stop during the auction? The 3-index live test will show it. Does the live feed send index ticks during 15:15–15:29? Today's recording will show it.
+
+## 2026-10-21: Historical-data limit is 120 per minute, and plain-text refusals are retried
+
+**Finding.** In the second live run, Angel One refused 2 of 3 candle requests with the plain-text reply "Access denied because of exceeding access rate". The Angel One library turns that reply into a `DataException`. Our retry only recognised Angel's JSON error format, so the requests failed straight away instead of waiting and trying again. Angel One's RateLimit page now gives `getCandleData` as **3 per second, 120 per minute and 5000 per hour**, counted per client code across every program using the account. Our limiter assumed 180 per minute.
+
+**Decision.**
+- The limiter is set to 3 per second, 120 per minute and 5000 per hour; it allows one fewer call than each limit.
+- Any error that says "exceeding access rate" is retried with backoff.
+- The spec's figure is corrected.
+
+**Why it matters.** The history backfill sends calls back to back for hours. At 180 per minute it would have hit the limit every minute and logged failed chunks.

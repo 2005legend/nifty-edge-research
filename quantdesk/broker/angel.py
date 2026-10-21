@@ -44,6 +44,8 @@ def chunk_ranges(start: datetime, end: datetime, max_days: int) -> list[tuple[da
 def _is_retryable(exc: Exception) -> bool:
     if isinstance(exc, AngelApiError):
         return exc.code in _RATE_CODES or "rate" in exc.message.lower() or exc.code.startswith("5")
+    if "exceeding access rate" in str(exc).lower():
+        return True  # the gateway's plain-text 403, which the SDK raises as DataException
     return isinstance(exc, (ConnectionError, TimeoutError, OSError))
 
 
