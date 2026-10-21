@@ -82,15 +82,26 @@ def _minutes_since_open(at: datetime) -> float:
 
 
 def _gap_weights(sessions: tuple, theta_night: float, theta_weekend_day: float, theta_holiday: float) -> np.ndarray:
-    """theta_n + theta_w*W + theta_h*H for each pair of consecutive sessions.
+    """theta_n + theta_w*W + theta_h*H for each pair of consecutive sessions."""
+    weekend, holiday = gap_days(sessions)
+    return theta_night + theta_weekend_day * weekend + theta_holiday * holiday
+
+
+def gap_days(sessions) -> tuple[np.ndarray, np.ndarray]:
+    """(weekend days, weekday holidays) strictly between each pair of consecutive sessions.
 
     Every day strictly between two consecutive sessions is not a session, so the weekday ones are holidays
-    and the rest are weekend days.
+    and the rest are weekend days. `clockfit` fits the weights of these same two counts, so the clock and
+    its fit cannot drift apart on what a gap is made of.
     """
-    spans = np.array([(b - a).days for a, b in zip(sessions, sessions[1:])], dtype=float)
-    weekend = np.array([sum(1 for offset in range(1, int(span)) if (day + timedelta(days=offset)).weekday() >= 5)
-                        for day, span in zip(sessions, spans)], dtype=float)
-    return theta_night + theta_weekend_day * weekend + theta_holiday * (spans - 1.0 - weekend)
+    days = tuple(sorted(sessions))
+    weekend = []
+    for a, b in zip(days, days[1:]):
+        span = (b - a).days
+        weekend.append(sum(1 for offset in range(1, span) if (a + timedelta(days=offset)).weekday() >= 5))
+    weekend = np.array(weekend, dtype=float)
+    spans = np.array([(b - a).days for a, b in zip(days, days[1:])], dtype=float)
+    return weekend, spans - 1.0 - weekend
 
 
 def save_clock(path: Path, clock: Clock, meta: dict) -> None:

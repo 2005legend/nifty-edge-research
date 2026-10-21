@@ -144,6 +144,7 @@ parameters:
   clock.fit_start: {value: "2019-01-01", source: "spec §6.0", provenance: spec}
   clock.fit_end: {value: "2022-12-31", source: "spec §6.0", provenance: spec}
   clock.fit_dte: {value: [1, 2, 3, 4, 5, 6], source: "spec §6.0", provenance: spec}
+  clock.atm_dte: {value: [2, 3, 4, 5, 6], source: "SP2 detailed design §7 step 1 (2-6 trading days left)", provenance: design_ruling}
   clock.vix_conversion: {value: "sigma_bt = VIX * sqrt((30/365) / BT(next 30 calendar days))", source: "R15", provenance: design_ruling}
   pricing.check_min_sessions: {value: 15, source: "R17", provenance: design_ruling}
   pricing.check_min_expiry_days: {value: 4, source: "R17 (per index)", provenance: design_ruling}

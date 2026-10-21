@@ -476,3 +476,42 @@ The plan was approved on 21 Oct 2026. The rulings are in spec §6.4, and every v
 - **Irregular sessions still count as sessions** (design §7): 15 of the 1929 real sessions are irregular,
   including 2025-10-21 with 72 bars and 2026-07-23 with 299. They are excluded from signals and band
   windows, but time passes on them, so `bt` gives them a full unit.
+
+## 2026-10-21: SP2 plan 1 - clock fit rulings
+
+- **The ATM strike needs no spot input: it is the traded strike with the smallest |C - P|.** Design §7 step 1
+  says "nearest to F" and step 2 says F = K + C - P, so |K - F| = |C - P|. Picking the strike that way is
+  self-consistent with the forward the two implied vols are then inverted at, and keeps `atm_implied_variance`
+  free of an index-level argument. Ties go to the lower strike.
+- **`atm_implied_variance` gained two arguments, `dte` and `sessions`.** The plan's signature `(eod, vix_close)`
+  cannot express the design's "2-6 trading days left" without either hard-coding the window or inferring the
+  calendar from whatever rows happen to be in the frame, which would make the fit's meaning depend on its input
+  slice. Both now arrive from outside: `clock.atm_dte` (new, [2,3,4,5,6], design §7 step 1) and the derived
+  `sessions` table. `clock.fit_dte` stays [1..6] for the surface's R(dte), which the design defines on 1-6.
+- **Trading days left counts the expiry day itself** - the number of sessions in (d, e] - so a chain on the day
+  before expiry has dte 1 and is outside the window. Weeklies are five sessions apart, so on four days in five
+  only one of the two nearest expiries qualifies: 2019 gives 237 ATM observations over 220 days, about 950 for
+  the four-year frozen fit. That is the whole sample the weekend and holiday weights rest on.
+- **A gap with a hole in the chain is dropped, not stretched.** The difference in scaled implied variance is only
+  one night plus one session wide when the two days are consecutive sessions. NSE published nothing for
+  2021-03-30, a real trading day, so pairs spanning it would carry two nights and bias both betas.
+- **theta_n pairs each night with the session that follows it**: r_on,d = ln(O_d / C_d-1) against ln(C_d / O_d)
+  for the same d, which is also the order the clock lays a gap and a session out. Both means run over the same
+  back-to-back pairs, and a pair whose day is missing from `daily` is skipped rather than filled.
+- **The reported standard errors are beta1's and beta2's from (X'X)^-1 s^2, scaled by (1 + theta_n) / beta0** onto
+  the theta scale, ignoring beta0's own uncertainty (the delta method for a ratio would need Cov(beta0, beta1),
+  and the plan asks for (X'X)^-1 s^2). They go in the CLOCK pilot report and gate nothing.
+- **`gap_days` came out of `_gap_weights`** so the clock and its fit count weekend days and weekday holidays the
+  same way by construction, not by two copies of the same loop agreeing.
+- **Slot 0 is measured from the official open in `daily`, not from the first minute bar's print** - the same
+  anchor the noise band uses. A bar missing on one day leaves that slot and the return spanning it out of the
+  mean; nothing is filled in, because a filled hole moves variance to the wrong minute of the day.
+- **Measured on real data, 2019-2022, 981 regular sessions.** theta_n = 0.5356, an overnight share of 0.349,
+  against research's 0.38-0.43 (theta_n 0.61-0.75): inside the plan's 0.3-1.0 sanity band but at its low end, so
+  CLOCK.md must say so rather than quote the range as confirmed. Minute weights: 18.1% of a session's variance in
+  the first 15 minutes, 2.6% at midday, 5.1% in the 15:00-15:15 block, and the 09:15 slot alone carries 8.5%.
+  On 2019 chains only, theta_w = 0.203 +/- 0.107 and theta_h = 0.235 +/- 0.374; the holiday error is wide because
+  a year has some fifteen holidays, and the four-year fit should roughly halve it.
+- **Only 10.6% of 2019 bhavcopy option rows dealt** (81,539 of 770,822). The `traded` filter is what makes the
+  ATM choice meaningful: an untraded row carries a close but no price, and at the money that close is often a
+  stale settle far from anything tradable.
