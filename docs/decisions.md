@@ -414,3 +414,19 @@ The plan was approved on 21 Oct 2026. The rulings are in spec §6.4, and every v
     at 15:24-15:29 (98 shares across 51 stocks at 15:29 on 2026-10-19), so those minutes get a row with a
     near-zero `tv`. Nothing reads them: no entry after 14:00, hard exits at 15:00 and 15:10, and no spot
     print after 15:15 is ever used.
+
+## 2026-10-21: SP2 plan 1 - vectorised Black-76 conventions
+
+- **Rows with no time value are not masked by the caller.** `price`, `delta` and `theta_bt` accept
+  T <= 0 or sigma <= 0 and return intrinsic value, the exercise decision (+/-1 in the money, 0 out of
+  it, and 0 exactly at the money, where the limit is 1/2 either way and the option is worthless), and
+  zero theta. Why: a frame of strikes spans an expiry, and the scalar model raises there, so every
+  caller would need the same mask; the plan only fixed the price case.
+- **`theta_bt` is d(price)/dT, positive, and `kind` does not change it.** With r = 0 put-call parity
+  makes the time value identical, so the caller applies decay as -theta_bt * dBT (design section 7).
+  `kind` is still taken, and still validated, so all three functions share one call shape.
+- **Agreement with the scalar model is absolute, not relative.** Over 4000 random Nifty-scale rows
+  (T from 1e-4 to 0.06 years, sigma 0.05-0.9, strikes +/-15%) the worst price difference is 1.1e-11
+  and the worst delta difference 2.2e-16; on the 3787 rows with real time value the worst theta
+  relative difference is 4.9e-16. The 1e-10 tolerance in the design is an absolute one, and deep
+  out-of-the-money rows are worth under 1e-8, so a relative test would be meaningless there.
