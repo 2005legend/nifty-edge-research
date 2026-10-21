@@ -259,3 +259,13 @@ Each changes what the backtest can claim, so this needs the owner's decision.
   - tables without a `date` column still get the folder date as `date`
   - the files on disk were always right
 - The two series backfill with `backfill --what fundamentals`: about 2,900 files from 2015, at 1.5 s each, roughly 75 minutes.
+
+## 2026-10-21: Desk pilot first runs; long jobs run from Task Scheduler only
+
+**Desk pilot (SP4 phase 0).** TradingAgents v0.7.0 is installed in `.venv-desk`. `desk/run_pilot.py` runs nightly at 19:30 (`quantdesk-desk-pilot`) and stops after 10 runs with the same settings.
+- **Run 1, TradingAgents defaults.** Failed. Groq rejected a News Analyst request of 8,810 input tokens with HTTP 413. The free-tier limit for `qwen/qwen3.8-27b` is **7,000 input tokens per minute**, not the 8K the spec assumed. The client limiter is now 6,500.
+- **Ruling.** The spec asks for a "trimmed" TradingAgents, so the news limits were cut from 20 + 10 articles to 5 + 5. Only runs with these exact settings count toward the Path A/B rule; run 1 stays in the log as evidence that the defaults don't fit. *Cost if wrong:* a fairer trim might have let Path A pass, but every count is logged and the rule is unchanged.
+- **Run 2, trimmed.** No 413 errors, and the largest request was 4,377 tokens. It ended with a connection error, because the PC went to sleep and the app restarted at the same time. The 19:30 scheduled run retries.
+- Any 413 in a counted run now rules out Path A directly, and the meter reads the rejected request's size from Groq's error.
+
+**Operations.** Jobs started inside the Claude app's terminals and shells died when the app restarted: the recorder, the history, fundamentals and bhavcopy backfills, and the terminal news poller. Only Task Scheduler jobs survived. Long jobs now run via `scripts/run_detached.ps1`, and the runbook says so. The PC must not sleep in market hours; that power setting is the owner's to change.

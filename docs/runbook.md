@@ -46,7 +46,19 @@ Run it again after changing a time; it updates the jobs in place. `-Remove` dele
 
 `record` and `eod` may also wake the PC from sleep. The news poller runs continuously, so its job has no time limit. Don't also run `python -m quantdesk news` in a terminal, or every headline is stored twice.
 
-The PC must be on during market hours. Turn sleep off while plugged in.
+The PC must be on and awake during market hours. Set Windows > Power > "When plugged in, put my device to sleep after" to **Never**. On 21 Oct 2026, Modern Standby at 13:50 stopped the live feed.
+
+### Long one-off jobs (backfills)
+
+Don't run long jobs in a terminal inside an app such as the Claude desktop app or VS Code: they die when that app closes or restarts, which happened on 21 Oct 2026. Run them as one-off scheduled jobs instead:
+
+```
+powershell -ExecutionPolicy Bypass -File scriptsun_detached.ps1 -Name backfill-history -Run "-m quantdesk backfill --what history"
+powershell -ExecutionPolicy Bypass -File scriptsun_detached.ps1 -Name backfill-bhavcopy -Run "-m quantdesk backfill --what bhavcopy"
+powershell -ExecutionPolicy Bypass -File scriptsun_detached.ps1 -Name backfill-fundamentals -Run "-m quantdesk backfill --what fundamentals"
+```
+
+Each job is hidden, logs to `logs	asks\<Name>.log` and resumes where it stopped if run again. Check on it in Task Scheduler (`quantdesk-oneoff-*`) or in its log.
 
 ## Reading the health report
 
