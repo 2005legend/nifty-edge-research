@@ -5,6 +5,7 @@ import pytest
 import quantdesk.cli as cli
 from quantdesk.clock import IST
 from quantdesk.config import load_settings
+from quantdesk.macro.collect import MacroReport
 from quantdesk.recorder.live import RecordingSummary
 from quantdesk.storage import Store
 from tests.fakes import FakeClock
@@ -87,6 +88,15 @@ def test_backfill_dispatches_what(app, angel_env, monkeypatch):
     monkeypatch.setattr(cli, "run_backfill", lambda *a, **k: called.append("history"))
     assert cli.main(["backfill", "--what", "bhavcopy", "--start", "2026-10-12"]) == 0
     assert called == ["bhavcopy", "bhavcopy"]  # NSE and BSE
+
+
+def test_fundamentals_backfill_can_fill_a_closed_range(app, monkeypatch):
+    """--end refetches one gap without downloading every day since then again."""
+    calls = []
+    monkeypatch.setattr(cli, "run_macro_daily",
+                        lambda day, **kw: calls.append((kw["start"], day)) or MacroReport(status={}))
+    assert cli.main(["backfill", "--what", "fundamentals", "--start", "2015-01-01", "--end", "2015-06-30"]) == 0
+    assert calls == [(date(2015, 1, 1), date(2015, 6, 30))]
 
 
 def test_record_saves_recording_report(app, angel_env, monkeypatch):

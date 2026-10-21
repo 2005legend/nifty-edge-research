@@ -134,7 +134,8 @@ def _backfill(app, args) -> int:
         settings["macro"] = {**app.settings["macro"],
                              "series": [s for s in app.settings["macro"]["series"]
                                         if s["id"] in ("nifty_fundamentals", "india_gsec10y_price")]}
-        report = run_macro_daily(today, store=app.store, settings=settings, sleep=app.sleep, start=start)
+        end = date.fromisoformat(args.end) if args.end else today
+        report = run_macro_daily(end, store=app.store, settings=settings, sleep=app.sleep, start=start)
         print(f"fundamentals backfill: {report.status}")
     return 0
 
@@ -247,6 +248,7 @@ def build_parser() -> argparse.ArgumentParser:
     backfill = sub.add_parser("backfill", help="download history")
     backfill.add_argument("--what", choices=["history", "bhavcopy", "fundamentals"], required=True)
     backfill.add_argument("--start")
+    backfill.add_argument("--end", help="last day to fetch (fundamentals only; default today)")
     backfill.set_defaults(func=cmd_backfill)
     eod = sub.add_parser("eod", help="end-of-day NSE/BSE downloads")
     eod.add_argument("--day")
