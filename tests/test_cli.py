@@ -106,6 +106,24 @@ def test_record_saves_recording_report(app, angel_env, monkeypatch):
     assert app.store.read_report("health", date(2026, 10, 19)) is not None
 
 
+def test_record_keeps_the_pc_awake_while_recording(app, angel_env, monkeypatch):
+    """A power cut puts a laptop on battery, which slept after 15 minutes on 21 Oct 2026 and lost 73 minutes."""
+    events = []
+
+    class Awake:
+        def __enter__(self):
+            events.append("awake")
+
+        def __exit__(self, *exc):
+            events.append("released")
+
+    monkeypatch.setattr(cli, "keep_awake", Awake)
+    monkeypatch.setattr(cli, "run_recording",
+                        lambda day, **kw: events.append("recording") or RecordingSummary(status="ok"))
+    assert cli.main(["record"]) == 0
+    assert events == ["awake", "recording", "released"]
+
+
 def test_record_no_session_exits_nonzero_with_reason(app, angel_env, monkeypatch, capsys):
     monkeypatch.setattr(cli, "run_recording", lambda day, **kw: RecordingSummary(
         status="no_session", errors=["ltp NIFTY (99926000): LoginError: AB1050 invalid totp"]))

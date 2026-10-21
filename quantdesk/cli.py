@@ -17,6 +17,7 @@ from quantdesk.history.backfill import default_targets, run_backfill
 from quantdesk.macro.collect import run_macro_daily, run_macro_intraday
 from quantdesk.news.collect import SeenIndex, poll_gdelt_once, poll_once, run_news_loop
 from quantdesk.news.labels import sample_for_labelling, write_label_sheet
+from quantdesk.power import keep_awake
 from quantdesk.quality import build_health_report, write_health_report
 from quantdesk.recorder.live import AlreadyRunningError, RecordingSummary, run_lock, run_recording
 
@@ -76,10 +77,11 @@ def cmd_record(app, args) -> int:
         constituents = {}
         warnings.append(f"Nifty 50 list unavailable, recording without stocks: {type(exc).__name__}: {exc}"[:300])
     try:
-        summary = run_recording(day, client=app.client(), stream_factory=app.stream_factory,
-                                master=app.master(day), constituents=constituents, store=app.store,
-                                clock=app.clock, sleep=app.sleep, is_trading_day=app.is_trading_day,
-                                settings=app.settings)
+        with keep_awake():
+            summary = run_recording(day, client=app.client(), stream_factory=app.stream_factory,
+                                    master=app.master(day), constituents=constituents, store=app.store,
+                                    clock=app.clock, sleep=app.sleep, is_trading_day=app.is_trading_day,
+                                    settings=app.settings)
     except AlreadyRunningError as exc:
         print(f"{exc} - nothing to do; leave that one running.")
         return 0
