@@ -130,6 +130,15 @@ def test_parse_index_close_reads_fundamentals_and_bond_index():
     assert gsec["close"] == 841.87 and pd.isna(gsec["pe"])
 
 
+def test_parse_index_close_reads_slash_dates_of_2015_files():
+    from quantdesk.macro.sources import parse_index_close
+
+    # Files up to mid-2015 write "24/03/2015"; later ones "24-03-2015". Both are day first.
+    old = INDEX_CLOSE.read_text().replace("19-10-2026", "04/03/2015").encode()
+    frame = parse_index_close(old)
+    assert set(frame["date"]) == {date(2015, 3, 4)}
+
+
 def _index_close_getter(days_with_files, old_name_day=None):
     """Fake http_get: an index file for each day in days_with_files, 404 otherwise."""
     from tests.fakes import FakeResponse

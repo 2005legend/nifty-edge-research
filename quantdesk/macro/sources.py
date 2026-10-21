@@ -113,7 +113,9 @@ def parse_index_close(content: bytes) -> pd.DataFrame:
     raw.columns = [c.strip() for c in raw.columns]
     frame = raw[list(INDEX_CLOSE_COLUMNS)].rename(columns=INDEX_CLOSE_COLUMNS)
     frame["index_name"] = frame["index_name"].str.strip()
-    frame["date"] = pd.to_datetime(frame["date"].str.strip(), format="%d-%m-%Y").dt.date
+    # Files up to mid-2015 write 24/03/2015, later ones 24-03-2015; both are day first.
+    dates = frame["date"].str.strip().str.replace("/", "-", regex=False)
+    frame["date"] = pd.to_datetime(dates, format="%d-%m-%Y").dt.date
     for column in ("open", "high", "low", "close", "pe", "pb", "div_yield"):
         frame[column] = pd.to_numeric(frame[column].str.strip(), errors="coerce")
     return frame
