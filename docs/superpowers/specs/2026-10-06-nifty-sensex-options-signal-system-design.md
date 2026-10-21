@@ -657,6 +657,77 @@ The owner asked for the most reliable long-term choice on each. Reasons are in `
 
 **Expected outcome:** if nothing passes, the system ships in alert-off (research) mode, with the desk and the recorders still running.
 
+### 6.4 SP2 design-pass rulings (2026-10-21)
+
+The owner delegated these choices ("the most reliable long-term design"). Exact values, sources and provenance are in `research/hypotheses.yaml`. Reasons are in `docs/decisions.md`. Where a ruling is stricter than an earlier section, the ruling applies.
+
+**Execution, matching how the owner trades:**
+- The owner sees phone and laptop alerts within minutes, watches charts for 2–3 hours and places a stop order at entry.
+- **R1.** Alerts go to phone and laptop.
+- **R2.** Exits use the E-trail. "Move stop" alerts arrive at most every 10 minutes, and an SL-limit backstop is placed at entry. The backtest uses the more conservative of two exit models:
+  - an index-trail alert plus a 2-minute delay, filled at the bid
+  - the premium SL-limit at the last ratchet
+
+  The exit rules replace the owner's habit of deciding at midday whether to hold.
+- **R3.** X2 runs only if the owner opts in.
+
+**Knowledge time:**
+- **R4.** Every derived table has an `available_at` time, and all reads go through an as-of accessor. A check at T uses bars at or before T−1 minute. A fill with delay k uses the close of bar T+k−1.
+- **R5.** Bhavcopy and participant OI are usable the next morning. FRED values are usable at d−2 and Asian closes at d−1. The day card has two stages, 09:05 and 09:16 (after the gap). The top-5 stocks are ranked by prior-day traded value. The prior close is the official close.
+- **R6.** Expiries are taken from bhavcopy's actual expiry. Lot sizes are per contract.
+- **R7.** Nifty 50 membership is point-in-time. Ex-members are backfilled. HDFC Ltd (to July 2023) is a documented gap. Advance/decline is measured from the open.
+- **R8.** A session table excludes special sessions (Muhurat, weekend Budget sessions, outages) from signals and band windows.
+- **R9.** The event history records `announced_on` and whether each event was scheduled. Off-cycle RBI moves are not calendar events.
+- **R10.** Every normaliser is causal (trailing).
+- **R11.** Sensex is traded from 2024-01-01, with pricing parameters equal to Nifty's in advance. CPCV is Nifty-only. Ties go to Nifty.
+- **R12.** A signal counts only when all its features are defined. Nifty weeklies start on 2019-02-11.
+
+**Volatility and pricing:**
+- **R13.** HAR uses Garman–Klass daily RV from 2015 with VIX and overnight terms. It is refit monthly on 750 days, and each refit is saved.
+- **R14.** σ_rem comes from the frozen clock's minute weights.
+- **R15.** The clock is fitted by regressing bhavcopy implied variance (days 1–6 before expiry, 2019–22) on the remaining sessions, nights, weekend days and holidays. σ_bt = VIX × √((30/365) / BT(next 30 calendar days)).
+- **R16.** The backtest marks premiums from the observed 1-minute VIX. The spot–vol beta is used only for planning.
+- **R17.** The pricing check needs at least 15 recorded sessions, including at least 4 expiry days per index. It uses a pre-registered metric and passes at ≤ 15%.
+
+**Gates:**
+- **R18.** VWAP never uses the exchange `atp`. P9 runs on Nifty only.
+- **R19.** b is the tighter of the band edge and VWAP. A setup is rejected if b > 0.5 × the VIX-implied daily move.
+- **R20.** Confirmation needs 2 of 3 breadth signals. OFI is shadow-only.
+- **R21.** The spike guard uses the modelled ATM premium.
+- **R22.** Volatility is "rich" above the trailing 80th percentile.
+- **R23.** Room in time: 1.6·σ_rem ≥ 2 × (target + theta drag).
+- **R24.** Levels: round 100s for Nifty and 500s for Sensex, prior-day and prior-week H/L/C, and multi-touch extremes.
+- **R25.** The stress score runs 0–8, without the geopolitical flag.
+- **R26.** The options-implied score uses prior-day bhavcopy only.
+- **R27.** Event settings:
+  - an RBI wait of 45 minutes
+  - a headline window of 30 minutes (live only)
+  - intraday VIX within ±8%
+  - Budget Δ +0.04
+  - event multipliers of 1.0
+- **R28.** The meta-model is a ridge logistic with fixed λ = 10 and 6 columns. It is Platt-calibrated only if the calibration-slope CI excludes 1.
+- **R29.** The EV breakeven is computed from modelled net rupees.
+- **R30.** The headline, depth/spread and OFI gates are live-only, so the backtest overstates the trade count.
+- **R31.** Gate statistics apply the deterministic caps. The loss limits form a separate overlay.
+
+**Validation:**
+- **R32.** Every P&L run needs a registry ticket.
+- **R33.** The 46 earlier looks (`research/prior_looks.md`) count in DSR. Regime add-ons chosen after those looks also need the forward holdout.
+- **R34.** Gate definitions:
+  - at least 30 trades per CPCV test pair (median)
+  - t ≥ 2 on the median path
+  - positive walk-forward results
+  - positive in at least 4 of 2020–2025
+  - DSR on per-day P&L
+  - PBO by CSCV with S = 10
+  - a bucketed permutation test at p < 0.01
+  - an embargo of 20 days
+  - demoted triggers go to shadow
+- **R35.** A power pilot (P10) runs before the D2 checkpoint.
+- **R36.** A pre-flight checklist must pass before B0, and is tagged `prereg-v1`.
+- **R37.** P7 is time-boxed. P8 moves to SP3. Conditional components are built only when their trial runs.
+- **R38.** Trials wait for the pricing check.
+
 ## 7. SP3: live engine, dashboard, journal (design constraints for its own design pass)
 
 - **Tech:** FastAPI backend, a single clean page (plain HTML/JS with TradingView Lightweight Charts) and WebSocket updates. Bound to 127.0.0.1 only.

@@ -316,3 +316,31 @@ The full rules are in spec §6.0.
   - The recorded chains check the clock (median premium-change error ≤ 15%), and it is refitted only if that check fails.
   - Why: calendar time misprices expiry-day options by about half, and a plain trading-minute clock ignores overnight gaps, which overprices intraday options.
   - *Cost if wrong:* modelled premiums are off. The recorded-chain check catches it before any verdict.
+
+## 2026-10-21: SP2 design pass, rulings R1–R38 (owner: "the most reliable long-term design")
+
+The plan was approved on 21 Oct 2026. The rulings are in spec §6.4, and every value with its source and provenance is in `research/hypotheses.yaml`.
+
+**Departures from earlier text, each the stricter option:**
+- **CPCV embargo 20 days, not 5.** The features look back 14–20 days, so 5 days would let training and test overlap.
+- **Pricing check needs at least 15 recorded sessions with at least 4 expiry days per index.** Expiry days are where the clock matters most, and 10 sessions might hold only 2.
+- **Earlier looks count.** The design research printed outcomes for 46 rule variants before the registry existed (`research/prior_looks.md`). DSR uses N = 46 + trials. The shock and slow-trend parameters were chosen after full-sample looks, so those add-ons also need the forward holdout.
+  - *Cost:* the DSR gate becomes much harder to pass. P10 measures how much before any trial is spent.
+- **Exits follow how the owner trades.** The owner sees alerts within minutes but doesn't watch charts all day. The backtest therefore uses the more conservative of an index-trail alert with a 2-minute delay and a premium SL-limit backstop.
+
+**New, smaller rules that the spec left undefined.** Each is marked `design_ruling` in the YAML:
+- the stop cap (b ≤ 0.5 × the VIX-implied daily move, from RESEARCH_REPORT L174)
+- breadth as 2 of 3 signals
+- the spike guard on modelled premium
+- the "rich" volatility percentile
+- Sensex round levels at 500
+- the 0–8 stress points
+- ridge λ = 10
+
+**Scope moved to SP3:**
+- pilot 8 (it only serves the live headline veto)
+- OFI and depth gates
+- display-only indicators
+- the "setup forming" pre-alert
+
+**What the owner sees next:** pilots P1, P2 and P10 at the D2 checkpoint, with the X2 opt-in.

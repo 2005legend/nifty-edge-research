@@ -1,0 +1,262 @@
+# SP2 pre-registration (spec §6.3, §6.4). Every number the strategy, the backtester and the validation use,
+# fixed before any P&L outcome is seen. Code reads values through quantdesk.validation.hypotheses.param.
+#
+# provenance:
+#   spec                    - stated in the design spec
+#   research_value          - taken from reports/ or research_notes/ (reference given)
+#   design_ruling           - fixed in the SP2 design pass (21 Oct 2026) under the owner's delegation
+#   after_full_sample_look  - chosen after looking at full-sample outcomes (see research/prior_looks.md);
+#                             these count in the deflated-Sharpe trial number, and a regime add-on built on
+#                             them must also pass the clean forward holdout before it goes live (R33)
+#   owner                   - the owner's own decision
+# The trial registry refuses runs once this file's hash differs from the one tagged prereg-v1 (M7).
+
+version: 1
+frozen: false   # set to true at the prereg-v1 tag (M8)
+
+parameters:
+  # --- account and risk (spec §2) ---
+  account.capital: {value: 10000, source: "spec §2", provenance: owner}
+  account.risk_rupees: {value: 400, source: "spec §2", provenance: owner}
+  account.premium_budget: {value: 9500, source: "spec §6.1 step 7", provenance: spec}
+  account.fixed_cost_buffer: {value: 60, source: "spec §6.1 step 7 (premium x lot + 60 <= 9500)", provenance: spec}
+  account.capital_floor: {value: 7000, source: "spec §2", provenance: owner}
+  caps.per_day: {value: 1, source: "spec §2", provenance: owner}
+  caps.per_week: {value: 3, source: "spec §2", provenance: owner}
+  caps.per_year: {value: 100, source: "spec §2 (D3)", provenance: owner}
+  caps.month_rule: {value: "ceil(per_year * trading_days_in_month / trading_days_in_year)", source: "R31", provenance: design_ruling}
+  caps.loss_day: {value: 400, source: "spec §2; reported as an as-lived overlay, not in gate statistics (R31)", provenance: owner}
+  caps.loss_week: {value: 1000, source: "spec §2; overlay (R31)", provenance: owner}
+
+  # --- timeline (spec §6.1 step 2) ---
+  time.first_check: {value: "09:45", source: "spec §6.1 step 2", provenance: spec}
+  time.check_minutes: {value: [0, 15, 30, 45], source: "spec §6.1 step 2", provenance: spec}
+  time.last_entry: {value: "14:00", source: "spec §6.1 step 2", provenance: spec}
+  time.last_entry_expiry: {value: "13:30", source: "spec §6.1 step 2", provenance: spec}
+  time.spot_cutoff: {value: "15:15", source: "spec §6.1 step 2 (no spot prints after 15:15)", provenance: spec}
+  time.hard_exit: {value: "15:10", source: "spec §6.1 step 8; same time before and after the auction (rulings)", provenance: spec}
+  time.hard_exit_expiry: {value: "15:00", source: "spec §6.1 step 8", provenance: spec}
+  time.daycard_evening: {value: "09:05", source: "R5", provenance: design_ruling}
+  time.daycard_gap: {value: "09:16", source: "R5: gap-dependent inputs (HAR-IV-ON) only after the open", provenance: design_ruling}
+  time.alert_lapse_min: {value: 5, source: "spec §6.1 step 8", provenance: spec}
+
+  # --- H1 trigger (spec §6.1 step 3) ---
+  h1.band_v: {value: 1.0, source: "spec §6.1 step 3; timing report L193", provenance: research_value}
+  h1.band_lookback_days: {value: 14, source: "spec §6.1 step 3; ITR:534", provenance: research_value}
+  h1.gap_adjust: {value: "upper = max(open, prev_close) * (1 + V*sigma); lower = min(open, prev_close) * (1 - V*sigma)", source: "ITR:534-537", provenance: research_value}
+  h1.expiry_bands_separate: {value: true, source: "spec §6.1 step 3; ITR:546", provenance: spec}
+  h1.vwap_side_required: {value: true, source: "spec §6.1 step 3", provenance: spec}
+  h1.delay_sign_flip_minutes: {value: 3, source: "spec §6.2 (a signal whose sign flips at 3 minutes is rejected)", provenance: spec}
+
+  # --- stop fit and targets (spec §6.1 step 4.2) ---
+  stop.structural: {value: "tighter of band edge and VWAP on the protective side", source: "R19; RESEARCH_REPORT L174", provenance: research_value}
+  stop.max_daily_move_fraction: {value: 0.5, source: "R19; RESEARCH_REPORT L174", provenance: research_value}
+  stop.overshoot_factor: {value: 1.3, source: "spec §6.1 step 4; EX:84", provenance: research_value}
+  stop.planning_target_multiple: {value: 2.3, source: "spec §2; OTC:207", provenance: research_value}
+  stop.stop_exit_half_spreads: {value: 3, source: "OTC:140", provenance: research_value}
+
+  # --- other gates (spec §6.1 step 4) ---
+  gate.intraday_vix_band: {value: 0.08, source: "R27; spec §6.1 step 4.1 (about ±8%) vs prior close", provenance: design_ruling}
+  gate.room_in_time_range_factor: {value: 1.6, source: "R23; ITR:284 (expected remaining range about 1.6 sigma_rem)", provenance: research_value}
+  gate.room_in_time_multiplier: {value: 2.0, source: "spec §6.1 step 4.3", provenance: spec}
+  gate.round_step_nifty: {value: 100, source: "spec §6.1 step 4.4", provenance: spec}
+  gate.round_step_sensex: {value: 500, source: "R24: comparable % spacing to Nifty's 100s", provenance: design_ruling}
+  gate.multi_touch_tolerance: {value: 0.0005, source: "R24", provenance: design_ruling}
+  gate.multi_touch_min_touches: {value: 2, source: "R24", provenance: design_ruling}
+  gate.multi_touch_min_gap_min: {value: 3, source: "R24", provenance: design_ruling}
+  gate.vol_rich_percentile: {value: 0.80, source: "R22", provenance: design_ruling}
+  gate.vol_rich_window_days: {value: 252, source: "R22", provenance: design_ruling}
+  gate.breadth_agree_min: {value: 2, source: "R20 (2 of 3: A/D from open, % above own VWAP, top-5 return since open)", provenance: design_ruling}
+  gate.breadth_top_n: {value: 5, source: "spec §5A.1 (top-5 heavyweights), ranked by prior-day traded value (R5)", provenance: spec}
+  gate.spike_multiple: {value: 4.0, source: "R21: modelled ATM premium 1-min change vs median at that minute over the prior 14 sessions", provenance: design_ruling}
+  gate.spike_window_min: {value: 5, source: "spec §6.1 step 4.7", provenance: spec}
+  gate.spike_lookback_days: {value: 14, source: "R21", provenance: design_ruling}
+
+  # --- events (spec §6.1 step 1, §5A.2) ---
+  event.rbi_wait_min: {value: 45, source: "R27 (upper end of the spec's 30-45)", provenance: design_ruling}
+  event.headline_window_min: {value: 30, source: "R27; live only (R30)", provenance: design_ruling}
+  event.exit_before_min: {value: 5, source: "spec §6.1 step 8", provenance: spec}
+  event.budget_delta: {value: 0.04, source: "R27", provenance: design_ruling}
+  event.range_multipliers: {value: 1.0, source: "R27: fully shrunk until re-validated (spec §6.1 step 1)", provenance: design_ruling}
+
+  # --- meta-model (spec §6.1 step 5) ---
+  meta.columns: {value: [technical, options_implied, macro, side_long, har_percentile, days_to_expiry], source: "R28; spec §6.1 step 5", provenance: design_ruling}
+  meta.ridge_lambda: {value: 10.0, source: "R28: fixed; effective df about 4-6 at n about 300 (SFV:498)", provenance: design_ruling}
+  meta.label: {value: "planning target (2.3b) before stop (b) before the hard exit", source: "R28; EX:286", provenance: research_value}
+  meta.platt_rule: {value: "apply Platt only if the 95% CI of the calibration slope excludes 1", source: "R28; SFV:163", provenance: design_ruling}
+  meta.macro_clip_prob: {value: 0.08, source: "spec §5A.2 (tilt at most ±8 points)", provenance: spec}
+  meta.zscore_window_sessions: {value: 250, source: "R10: causal trailing z-scores", provenance: design_ruling}
+  meta.zscore_min_sessions: {value: 60, source: "R10", provenance: design_ruling}
+  meta.winsor: {value: 3.0, source: "spec §5A.1", provenance: spec}
+
+  # --- EV gate (spec §6.1 step 6) ---
+  ev.margin: {value: 0.04, source: "spec §6.1 step 6", provenance: spec}
+  ev.delta_cap: {value: 0.08, source: "spec §6.1 step 6", provenance: spec}
+  ev.min_r: {value: 0.10, source: "spec §6.1 step 6", provenance: spec}
+  ev.min_rupees: {value: 75, source: "spec §6.1 step 7", provenance: spec}
+  ev.breakeven: {value: "L / (G + L) from modelled net rupees at stop and planning target", source: "R29", provenance: design_ruling}
+
+  # --- strike picker (spec §6.1 step 7) ---
+  strike.delta_min: {value: 0.25, source: "spec §6.1 step 7", provenance: spec}
+  strike.delta_max: {value: 0.55, source: "spec §6.1 step 7", provenance: spec}
+  strike.itm_strikes: {value: 1, source: "spec §6.1 step 7", provenance: spec}
+  strike.otm_max: {value: 0.015, source: "spec §6.1 step 7", provenance: spec}
+  strike.gain_loss_min: {value: 1.5, source: "spec §6.1 step 7", provenance: spec}
+  strike.expiries: {value: 2, source: "spec §6.1 step 7 (this and next weekly)", provenance: spec}
+  strike.tie_break: {value: "highest EV; ties go to NIFTY", source: "R11", provenance: design_ruling}
+
+  # --- orders, fills and spreads (spec §6.1 step 8, §6.2) ---
+  fill.entry_ticks_over_ask: {value: 1, source: "spec §7 paper fills (ask + 1 tick)", provenance: spec}
+  fill.chase_max_ticks: {value: 2, source: "spec §6.1 step 8", provenance: spec}
+  fill.chase_sigma_fraction: {value: 0.15, source: "ET:503 (index chase cap min(0.15 sigma open, 0.3 |S - stop|))", provenance: research_value}
+  fill.chase_stop_fraction: {value: 0.3, source: "ET:503", provenance: research_value}
+  fill.tick: {value: 0.05, source: "spec §9 item 3", provenance: spec}
+  spread.half_nifty_under_50: {value: 0.10, source: "OTC:140", provenance: research_value}
+  spread.half_nifty_50_up: {value: 0.20, source: "OTC:140", provenance: research_value}
+  spread.half_sensex: {value: 0.50, source: "OTC:140", provenance: research_value}
+  spread.mult_before_0930: {value: 2.0, source: "spec §6.2", provenance: spec}
+  spread.mult_after_1445: {value: 2.0, source: "spec §6.2", provenance: spec}
+  spread.mult_0930_1000: {value: 1.5, source: "spec §6.2", provenance: spec}
+  backtest.delays_min: {value: [0, 1, 3, 5], source: "spec §6.2", provenance: spec}
+  backtest.charges_day: {value: "today (the latest schedule in quantdesk/costs.py); each date's own beside it", source: "spec §6.0", provenance: owner}
+  backtest.sensex_from: {value: "2024-01-01", source: "R11: clean BSE bhavcopy from 2024", provenance: design_ruling}
+  backtest.nifty_from: {value: "2019-02-11", source: "R12: first Nifty weekly expiry series", provenance: design_ruling}
+
+  # --- exits (spec §6.1 step 8, D1) ---
+  exit.trail_start_b: {value: 1.0, source: "spec §6.1 step 8 (D1)", provenance: research_value}
+  exit.trail_distance_b: {value: 1.5, source: "spec §6.1 step 8 (D1)", provenance: research_value}
+  exit.vwap_ratchet: {value: true, source: "spec §6.1 step 8", provenance: spec}
+  exit.laggard_minutes: {value: 30, source: "spec §6.1 step 8", provenance: spec}
+  exit.laggard_band: {value: 0.0005, source: "spec §6.1 step 8", provenance: spec}
+  exit.laggard_deadline_min: {value: 60, source: "spec §6.1 step 8", provenance: spec}
+  exit.ratchet_alert_min_gap: {value: 10, source: "R2 (spec: every 5-10 minutes)", provenance: design_ruling}
+  exit.manual_delay_min: {value: 2, source: "R2; spec §9 item 6 (1-2 minute exit latency)", provenance: design_ruling}
+  exit.model: {value: "the more conservative of: index-trail alert + 2-min delay at the bid; premium SL-limit at the last ratchet", source: "R2", provenance: design_ruling}
+  exit.x0_rules: {value: "stop b, fixed target 2.3b, VWAP-cross exit, stall 45 min, deadline 90 min, hard exits", source: "timing report L199, L210", provenance: research_value}
+
+  # --- volatility, clock and pricing (§6.0, R13-R17) ---
+  vol.rv_estimator: {value: garman_klass_daily, source: "R13", provenance: design_ruling}
+  vol.har_window_days: {value: 750, source: "ITR:525; R13", provenance: research_value}
+  vol.har_refit: {value: "first session of each month", source: "R13", provenance: design_ruling}
+  vol.har_terms: {value: [rv_d, rv_w5, rv_m22, log_vix2, overnight], source: "ITR:270-276", provenance: research_value}
+  vol.har_percentile_window: {value: 252, source: "RG:379", provenance: research_value}
+  clock.fit_start: {value: "2019-01-01", source: "spec §6.0", provenance: spec}
+  clock.fit_end: {value: "2022-12-31", source: "spec §6.0", provenance: spec}
+  clock.fit_dte: {value: [1, 2, 3, 4, 5, 6], source: "spec §6.0", provenance: spec}
+  clock.vix_conversion: {value: "sigma_bt = VIX * sqrt((30/365) / BT(next 30 calendar days))", source: "R15", provenance: design_ruling}
+  pricing.check_min_sessions: {value: 15, source: "R17", provenance: design_ruling}
+  pricing.check_min_expiry_days: {value: 4, source: "R17 (per index)", provenance: design_ruling}
+  pricing.check_horizons_min: {value: [15, 30, 60, exit], source: "R17", provenance: design_ruling}
+  pricing.check_max_error: {value: 0.15, source: "spec §1, §6.2", provenance: spec}
+  pricing.check_tick_floor: {value: 2, source: "R17: denominator max(|actual change|, 2 ticks)", provenance: design_ruling}
+
+  # --- hurdle layer (spec §6.1 step 1, timing report L169-177) ---
+  hurdle.shock_vix_log5: {value: 0.20, source: "TR:172 (ln VIX t-1 / VIX t-6)", provenance: after_full_sample_look}
+  hurdle.shock_gap_sigma: {value: 1.5, source: "TR:172 (|gap| >= 1.5 sigma_HAR)", provenance: after_full_sample_look}
+  hurdle.shock_cusum_sigma_mult: {value: 1.5, source: "TR:172 (variance CUSUM, sigma x 1.5 vs trailing 250 days)", provenance: after_full_sample_look}
+  hurdle.shock_cusum_false_alarms_per_year: {value: 1.0, source: "RG:291 (h by block bootstrap on 2019-22)", provenance: research_value}
+  hurdle.shock_delta: {value: 0.04, source: "TR:172", provenance: after_full_sample_look}
+  hurdle.shock_sessions: {value: 5, source: "TR:172", provenance: after_full_sample_look}
+  hurdle.stress_points: {value: "brent>=95:1; brent 5d >=+5%:1, >=+10%:2; usdinr 5d >=+0.75%:1, >=+1.5%:2; us10y 5d >=+15bp:1; india10y 5d >=+15bp:1; dxy 5d >=+1.5%:1 (max 8)", source: "R25", provenance: design_ruling}
+  hurdle.stress_tiers: {value: "score <=2: 0; 3-4: +0.02; >=5: +0.04", source: "MF:162 margins 0.04/0.06/0.08 over breakeven, less the base 0.04", provenance: research_value}
+  hurdle.stress_cap_without_rv1: {value: 0.02, source: "spec §5A.2", provenance: spec}
+  hurdle.slow_trend_lambda: {value: 20, source: "TR:174 (jump model); built only if RV-3 runs (R37)", provenance: after_full_sample_look}
+  hurdle.slow_trend_delta_long: {value: 0.04, source: "TR:174", provenance: after_full_sample_look}
+  hurdle.slow_trend_delta_short: {value: 0.02, source: "TR:174", provenance: after_full_sample_look}
+  hurdle.gamma_delta: {value: 0.04, source: "TR:176; built only if the gamma engine passes P3 (R37)", provenance: research_value}
+
+  # --- validation (spec §6.3, R34) ---
+  cv.cpcv_start: {value: "2019-02-11", source: "spec §6.3; R12", provenance: spec}
+  cv.cpcv_end: {value: "2023-12-31", source: "spec §6.3", provenance: spec}
+  cv.cpcv_groups: {value: 10, source: "spec §6.3", provenance: spec}
+  cv.cpcv_test_groups: {value: 2, source: "spec §6.3", provenance: spec}
+  cv.embargo_days: {value: 20, source: "R34: stricter than the spec's 5, covering the 14-20 day lookbacks", provenance: design_ruling}
+  cv.walk_forward: {value: ["2024-01-01", "2025-12-31"], source: "spec §6.3", provenance: spec}
+  cv.touched_from: {value: "2026-01-01", source: "spec §6.3 (D4)", provenance: owner}
+  gate.min_trades_per_fold: {value: 30, source: "spec §6.3; median over CPCV test pairs (R34)", provenance: spec}
+  gate.t_min: {value: 2.0, source: "spec §6.3; on the median CPCV path (R34)", provenance: spec}
+  gate.years: {value: [2020, 2021, 2022, 2023, 2024, 2025], source: "R34", provenance: design_ruling}
+  gate.years_positive_min: {value: 4, source: "R34 (consistent sign: positive mean net R in at least 4 of the 6 years)", provenance: design_ruling}
+  gate.dsr_min: {value: 0.95, source: "spec §6.3; on per-available-day P&L", provenance: spec}
+  gate.n_prior: {value: 46, source: "research/prior_looks.md", provenance: design_ruling}
+  gate.pbo_max: {value: 0.2, source: "spec §6.3; CSCV over all trials run, S = 10", provenance: spec}
+  gate.pbo_splits: {value: 10, source: "R34", provenance: design_ruling}
+  gate.permutation_p: {value: 0.01, source: "ITR:516", provenance: research_value}
+  gate.permutation_buckets: {value: [weekday, expiry_day, vix_tercile], source: "R34", provenance: design_ruling}
+  gate.permutation_rounds: {value: 1000, source: "R34", provenance: design_ruling}
+  gate.delay_test: {value: "the 3-minute-delay run keeps a positive mean net R on the median CPCV path", source: "R34; spec §6.3", provenance: design_ruling}
+  gate.post_publication_date: {value: "2024-06-01", source: "spec §6.3", provenance: spec}
+  gate.post_publication_ratio: {value: 0.5, source: "spec §6.3 (demoted to shadow if later edge < half)", provenance: spec}
+  gate.addon_t_min: {value: 1.0, source: "spec §6.3 regime add-ons", provenance: spec}
+  gate.addon_years_better_min: {value: 4, source: "spec §6.3 (4 of 6 years)", provenance: spec}
+  holdout.setups: {value: 150, source: "spec §6.3 (D4)", provenance: owner}
+
+gates:
+  event_shock:
+    rule: "no entry on E3 days, within event.rbi_wait_min after an RBI decision, or when intraday VIX moved more than gate.intraday_vix_band from the prior close; headline window is live only"
+    parameters: [event.rbi_wait_min, gate.intraday_vix_band, event.headline_window_min]
+    source: "spec §6.1 step 4.1; R27, R30"
+  stop_fit:
+    rule: "b = stop.structural; reject if b > stop.max_daily_move_fraction x VIX-implied daily move; loss at stop x stop.overshoot_factor + stop exit spreads <= account.risk_rupees; planning target >= stop.planning_target_multiple x b; re-checked at the fill"
+    parameters: [stop.structural, stop.max_daily_move_fraction, stop.overshoot_factor, account.risk_rupees, stop.planning_target_multiple, stop.stop_exit_half_spreads]
+    source: "spec §6.1 step 4.2; R19"
+  room_in_time:
+    rule: "gate.room_in_time_range_factor x sigma_rem >= gate.room_in_time_multiplier x (target distance + theta drag to the deadline, in index points)"
+    parameters: [gate.room_in_time_range_factor, gate.room_in_time_multiplier]
+    source: "spec §6.1 step 4.3; R23"
+  room_to_run:
+    rule: "no opposing level before the target: round numbers, prior-day and prior-week H/L/C, multi-touch session extremes"
+    parameters: [gate.round_step_nifty, gate.round_step_sensex, gate.multi_touch_tolerance, gate.multi_touch_min_touches, gate.multi_touch_min_gap_min]
+    source: "spec §6.1 step 4.4; R24"
+  volatility:
+    rule: "implied remaining-session move / HAR remaining move <= its trailing percentile"
+    parameters: [gate.vol_rich_percentile, gate.vol_rich_window_days]
+    source: "spec §6.1 step 4.5; R22"
+  confirmation:
+    rule: "at least gate.breadth_agree_min of 3 breadth signals agree with the side; OFI is live shadow only"
+    parameters: [gate.breadth_agree_min, gate.breadth_top_n]
+    source: "spec §6.1 step 4.6; R20"
+  spike_guard:
+    rule: "no entry within gate.spike_window_min of a modelled ATM premium 1-minute change above gate.spike_multiple x its median at that minute over the prior gate.spike_lookback_days sessions"
+    parameters: [gate.spike_window_min, gate.spike_multiple, gate.spike_lookback_days]
+    source: "spec §6.1 step 4.7; R21"
+  ev:
+    rule: "p >= breakeven + ev.margin + Delta (Delta <= ev.delta_cap); EV >= ev.min_r R and >= ev.min_rupees; Kelly f* = p - (1-p) L/G >= L / capital"
+    parameters: [ev.margin, ev.delta_cap, ev.min_r, ev.min_rupees, ev.breakeven, account.capital]
+    source: "spec §6.1 step 6; R29"
+  validation_pass:
+    rule: "all of: median trades per CPCV test pair >= gate.min_trades_per_fold; median-path t >= gate.t_min; walk-forward mean net R > 0; positive in >= gate.years_positive_min of gate.years; DSR >= gate.dsr_min with N = gate.n_prior + trials run; PBO <= gate.pbo_max; permutation p < gate.permutation_p; gate.delay_test; post-publication ratio >= gate.post_publication_ratio"
+    parameters: [gate.min_trades_per_fold, gate.t_min, gate.years, gate.years_positive_min, gate.dsr_min, gate.n_prior, gate.pbo_max, gate.pbo_splits, gate.permutation_p, gate.permutation_buckets, gate.permutation_rounds, gate.delay_test, gate.post_publication_date, gate.post_publication_ratio, cv.embargo_days]
+    source: "spec §6.3; R34"
+  regime_addon:
+    rule: "also: per-available-day net P&L not lower than the predecessor; per-trade expectancy gain with t >= gate.addon_t_min; better in >= gate.addon_years_better_min of gate.years; parameters marked after_full_sample_look must pass the clean forward holdout before going live"
+    parameters: [gate.addon_t_min, gate.addon_years_better_min, gate.years, holdout.setups]
+    source: "spec §6.3; R33"
+
+registry:
+  - {id: B0, slot: 1, config: "H1, a priori timing and orders, X0 exits, flat breakeven + 0.04, Platt-calibrated equal-weight family consensus", run_if: always}
+  - {id: X1, slot: 2, config: "B0 with E-trail exits (R2 execution model)", run_if: always}
+  - {id: M1, slot: 3, config: "exit winner + ridge logistic meta-model (meta.columns)", run_if: always}
+  - {id: RV-2, slot: 4, config: "M1 + shock hurdle", run_if: always}
+  - {id: RV-1, slot: 5, config: "+ stress-score hurdle at full tiers", run_if: always}
+  - {id: RV-3, slot: 6, config: "+ slow-trend hurdle (jump model)", run_if: "H1 passes on B0 or X1 and >= 4 slots remain"}
+  - {id: RV-4, slot: 7, config: "+ gamma hurdle", run_if: "the gamma engine passes P3"}
+  - {id: ROD, slot: 8, config: "14:45 rest-of-day momentum, one pre-fixed gamma sign, research only", run_if: "the gamma engine passes P3"}
+  - {id: RV-5, slot: 9, config: "RV-2 + RV-3 + RV-4 combined, Delta <= 0.08", run_if: "at least two of them are accepted"}
+  - {id: CTX, slot: 10, config: "one reversal-context feature (3-5 day stretch in HAR units) added to M1", run_if: "P4 MAC(5) significantly negative after 2015 and >= 3 slots remain"}
+  - {id: X2, slot: 11, config: "VWAP-runner exit", run_if: "the owner opts in (R3)"}
+  - {id: RES-1, slot: 12, config: "reserve: forced re-run", run_if: "a forced re-run, e.g. after a failed pricing check"}
+  - {id: RES-2, slot: 13, config: "reserve: forced re-run", run_if: "a forced re-run"}
+
+pilots:
+  - {id: P1, measures: "trigger, stop-fit and strike-picker pass rates by VIX tercile, lot-size era and before/after 20 Nov 2024", decides: "D2 checkpoint inputs", costs_trial: false}
+  - {id: P2, measures: "MFE/MAE paths and time to MFE of setups, 2019-22 only", decides: "D1 reversal clause (peak within about 30 min then revert)", costs_trial: false}
+  - {id: P3, measures: "gamma engine (prior-day OI) vs rest-of-day range and slope", decides: "whether RV-4 and ROD run", costs_trial: false}
+  - {id: P4, measures: "Nifty daily AR(1) and MAC(5), 2014-2026", decides: "whether CTX runs", costs_trial: false}
+  - {id: P5, measures: "OI walls and max pain vs settlement", decides: "display only", costs_trial: false}
+  - {id: P6, measures: "option depth and alert latency from recordings", decides: "the live cost check and the SP3 spread table", costs_trial: false}
+  - {id: P7, measures: "pretrained volatility models vs HAR (QLIKE, Diebold-Mariano)", decides: "the volatility forecaster; HAR stays if not finished by pre-flight (R37)", costs_trial: false}
+  - {id: P8, measures: "headline tone classifiers vs owner labels", decides: "live headline veto (moved to SP3)", costs_trial: false}
+  - {id: P9, measures: "VWAP proxy vs front-month futures VWAP: side disagreement and gap / median b", decides: "VWAP anchor (spec §6.0)", costs_trial: false}
+  - {id: P10, measures: "power: probability that every gate passes under a 2-4 point uplift; minimum detectable effect", decides: "shown at the D2 checkpoint", costs_trial: false}
+  - {id: CLOCK, measures: "business-time weights fit on 2019-22", decides: "the frozen clock (config/frozen/clock_v1.yaml)", costs_trial: false}
