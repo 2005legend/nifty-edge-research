@@ -6,6 +6,7 @@ BSE files before UDiFF are not covered.
 """
 
 import io
+import math
 import zipfile
 from datetime import date
 from pathlib import Path
@@ -18,6 +19,9 @@ from quantdesk.storage import Store
 
 COLUMNS = ["date", "symbol", "instrument", "expiry", "strike", "option_type", "open", "high", "low",
            "close", "settle", "underlying", "oi", "chg_oi", "volume"]
+CONTRACT_COLUMNS = COLUMNS + ["lot", "turnover"]
+CONTRACT_INSTRUMENTS = ("IDO", "IDF")
+LEGACY_LOT_SIZES = (25, 50, 75)
 UDIFF_MAP = {"TradDt": "date", "TckrSymb": "symbol", "FinInstrmTp": "instrument", "XpryDt": "expiry",
              "StrkPric": "strike", "OptnTp": "option_type", "OpnPric": "open", "HghPric": "high",
              "LwPric": "low", "ClsPric": "close", "SttlmPric": "settle", "UndrlygPric": "underlying",
@@ -92,14 +96,19 @@ def fetch_bse_fo_bhavcopy(session, store: Store, day: date, urls: dict) -> Path:
     return _fetch(session, store, day, urls, "BSE")
 
 
-def parse_fo_bhavcopy(path: Path) -> pd.DataFrame:
-    path = Path(path)
-    data = path.read_bytes()
+def _read_raw(path: Path) -> pd.DataFrame:
+    """Unzip if needed, then read every column as a string: the layouts differ and blanks must stay blank."""
+    data = Path(path).read_bytes()
     if data[:2] == b"PK":
         with zipfile.ZipFile(io.BytesIO(data)) as zf:
             data = zf.read(zf.namelist()[0])
     raw = pd.read_csv(io.BytesIO(data), dtype=str, keep_default_na=False)
     raw.columns = [c.strip() for c in raw.columns]
+    return raw
+
+
+def _normalise(raw: pd.DataFrame) -> pd.DataFrame:
+    """Both layouts to `COLUMNS`. Volume is contracts in both (checked live 21 Oct 2026)."""
     if "INSTRUMENT" in raw.columns:  # NSE layout before July 2024
         frame = raw[list(LEGACY_MAP)].rename(columns=LEGACY_MAP)
         code = frame["instrument"].str.strip()
@@ -120,6 +129,62 @@ def parse_fo_bhavcopy(path: Path) -> pd.DataFrame:
         frame[column] = pd.to_numeric(frame[column], errors="coerce").fillna(0).astype("int64")
     frame["option_type"] = frame["option_type"].str.strip().replace("", None)
     return frame[COLUMNS]
+
+
+def parse_fo_bhavcopy(path: Path) -> pd.DataFrame:
+    return _normalise(_read_raw(path))
+
+
+def _snap_lot(ratio: float) -> int | None:
+    """The nearest lot size NSE has actually used: the futures ratio is off by a percent or two."""
+    if not math.isfinite(ratio) or ratio <= 0:
+        return None
+    return min(LEGACY_LOT_SIZES, key=lambda size: abs(size - ratio))
+
+
+def _legacy_lots(frame: pd.DataFrame) -> pd.Series:
+    """Lots for a pre-UDiFF file, which has no lot column.
+
+    Traded value / (contracts × settle) is the lot size of that futures contract. Each option takes the
+    lot of the first futures expiry on or after its own, else the latest futures expiry (design §5.2).
+    """
+    futures = frame[frame["instrument"] == "IDF"]
+    ratio = futures["turnover"] / (futures["volume"] * futures["settle"])
+    by_symbol: dict[str, dict[date, int]] = {}
+    for symbol, expiry, size in zip(futures["symbol"], futures["expiry"],
+                                    (_snap_lot(value) for value in ratio)):
+        if size is not None:
+            by_symbol.setdefault(symbol, {})[expiry] = size
+    lots = []
+    for symbol, expiry in zip(frame["symbol"], frame["expiry"]):
+        table = by_symbol.get(symbol, {})
+        if not table:
+            lots.append(None)
+            continue
+        expiries = sorted(table)
+        lots.append(table[next((e for e in expiries if e >= expiry), expiries[-1])])
+    return pd.Series(lots, index=frame.index, dtype="Int64")
+
+
+def parse_fo_contracts(path: Path, symbols: tuple[str, ...] = ("NIFTY", "SENSEX")) -> pd.DataFrame:
+    """Index derivatives with the **actual** expiry and the lot in force that day (design §5.2, R6).
+
+    `parse_fo_bhavcopy` reports the scheduled expiry, which the exchange moves for holidays and for the
+    Sep-2025 Thursday→Tuesday change; UDiFF also publishes `FininstrmActlXpryDt`, so contracts are
+    keyed by that. Turnover is rupees in both layouts (`TtlTrfVal`, `VAL_INLAKH` × 1e5).
+    """
+    raw = _read_raw(path)
+    frame = _normalise(raw)
+    if "INSTRUMENT" in raw.columns:
+        frame["turnover"] = pd.to_numeric(raw["VAL_INLAKH"], errors="coerce").fillna(0.0).to_numpy() * 1e5
+        frame["lot"] = _legacy_lots(frame)
+    else:
+        actual = pd.to_datetime(raw["FininstrmActlXpryDt"].str.strip(), errors="coerce").dt.date
+        frame["expiry"] = actual.fillna(frame["expiry"]).to_numpy()
+        frame["lot"] = pd.to_numeric(raw["NewBrdLotQty"], errors="coerce").astype("Int64").array
+        frame["turnover"] = pd.to_numeric(raw["TtlTrfVal"], errors="coerce").fillna(0.0).to_numpy()
+    keep = frame["instrument"].isin(CONTRACT_INSTRUMENTS) & frame["symbol"].isin(symbols)
+    return frame.loc[keep, CONTRACT_COLUMNS].reset_index(drop=True)
 
 
 def backfill_bhavcopy(session, store: Store, trading_days: Iterable[date], urls: dict,

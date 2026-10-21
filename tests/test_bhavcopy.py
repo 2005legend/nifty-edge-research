@@ -12,6 +12,7 @@ from quantdesk.eod.bhavcopy import (
     backfill_bhavcopy,
     fetch_nse_fo_bhavcopy,
     parse_fo_bhavcopy,
+    parse_fo_contracts,
 )
 from quantdesk.net.http import BadDownloadError, PoliteSession
 from quantdesk.storage import Store
@@ -159,3 +160,27 @@ def test_legacy_backfill_skips_days_already_stored(tmp_path):
     status = backfill_bhavcopy(session, store, [date(2023, 9, 25)], load_settings()["urls"], exchange="NSE")
     assert status == {date(2023, 9, 25): "skipped_existing"}
     assert http.requested == []
+
+
+def test_udiff_contracts_use_the_actual_expiry_and_board_lot(tmp_path):
+    header = ("TradDt,BizDt,Sgmt,Src,FinInstrmTp,FinInstrmId,ISIN,TckrSymb,SctySrs,XpryDt,FininstrmActlXpryDt,"
+              "StrkPric,OptnTp,FinInstrmNm,OpnPric,HghPric,LwPric,ClsPric,LastPric,PrvsClsgPric,UndrlygPric,"
+              "SttlmPric,OpnIntrst,ChngInOpnIntrst,TtlTradgVol,TtlTrfVal,TtlNbOfTxsExctd,SsnId,NewBrdLotQty,"
+              "Rmks,Rsvd1,Rsvd2,Rsvd3,Rsvd4\n")
+    row = ("2026-10-19,2026-10-19,FO,NSE,IDO,1,,NIFTY,,2026-11-10,2026-11-09,22550.00,CE,X,0,0,0,120.0,0,0,"
+           "22600,120.0,1000,0,650,1.0,1,F1,65,,,,,\n")
+    stock = row.replace(",NIFTY,", ",RELIANCE,").replace(",IDO,", ",STO,")
+    path = tmp_path / "BhavCopy_NSE_FO_20261019.csv"
+    path.write_text(header + row + stock)
+    rows = parse_fo_contracts(path)
+    assert len(rows) == 1
+    assert rows.loc[0, "expiry"] == date(2026, 11, 9) and rows.loc[0, "lot"] == 65
+    assert list(rows.columns) == COLUMNS + ["lot", "turnover"]
+    assert rows.loc[0, "turnover"] == 1.0
+
+
+def test_legacy_lot_comes_from_futures_turnover():
+    rows = parse_fo_contracts(LEGACY)
+    assert set(rows["lot"]) == {50}      # 1225664.77e5 / (124504 x 19700.5) = 49.97 -> 50
+    assert rows.loc[0, "instrument"] == "IDF" and set(rows["instrument"]) == {"IDF", "IDO"}
+    assert rows.loc[0, "turnover"] == pytest.approx(1.22566477e11)

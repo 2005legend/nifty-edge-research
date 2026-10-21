@@ -361,3 +361,18 @@ The plan was approved on 21 Oct 2026. The rulings are in spec §6.4, and every v
     would have stopped `derive` outright.
   - A test now walks `config/settings.yaml` and fails if any collected series has no lag rule.
   - *Cost if wrong:* an unlagged series reads as same-day knowledge, which is look-ahead.
+
+## 2026-10-21: SP2 plan 1 - contract parser rulings
+
+- **Legacy `turnover` is `VAL_INLAKH` x 1e5.**
+  - Why: plan 1 defined `turnover` only for UDiFF (`TtlTrfVal`, rupees). The pre-July-2024 layout reports
+    traded value in lakh rupees, so it is scaled to rupees and `options_eod` keeps one unit throughout.
+- **`lot` is nullable `Int64`, never 0.**
+  - Why: a legacy file whose futures row has no contracts or no settle price cannot yield a lot. That row
+    stays missing instead of becoming 0, which would silently size a position at nothing. All 1,234 legacy
+    NSE files in `data/raw` do yield one, and the recovered sizes are 50 and 75, so {25, 50, 75} covers
+    every lot era NSE has used.
+  - *Cost if wrong:* a 0 lot passes the affordability screen and then divides the stop budget by nothing.
+- **R6 confirmed on stored data:** 23 NSE UDiFF days have `FininstrmActlXpryDt` different from `XpryDt`
+  (Oct 2024, Dec 2024-Jan 2025, Apr/May/Oct 2025), so keying chains by the scheduled expiry would misdate
+  them. `parse_fo_contracts` uses the actual expiry and falls back to the scheduled one only if it is blank.
