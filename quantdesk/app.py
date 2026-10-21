@@ -39,6 +39,9 @@ class ThreadedStream:
     def check_stale(self):
         self.stream.check_stale()
 
+    def reconnect(self):
+        self.stream.reconnect()
+
     def close(self):
         self.stream.close()
 

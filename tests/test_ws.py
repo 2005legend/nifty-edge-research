@@ -139,3 +139,25 @@ def test_reconnect_resubscribes_all_tokens():
             tokens.update(entry["tokens"])
     assert tokens == {"a", "b"}
     assert [t.token for t in ticks] == ["a", "b"]
+
+
+def test_reconnect_drops_connection_and_resubscribes():
+    """A feed can freeze while the socket stays open; reconnect() must start a fresh connection (backlog 2)."""
+    clock = FakeClock(START)
+    holder = {}
+
+    def freeze(ws):
+        holder["stream"].reconnect()
+
+    def finish(ws):
+        holder["stream"].close()
+
+    factory = FakeStream([[freeze], [finish]])
+    stream = TickStream("jwt", "key", "C1", "feed", on_tick=lambda t: None, on_stale=lambda *a: None,
+                        clock=clock, ws_factory=factory, stale_seconds=30, sleep=FakeSleep(clock))
+    holder["stream"] = stream
+    stream.subscribe({2: ["a"]})
+    stream.run()
+    assert len(factory.connections) == 2
+    assert factory.connections[0].closed
+    assert factory.connections[1].subscribe_calls  # every token resubscribed on the new connection

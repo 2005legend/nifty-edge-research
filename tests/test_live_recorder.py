@@ -258,3 +258,14 @@ def test_option_meta_saved_at_start_and_after_recenter(tmp_path):
     assert option_token(master) in set(first["token"])
     assert len(meta) > len(first)  # the recentre's new strikes were added
     assert meta["token"].is_unique
+
+
+def test_silent_feed_during_session_forces_reconnect(tmp_path):
+    """Backlog 2: a frozen feed was only logged; now the recorder asks the stream to reconnect."""
+    master = load_master(FIXTURE)
+    ticks = make_ticks(master, at(9, 15), at(9, 18), gap=(at(9, 15, 30), at(9, 17, 30)))
+    holder = {}
+    summary, store = run(tmp_path, ticks, start=at(9, 14), close="09:18", holder=holder)
+    assert holder["stream"].reconnects >= 2  # once when it went silent, again a minute later
+    assert "reconnect" in set(store.read("recorder_events", DAY)["event"])
+    assert summary.stale_periods

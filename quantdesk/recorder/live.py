@@ -22,6 +22,7 @@ LOOP_STEP_S = 1.0
 FLUSH_GRACE_S = 1.0          # flush minute M once the feed's exchange time passes M+1 by this much
 PC_FALLBACK_GRACE_S = 10.0   # ...or once the PC clock passes M+1 by this much (quiet feed)
 RECENTER_EVERY_S = 60.0
+RECONNECT_EVERY_S = 60.0  # while the feed stays silent in session, force a fresh connection this often
 
 
 class AlreadyRunningError(RuntimeError):
@@ -137,7 +138,7 @@ def run_recording(day: date, *, client, stream_factory, master: pd.DataFrame, co
         events: list[dict] = [{"event": "subscribed", "time": clock.now(), "count": plan.count(),
                                "reduced": plan.reduced, "width": plan.width}]
         events += [{"event": "error", "time": clock.now(), "detail": e} for e in errors]
-        stale_open: dict = {"since": None}
+        stale_open: dict = {"since": None, "reconnected_at": None}
         latest = {"exchange_ts": None, "received_at": None, "outside": 0}
         stale_after = timedelta(seconds=rec["stale_seconds"])
 
@@ -161,6 +162,7 @@ def run_recording(day: date, *, client, stream_factory, master: pd.DataFrame, co
                     events.append({"event": "stale", "time": tick.exchange_ts,
                                    "start": period[0], "end": period[1]})
                     stale_open["since"] = None
+                stale_open["reconnected_at"] = None
                 if tick.token in spot_token and tick.ltp > 0:
                     spots[spot_token[tick.token]] = tick.ltp
                 if agg.add(tick) is None and tick.token in option_tokens \
@@ -177,13 +179,25 @@ def run_recording(day: date, *, client, stream_factory, master: pd.DataFrame, co
                         "exchange_ts": tick.exchange_ts, "received_at": tick.received_at})
 
         def check_stale(now):
-            """Silence during the session only: no in-session tick for stale_seconds opens a period."""
+            """Silence during the session only: no in-session tick for stale_seconds opens a period, and the
+            stream is told to reconnect (a feed can freeze while its socket stays open), then every minute."""
             if now < open_t:
                 return
             with lock:
                 reference = latest["received_at"] or open_t
-                if stale_open["since"] is None and now - reference > stale_after:
+                silent = now - reference > stale_after
+                if silent and stale_open["since"] is None:
                     stale_open["since"] = latest["exchange_ts"] or open_t
+                last = stale_open["reconnected_at"]
+                due = silent and (last is None or (now - last).total_seconds() >= RECONNECT_EVERY_S)
+                if due:
+                    stale_open["reconnected_at"] = now
+                    events.append({"event": "reconnect", "time": now})
+            if due:
+                try:
+                    stream.reconnect()
+                except Exception as exc:  # noqa: BLE001
+                    record_error("reconnect", exc)
 
         stream = stream_factory(on_tick, lambda since, now: None)
         stream.subscribe(plan.tokens)

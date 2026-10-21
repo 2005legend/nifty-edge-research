@@ -153,6 +153,7 @@ class ScriptedStream:
         self.added: list[dict] = []
         self.started = False
         self.closed = False
+        self.reconnects = 0
         self._last = None
         self._stale_reported = False
 
@@ -187,6 +188,9 @@ class ScriptedStream:
         if (now - self._last).total_seconds() > self.stale_seconds:
             self._stale_reported = True
             self.on_stale(self._last, now)
+
+    def reconnect(self):
+        self.reconnects += 1
 
     def close(self):
         self.closed = True

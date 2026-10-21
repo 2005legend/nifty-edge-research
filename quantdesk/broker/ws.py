@@ -186,6 +186,13 @@ class TickStream:
             self._attempt += 1
             self._sleep(min(2 ** min(self._attempt, 5), 30))
 
+    def reconnect(self) -> None:
+        """Drop the current connection without stopping: run() connects again and resubscribes everything.
+        Used when the feed freezes while the socket stays open."""
+        self._connected = False
+        if self._ws is not None and hasattr(self._ws, "close_connection"):
+            self._ws.close_connection()
+
     def close(self) -> None:
         self._closing = True
         if self._ws is not None and hasattr(self._ws, "close_connection"):
