@@ -197,3 +197,8 @@ The first recording started at 11:45, so the day is partial.
 - The spec's figure is corrected.
 
 **Why it matters.** The history backfill sends calls back to back for hours. At 180 per minute it would have hit the limit every minute and logged failed chunks.
+
+**Follow-up, same day.** In the third live run the Nifty candle request was refused for more than 15 s. The final refusal came back as JSON, `AB1021: Too many requests`, which wasn't on the retry list.
+- `AB1021` and the message "too many requests" are now retried.
+- Rate refusals are now retried for just over a minute (waits of 1, 2, 4, 8, 16 and 32 s), so a per-minute block can clear.
+- Sensex and VIX candles passed the continuous-session check (09:15–15:14 present).

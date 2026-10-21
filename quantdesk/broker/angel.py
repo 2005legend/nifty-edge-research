@@ -14,7 +14,7 @@ from quantdesk.config import get_secret
 from quantdesk.net.ratelimit import MultiWindowLimiter, retry
 
 CANDLE_COLUMNS = ["ts", "open", "high", "low", "close", "volume"]
-_RATE_CODES = {"AB1004", "AB2001"}
+_RATE_CODES = {"AB1004", "AB2001", "AB1021"}  # AB1021: "Too many requests" (seen live)
 
 
 class LoginError(RuntimeError):
@@ -43,7 +43,9 @@ def chunk_ranges(start: datetime, end: datetime, max_days: int) -> list[tuple[da
 
 def _is_retryable(exc: Exception) -> bool:
     if isinstance(exc, AngelApiError):
-        return exc.code in _RATE_CODES or "rate" in exc.message.lower() or exc.code.startswith("5")
+        message = exc.message.lower()
+        return (exc.code in _RATE_CODES or "rate" in message or "too many requests" in message
+                or exc.code.startswith("5"))
     if "exceeding access rate" in str(exc).lower():
         return True  # the gateway's plain-text 403, which the SDK raises as DataException
     return isinstance(exc, (ConnectionError, TimeoutError, OSError))
@@ -136,7 +138,8 @@ class AngelClient:
             self._limiter.acquire()
             return self._unwrap(fn())
 
-        return retry(attempt, attempts=5, base_delay=1, max_delay=16,
+        # Waits 1, 2, 4, 8, 16, 32 s: just over a minute, so a per-minute refusal can clear.
+        return retry(attempt, attempts=7, base_delay=1, max_delay=32,
                      retry_on=_is_retryable, sleep=self._sleep)
 
     def ltp(self, exchange: str, tradingsymbol: str, token: str) -> float:

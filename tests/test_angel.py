@@ -131,3 +131,29 @@ def test_candles_retry_when_sdk_raises_plain_text_rate_error():
 def test_rate_limits_follow_published_candle_limits():
     """SmartAPI RateLimit page (checked 21 Oct 2026): getCandleData 3/s, 120/min, 5000/h, per client code."""
     assert load_settings()["angel"]["rate_limits"] == [[3, 1.0], [120, 60.0], [5000, 3600.0]]
+
+
+def test_candles_retry_on_too_many_requests_code():
+    """Live 21 Oct 2026: after the plain-text refusals the gateway answered AB1021 'Too many requests'."""
+    fake = FakeSmartConnect(candle_responses=[
+        {"status": False, "message": "Too many requests", "errorcode": "AB1021", "data": None},
+        candle_rows,
+    ])
+    client, _, _ = make_client(fake)
+    client.login()
+    frame = client.candles("NSE", "99926000", "ONE_MINUTE",
+                           datetime(2026, 10, 19, 9, 15, tzinfo=IST), datetime(2026, 10, 19, 15, 30, tzinfo=IST))
+    assert len(frame) == 3
+
+
+def test_rate_refusals_are_retried_for_a_full_minute():
+    """The live gateway kept refusing for over 15 s; retries must outlast the 60 s per-minute window."""
+    refusal = {"status": False, "message": "Too many requests", "errorcode": "AB1021", "data": None}
+    fake = FakeSmartConnect(candle_responses=[refusal] * 6 + [candle_rows])
+    client, _, sleep = make_client(fake)
+    client.login()
+    sleeps_before = len(sleep.calls)
+    frame = client.candles("NSE", "99926000", "ONE_MINUTE",
+                           datetime(2026, 10, 19, 9, 15, tzinfo=IST), datetime(2026, 10, 19, 15, 30, tzinfo=IST))
+    assert len(frame) == 3
+    assert sum(sleep.calls[sleeps_before:]) >= 60
