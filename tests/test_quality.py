@@ -82,3 +82,15 @@ def test_eod_and_macro_failures_listed(tmp_path):
     assert "macro dgs10: failed" in report["problems"]
     assert "news feed stale: bse_notices" in report["problems"]
     assert report["news_items_per_feed"] == {"et_markets": 40}
+
+
+def test_recorder_warnings_and_errors_are_problems(tmp_path):
+    store = Store(tmp_path)
+    full_day(store)
+    report = store.read_report("recording", DAY)
+    report.update(warnings=["instrument master: download failed, using the 2026-10-16 copy"],
+                  errors=["write depth: OSError: disk full"])
+    store.write_report("recording", DAY, report)
+    problems = build_health_report(DAY, store=store, events=[], settings=SETTINGS)["problems"]
+    assert "recorder: instrument master: download failed, using the 2026-10-16 copy" in problems
+    assert "recorder errors: 1 (first: write depth: OSError: disk full)" in problems

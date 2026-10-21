@@ -17,7 +17,7 @@ from quantdesk.history.backfill import default_targets, run_backfill
 from quantdesk.macro.collect import run_macro_daily, run_macro_intraday
 from quantdesk.news.collect import SeenIndex, poll_gdelt_once, poll_once, run_news_loop
 from quantdesk.quality import build_health_report, write_health_report
-from quantdesk.recorder.live import AlreadyRunningError, run_recording
+from quantdesk.recorder.live import AlreadyRunningError, RecordingSummary, run_recording
 
 ANGEL_SECRETS = ["ANGEL_API_KEY", "ANGEL_CLIENT_CODE", "ANGEL_PIN", "ANGEL_TOTP_SECRET"]
 
@@ -64,17 +64,31 @@ def cmd_record(app, args) -> int:
     if not _require(ANGEL_SECRETS):
         return 2
     day = app.clock.now().date()
+    if not app.is_trading_day(day):  # before any download: the master alone is 35 MB
+        app.store.write_report("recording", day, asdict(RecordingSummary(status="holiday")))
+        print(f"recording holiday: {day} is not a trading day")
+        return 0
+    warnings = []
+    try:
+        constituents = app.constituents(day)
+    except Exception as exc:  # noqa: BLE001 - options and indices are still recorded
+        constituents = {}
+        warnings.append(f"Nifty 50 list unavailable, recording without stocks: {type(exc).__name__}: {exc}"[:300])
     try:
         summary = run_recording(day, client=app.client(), stream_factory=app.stream_factory,
-                                master=app.master(day), constituents=app.constituents(day), store=app.store,
+                                master=app.master(day), constituents=constituents, store=app.store,
                                 clock=app.clock, sleep=app.sleep, is_trading_day=app.is_trading_day,
                                 settings=app.settings)
     except AlreadyRunningError as exc:
         print(f"{exc} - nothing to do; leave that one running.")
         return 0
+    fallback = app.master_fallback(day)
+    summary.warnings = warnings + ([fallback] if fallback else []) + summary.warnings
     app.store.write_report("recording", day, asdict(summary))
     report = _health(app, day)
     print(f"recording {summary.status}: {summary.minutes_written} minutes; problems: {report['problems']}")
+    for warning in summary.warnings:
+        print(f"  warning: {warning}")
     for error in summary.errors:
         print(f"  error: {error}")
     return 1 if summary.status == "no_session" else 0

@@ -34,6 +34,10 @@ def build_health_report(day: date, *, store: Store, events: list, settings: dict
         problems.append(f"feed stale periods: {len(stale_periods)}")
     if recording.get("reduced"):
         problems.append("recorder used the reduced strike window")
+    problems += [f"recorder: {w}" for w in recording.get("warnings", [])]
+    recorder_errors = recording.get("errors", [])
+    if recorder_errors:
+        problems.append(f"recorder errors: {len(recorder_errors)} (first: {recorder_errors[0]})")
 
     eod = (store.read_report("eod", day) or {}).get("status", {})
     problems += [f"eod {item}: {status}" for item, status in eod.items() if status not in OK_STATUSES]

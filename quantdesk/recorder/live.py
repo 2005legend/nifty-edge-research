@@ -41,6 +41,7 @@ class RecordingSummary:
     subscription_count: int = 0
     reduced: bool = False
     errors: list = field(default_factory=list)
+    warnings: list = field(default_factory=list)  # degraded but recording, e.g. an older instrument master
 
 
 def pid_alive(pid: int) -> bool:

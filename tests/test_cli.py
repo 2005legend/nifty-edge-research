@@ -36,6 +36,9 @@ class FakeApp:
     def is_trading_day(self, day):
         return True
 
+    def master_fallback(self, day):
+        return None
+
     def stream_factory(self, on_tick, on_stale):
         raise AssertionError("not used in tests")
 
@@ -111,3 +114,40 @@ def test_record_second_copy_prints_notice_not_traceback(app, angel_env, monkeypa
     assert cli.main(["record"]) == 0
     out = capsys.readouterr().out
     assert "already running (pid 18988)" in out and "nothing to do" in out
+
+
+def test_record_on_holiday_downloads_nothing(app, angel_env, monkeypatch, capsys):
+    """Backlog 4: the 35 MB master and the Nifty 50 list were fetched before the holiday check."""
+    monkeypatch.setattr(app, "is_trading_day", lambda day: False)
+    monkeypatch.setattr(app, "master", lambda day: (_ for _ in ()).throw(AssertionError("downloaded on a holiday")))
+    monkeypatch.setattr(app, "constituents", lambda day: (_ for _ in ()).throw(AssertionError("downloaded")))
+    assert cli.main(["record"]) == 0
+    assert "holiday" in capsys.readouterr().out
+    assert app.store.read_report("recording", date(2026, 10, 19))["status"] == "holiday"
+
+
+def test_record_without_nifty50_list_still_records_options(app, angel_env, monkeypatch):
+    seen = {}
+
+    def no_list(day):
+        raise ConnectionError("NSE blocked the request")
+
+    def fake_run(day, **kw):
+        seen.update(kw)
+        return RecordingSummary(status="ok", minutes_written=360)
+
+    monkeypatch.setattr(app, "constituents", no_list)
+    monkeypatch.setattr(cli, "run_recording", fake_run)
+    assert cli.main(["record"]) == 0
+    assert seen["constituents"] == {}
+    warnings = app.store.read_report("recording", date(2026, 10, 19))["warnings"]
+    assert any("Nifty 50 list" in w and "ConnectionError" in w for w in warnings)
+
+
+def test_record_reports_master_fallback(app, angel_env, monkeypatch):
+    """Backlog 7: using an older copy of the instrument master must show in the reports."""
+    monkeypatch.setattr(app, "master_fallback", lambda day: "instrument master: download failed, using the 2026-10-16 copy")
+    monkeypatch.setattr(cli, "run_recording", lambda day, **kw: RecordingSummary(status="ok", minutes_written=360))
+    assert cli.main(["record"]) == 0
+    warnings = app.store.read_report("recording", date(2026, 10, 19))["warnings"]
+    assert any("2026-10-16 copy" in w for w in warnings)

@@ -55,6 +55,7 @@ class App:
     events: list
     _client: AngelClient | None = field(default=None, repr=False)
     _master: dict = field(default_factory=dict, repr=False)
+    _master_fallback: dict = field(default_factory=dict, repr=False)
 
     def client(self) -> AngelClient:
         if self._client is None:
@@ -71,9 +72,15 @@ class App:
     def master(self, day: date):
         if day not in self._master:
             url = self.settings["angel"]["instrument_master_url"]
-            path, _ = download_master(self.store, lambda u: requests.get(u, timeout=60), day, url)
+            path, fallback = download_master(self.store, lambda u: requests.get(u, timeout=60), day, url)
+            if fallback:
+                self._master_fallback[day] = f"instrument master: download failed, using the {path.parent.name} copy"
             self._master[day] = load_master(path)
         return self._master[day]
+
+    def master_fallback(self, day: date) -> str | None:
+        """A note when today's master download failed and an older copy is in use, else None."""
+        return self._master_fallback.get(day)
 
     def constituents(self, day: date) -> dict[str, str]:
         folder = self.store.root / "raw" / "nifty50_list"
