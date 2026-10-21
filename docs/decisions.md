@@ -202,3 +202,19 @@ The first recording started at 11:45, so the day is partial.
 - `AB1021` and the message "too many requests" are now retried.
 - Rate refusals are now retried for just over a minute (waits of 1, 2, 4, 8, 16 and 32 s), so a per-minute block can clear.
 - Sensex and VIX candles passed the continuous-session check (09:15–15:14 present).
+
+## 2026-10-21: SP1 verified live
+
+- All 7 live tests pass (12:2x IST):
+  - login
+  - the instrument master
+  - the start-up price lookups for all three indices
+  - 1-minute candles for Nifty, Sensex and VIX, complete for 09:15–15:14
+  - the live feed's price scale
+- **First recorded session.** It recorded 11:45–11:59, then from 12:10 to the close. The gap is from a closed terminal. One websocket connection carried 303 subscriptions, so spec §9 item 2's per-connection limit is at least 303.
+- **History backfill.** Started at 12:22. The first two minutes saved 18 Nifty chunks, all ok. At that pace the whole job takes about 10 hours, and it resumes where it stopped.
+- **Still open from Phase 1:**
+  - Task Scheduler jobs
+  - the first full-day health report
+  - expired-futures candles (§9 item 1)
+  - the FBIL and NSE P/E URLs

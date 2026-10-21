@@ -1,6 +1,6 @@
 # Roadmap
 
-Status on 21 Oct 2026: SP1, the data foundation, is built and merged to `main` (124 offline tests pass). It has not yet run against Angel One with real credentials. Everything that turns data into alerts is still to be built.
+Status on 21 Oct 2026: SP1, the data foundation, is built, merged to `main` and verified live: all 7 live tests pass, the first session was recorded, and the history backfill is running. Phase 1 still needs the Task Scheduler jobs, a full-day health report and the two open URLs. Everything that turns data into alerts is still to be built.
 
 The design is in [the spec](superpowers/specs/2026-10-06-nifty-sensex-options-signal-system-design.md). Daily operation is in [the runbook](runbook.md). Every decision and its reason is in [decisions.md](decisions.md).
 
