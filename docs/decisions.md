@@ -376,3 +376,20 @@ The plan was approved on 21 Oct 2026. The rulings are in spec §6.4, and every v
 - **R6 confirmed on stored data:** 23 NSE UDiFF days have `FininstrmActlXpryDt` different from `XpryDt`
   (Oct 2024, Dec 2024-Jan 2025, Apr/May/Oct 2025), so keying chains by the scheduled expiry would misdate
   them. `parse_fo_contracts` uses the actual expiry and falls back to the scheduled one only if it is blank.
+
+## 2026-10-21: SP2 plan 1 - which sessions have no option chain
+
+- **`expiries` falls back per day, not per symbol.**
+  - Why: of the 1,900 sessions from 2019-02-11, exactly 7 have no NSE F&O file and the same 5 of those have
+    no BSE file either, so a per-symbol fallback would recover nothing. Six of the seven are `irregular`
+    weekend sessions (1 Feb 2020, 1 Feb 2025 and 1 Feb 2026 Budget sittings, 20 Jan 2024, 2 Mar 2024,
+    18 May 2024): NSE keeps the derivatives segment closed for them, which is why there is no bhavcopy.
+    The seventh, 2021-03-30, is the archive gap the design already documents, and the fallback covers it -
+    that day reads the 26 March chain.
+  - A day with no chain gets no `expiries` row, so it cannot produce a signal (R12). No day is filled from
+    a stale chain whose expiries have all passed.
+- **`expiries` carries `available_at` = d 09:00 IST.** Design section 5's column list omits it, but section 4
+  opens "every derived row has `available_at`", and the `AsOf` reader adds `available_at <= T` to every
+  table it reads. Without the column the day card could not read its own expiry calendar.
+- **57% of chain rows are untraded** (measured on a 19-session sample), so the `traded` flag is not a
+  formality: every surface and skew fit must filter on it.
