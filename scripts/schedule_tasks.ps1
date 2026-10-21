@@ -13,6 +13,7 @@ param([switch]$Remove)
 $ErrorActionPreference = 'Stop'
 $project = Split-Path -Parent $PSScriptRoot
 $python = Join-Path $project '.venv\Scripts\python.exe'
+$deskPython = Join-Path $project '.venv-desk\Scripts\python.exe'  # TradingAgents' own environment (SP4)
 $logDir = Join-Path $project 'logs\tasks'
 $weekdays = 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
 
@@ -32,15 +33,20 @@ $jobs = @(
     @{ Name = 'record';         At = '08:55'; Args = 'record';           Hours = 8; Wake = $true },
     @{ Name = 'macro-intraday'; At = '08:58'; Args = 'macro --intraday'; Hours = 8 },
     @{ Name = 'eod';            At = '18:35'; Args = 'eod';              Hours = 6; Wake = $true },
-    @{ Name = 'macro-evening';  At = '18:35'; Args = 'macro';            Hours = 1 }
+    @{ Name = 'macro-evening';  At = '18:35'; Args = 'macro';            Hours = 1 },
+    # SP4 phase 0: one TradingAgents run on Groq per evening; it stops itself after 10 runs.
+    @{ Name = 'desk-pilot';     At = '19:30'; Exe = $deskPython; Run = 'desk\run_pilot.py'; Hours = 2 }
 )
 
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
 
 foreach ($job in $jobs) {
+    $exe = if ($job.Exe) { $job.Exe } else { $python }
+    if (-not (Test-Path $exe)) { Write-Output "skipped quantdesk-$($job.Name): $exe not found"; continue }
+    $run = if ($job.Run) { $job.Run } else { "-m quantdesk $($job.Args)" }
     $log = Join-Path $logDir "$($job.Name).log"
     # Runs inside a hidden PowerShell: a start marker, then the job, with all output appended to the log.
-    $command = '$env:PYTHONUNBUFFERED=''1''; & {{ ''=== '' + (Get-Date -Format s) + '' {1} ===''; & ''{0}'' -m quantdesk {1} }} *>> ''{2}''' -f $python, $job.Args, $log
+    $command = '$env:PYTHONUNBUFFERED=''1''; & {{ ''=== '' + (Get-Date -Format s) + '' {1} ===''; & ''{0}'' {1} }} *>> ''{2}''' -f $exe, $run, $log
     $action = New-ScheduledTaskAction -Execute 'powershell.exe' -WorkingDirectory $project `
         -Argument ('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "{0}"' -f $command)
 
@@ -56,6 +62,6 @@ foreach ($job in $jobs) {
     if ($job.Wake) { $settings.WakeToRun = $true }
 
     Register-ScheduledTask -TaskName "quantdesk-$($job.Name)" -Action $action -Trigger $triggers -Settings $settings `
-        -Principal $principal -Description "quantdesk: python -m quantdesk $($job.Args). Log: $log" -Force | Out-Null
+        -Principal $principal -Description "quantdesk: $run. Log: $log" -Force | Out-Null
     Write-Output ("registered quantdesk-{0,-15} {1}  {2}" -f $job.Name, $job.At, $(if ($job.Daily) { 'daily + at logon' } else { 'Mon-Fri' }))
 }
