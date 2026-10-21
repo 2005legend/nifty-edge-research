@@ -1,6 +1,10 @@
 # Roadmap
 
-Status on 21 Oct 2026: SP1, the data foundation, is built, merged to `main` and verified live: all 7 live tests pass, the first session was recorded, and the history backfill is running. Phase 1 still needs the Task Scheduler jobs, a full-day health report and the two open URLs. Everything that turns data into alerts is still to be built.
+Status at the end of 21 Oct 2026:
+- **Phases 1 and 2 are done.** SP1 is verified live, all 14 backlog fixes are in, all daily jobs run from Task Scheduler (`scripts/schedule_tasks.ps1`), and the history, bhavcopy (2019–) and fundamentals (2015–) backfills are running.
+- **Phase 3 has started.** The TradingAgents pilot runs nightly at 19:30.
+- **Phase 4 building blocks are done:** the cost model with sourced 2019–2026 charges, Black-76 pricing, old-format NSE bhavcopy and NSE's daily index file.
+- **Next:** the SP2 design pass, which needs the owner's decisions, and the owner labelling `data/labels/pilot8_headlines.csv`.
 
 The design is in [the spec](superpowers/specs/2026-10-06-nifty-sensex-options-signal-system-design.md). Daily operation is in [the runbook](runbook.md). Every decision and its reason is in [decisions.md](decisions.md).
 
