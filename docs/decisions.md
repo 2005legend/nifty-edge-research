@@ -430,3 +430,30 @@ The plan was approved on 21 Oct 2026. The rulings are in spec §6.4, and every v
   and the worst delta difference 2.2e-16; on the 3787 rows with real time value the worst theta
   relative difference is 4.9e-16. The 1e-10 tolerance in the design is an absolute one, and deep
   out-of-the-money rows are worth under 1e-8, so a relative test would be meaningless there.
+
+## 2026-10-21: SP2 plan 1 - HAR rulings, and one gap in the design
+
+- **x5 uses the official open, and the 09:16 caller must not.** `har_design` reads O_t from `daily`, whose
+  `available_at` is 16:00, so the design matrix is an end-of-day artefact used for fitting. A forecast made
+  at 09:16 (plan 2, `DayLoader`) has to build x5 from the 09:15 bar's open instead: the same print, but
+  knowable at the time. Everything else in the row is already a day old.
+- **A hole in the India VIX costs exactly one HAR row, and is never filled.** `x4` is the previous session's
+  VIX close reindexed onto the index's sessions; a missing day leaves the next row's x4 NaN, `fit_har` drops
+  it and `har_series` reports NaN. On real data INDIAVIX has no daily candle for 2021-02-12 and 2021-03-30
+  (the second is the day with no option chain either), so NIFTY and SENSEX each lose 2 of 2912 rows on top
+  of the 22-session warm-up.
+- **A refit needs six complete rows, so the first forecast lands in the second month of history.** `fit_har`
+  raises below that (six coefficients, no unique least-squares solution), and `har_series` simply keeps
+  forecasting from the previous fit or reports NaN. For NIFTY from 2015 that is 43 sessions with no
+  `rv_hat`, and 103 with no `har_pct` (43 + the 60 the percentile floor needs). All of it is before
+  `backtest.nifty_from` (2019-02-11).
+- **Measured on real data, 2015-2026 (temp store, nothing written to data/derived).** Median sigma_day is
+  0.64% of the index (5th percentile 0.44%, 95th 1.10%) against a realised 0.56%; the last fit has n = 750,
+  s2 = 0.64 and beta = (-1.38, 0.16, 0.15, -0.05, 0.65, 0.01), so the VIX term carries most of the level and
+  the three RV lags sum to 0.27. The exp(s2/2) correction matters: mean rv_hat / mean rv is 0.98 with it and
+  0.71 without. By year the ratio stays inside 0.89-1.10 from 2016 on; 2015 is 1.6 because those fits see
+  only a few dozen rows.
+- **Gap: the design's `har_fits` audit table has no task in plan 1 or plan 2.** Design section 6 asks for
+  beta, s2 and n per refit to be saved to a derived table. `HarFit` carries all three, but nothing writes
+  them yet. It should land with plan 3 (the registry and its audit trail), or as a `derive --only har_fits`
+  table if the owner wants it sooner.
