@@ -276,7 +276,7 @@ Each changes what the backtest can claim, so this needs the owner's decision.
   - It reproduces all five worked examples in the research notes to the paisa.
   - Sourced charge schedules start on 1 Jan 2019, 1 Apr 2023, 1 Apr 2024, 1 Oct 2024 and 1 Apr 2026, from Zerodha's exchange bulletins and Budget 2026. Dates before 2019 raise an error.
   - Unsourced small items are noted in the code, each well under ₹1 per round trip.
-  - A Nifty 65 × ₹60 → ₹74 round trip costs about ₹56.3 (2020), ₹56.7 (2023), ₹57.1 (2025) and ₹58.0 (2026).
+  - A Nifty 65 × ₹60 → ₹74 round trip costs ₹54.77 (Jun 2020), ₹55.47 (Jun 2023), ₹55.93 (Jan 2025) and ₹57.98 (Oct 2026).
 - **Open for SP2.** Should old trades be charged at their day's rates (the spec's "as they were") or today's (what the owner will pay)? Today's are higher, so they are the conservative choice.
 - **`quantdesk/black76.py`** gives price, greeks and implied vol.
   - Checked against Hull's example (1.12), put-call parity, finite differences and an IV round trip.
