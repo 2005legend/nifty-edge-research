@@ -269,3 +269,16 @@ Each changes what the backtest can claim, so this needs the owner's decision.
 - Any 413 in a counted run now rules out Path A directly, and the meter reads the rejected request's size from Groq's error.
 
 **Operations.** Jobs started inside the Claude app's terminals and shells died when the app restarted: the recorder, the history, fundamentals and bhavcopy backfills, and the terminal news poller. Only Task Scheduler jobs survived. Long jobs now run via `scripts/run_detached.ps1`, and the runbook says so. The PC must not sleep in market hours; that power setting is the owner's to change.
+
+## 2026-10-21: Cost model and Black-76 built (SP2 building blocks)
+
+- **`quantdesk/costs.py`** prices an Angel One round trip.
+  - It reproduces all five worked examples in the research notes to the paisa.
+  - Sourced charge schedules start on 1 Jan 2019, 1 Apr 2023, 1 Apr 2024, 1 Oct 2024 and 1 Apr 2026, from Zerodha's exchange bulletins and Budget 2026. Dates before 2019 raise an error.
+  - Unsourced small items are noted in the code, each well under ₹1 per round trip.
+  - A Nifty 65 × ₹60 → ₹74 round trip costs about ₹56.3 (2020), ₹56.7 (2023), ₹57.1 (2025) and ₹58.0 (2026).
+- **Open for SP2.** Should old trades be charged at their day's rates (the spec's "as they were") or today's (what the owner will pay)? Today's are higher, so they are the conservative choice.
+- **`quantdesk/black76.py`** gives price, greeks and implied vol.
+  - Checked against Hull's example (1.12), put-call parity, finite differences and an IV round trip.
+  - On live data at 14:35, the Nifty 22700 call and put both gave 14.34% IV, with India VIX at 15.88.
+  - The business-time clock is still SP2 (spec §9 item 4).

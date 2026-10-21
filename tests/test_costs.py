@@ -34,9 +34,26 @@ def test_stt_rounds_half_up_not_to_even():
 
 
 def test_dates_before_the_earliest_sourced_schedule_raise():
-    """Older STT and exchange rates are not sourced yet; a backtest must not silently use today's."""
+    """The backtest starts in 2019; nothing earlier is sourced, so a backtest must not silently guess."""
     with pytest.raises(UnknownChargeSchedule):
-        round_trip(60, 60, 65, exchange="NSE", day=date(2026, 3, 31))
+        round_trip(60, 60, 65, exchange="NSE", day=date(2018, 12, 31))
+
+
+@pytest.mark.parametrize("day, stt, nse, bse", [
+    # Zerodha bulletins: 1 Apr 2023 (STT 0.05 -> 0.0625%, NSE 0.053 -> 0.05%), 1 Apr 2024 (NSE 0.05 -> 0.0495%),
+    # 1 Oct 2024 (STT -> 0.1%, NSE -> 0.03503%, BSE -> 0.0325%); Budget 2026 (STT -> 0.15% from 1 Apr 2026)
+    (date(2019, 1, 2), 0.0005, 0.00053, 0.000495),
+    (date(2023, 3, 31), 0.0005, 0.00053, 0.000495),
+    (date(2023, 4, 3), 0.000625, 0.0005, 0.000495),
+    (date(2024, 4, 1), 0.000625, 0.000495, 0.000495),
+    (date(2024, 10, 1), 0.001, 0.0003503, 0.000325),
+    (date(2026, 4, 1), 0.0015, 0.0003553, 0.000325),
+])
+def test_historical_rates_switch_on_their_effective_dates(day, stt, nse, bse):
+    from quantdesk.costs import schedule_for
+
+    schedule = schedule_for(day)
+    assert (schedule.stt_sell, schedule.exchange["NSE"], schedule.exchange["BSE"]) == (stt, nse, bse)
 
 
 def test_unknown_exchange_is_rejected():
