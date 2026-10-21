@@ -77,6 +77,7 @@ parameters:
   event.headline_window_min: {value: 30, source: "R27; live only (R30)", provenance: design_ruling}
   event.exit_before_min: {value: 5, source: "spec §6.1 step 8", provenance: spec}
   event.budget_delta: {value: 0.04, source: "R27", provenance: design_ruling}
+  event.budget_no_entry_before: {value: "13:00", source: "R27: after the speech (11:00 start, about 90 minutes)", provenance: design_ruling}
   event.range_multipliers: {value: 1.0, source: "R27: fully shrunk until re-validated (spec §6.1 step 1)", provenance: design_ruling}
 
   # --- meta-model (spec §6.1 step 5) ---

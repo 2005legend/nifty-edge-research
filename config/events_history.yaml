@@ -1,0 +1,102 @@
+# Scheduled market events 2019-2026 for the backtest's event gate (R9, spec §6.1 step 1). Read with
+# quantdesk.calendar.events.load_events, like config/events.yaml (which keeps the live calendar).
+#
+# Only events that fall inside Indian market hours matter intraday:
+#   - RBI MPC decisions (E2): no entries until event.rbi_wait_min after `time`
+#   - Union Budget speeches (E2): no entries before event.budget_no_entry_before, then Delta +0.04
+#   - general-election results (E3): no trade
+#   - Nifty 50 rebalance days (E1): flat by 15:00 (the last session before a membership change takes effect)
+# US releases and Indian data come after the close and are left out.
+#
+# RBI decision times:
+#   - 11:45 for 2019 to Feb 2020 (RBI's own notices)
+#   - 10:00 from 2023 (RBI practice, reported each meeting)
+#   - 12:00, the conservative choice, for Aug 2020 to Dec 2022 where no notice was found: `time_assumed: true`
+# A later assumed time only blocks entries longer.
+#
+# Off-cycle RBI moves (27 Mar 2020, 22 May 2020, 4 May 2022) were not known beforehand:
+# `scheduled: false`, so the calendar gate ignores them; they belong to the shock and headline paths.
+
+events:
+  # --- RBI MPC decisions ---
+  - {date: 2019-02-07, time: "11:45", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.rbi.org.in/Scripts/Annualpolicy.aspx"}
+  - {date: 2019-04-04, time: "11:45", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.rbi.org.in/Scripts/Annualpolicy.aspx"}
+  - {date: 2019-06-06, time: "11:45", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.rbi.org.in/Scripts/Annualpolicy.aspx"}
+  - {date: 2019-08-07, time: "11:45", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://website.rbi.org.in/web/rbi/-/press-releases/third-bi-monthly-monetary-policy-statement-2019-20-47782"}
+  - {date: 2019-10-04, time: "11:45", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=48272"}
+  - {date: 2019-12-05, time: "11:45", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://website.rbi.org.in/web/rbi/-/press-releases/fifth-bi-monthly-monetary-policy-statement-2019-20-48774"}
+  - {date: 2020-02-06, time: "11:45", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx?prid=49314"}
+  - {date: 2020-03-27, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI off-cycle policy (COVID)", scheduled: false, announced_on: 2020-03-27, source_url: "https://www.rbi.org.in/Scripts/Annualpolicy.aspx"}
+  - {date: 2020-05-22, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI off-cycle policy (COVID)", scheduled: false, announced_on: 2020-05-22, source_url: "https://www.rbi.org.in/Scripts/Annualpolicy.aspx"}
+  - {date: 2020-08-06, time: "12:00", time_assumed: true, type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://affairscloud.com/highlights-of-monetary-policy-committee-mpc-on-august-4-6-2020"}
+  - {date: 2020-10-09, time: "12:00", time_assumed: true, type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.rbi.org.in/Scripts/Annualpolicy.aspx"}
+  - {date: 2020-12-04, time: "12:00", time_assumed: true, type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.rbi.org.in/Scripts/Annualpolicy.aspx"}
+  - {date: 2021-02-05, time: "12:00", time_assumed: true, type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.onmanorama.com/news/business/2021/02/05/rbi-keeps-policy-rate-unchanged-fourth-time-in-a-row.amp.html"}
+  - {date: 2021-04-07, time: "12:00", time_assumed: true, type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.rbi.org.in/Scripts/Annualpolicy.aspx"}
+  - {date: 2021-06-04, time: "12:00", time_assumed: true, type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.businesstoday.in/latest/economy-politics/story/breaking-news-rbi-keeps-repo-rate-unchanged-maintains-accommodative-stance-298040-2021-06-04"}
+  - {date: 2021-08-06, time: "12:00", time_assumed: true, type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.rbi.org.in/Scripts/Annualpolicy.aspx"}
+  - {date: 2021-10-08, time: "12:00", time_assumed: true, type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.rbi.org.in/Scripts/Annualpolicy.aspx"}
+  - {date: 2021-12-08, time: "12:00", time_assumed: true, type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.businesstoday.in/latest/economy/story/rbi-mpc-meeting-repo-rate-unchanged-at-4-percent-314774-2021-12-08"}
+  - {date: 2022-02-10, time: "12:00", time_assumed: true, type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.rbi.org.in/Scripts/Annualpolicy.aspx"}
+  - {date: 2022-04-08, time: "12:00", time_assumed: true, type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://website.rbi.org.in/web/rbi/-/press-releases/meeting-schedule-of-the-monetary-policy-committee-for-2022-2023-53486"}
+  - {date: 2022-05-04, time: "14:00", type: rbi_mpc, gate: E2, title: "RBI off-cycle rate hike", scheduled: false, announced_on: 2022-05-04, source_url: "https://www.rbi.org.in/Scripts/Annualpolicy.aspx"}
+  - {date: 2022-06-08, time: "12:00", time_assumed: true, type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://website.rbi.org.in/web/rbi/-/press-releases/meeting-schedule-of-the-monetary-policy-committee-for-2022-2023-53486"}
+  - {date: 2022-08-05, time: "12:00", time_assumed: true, type: rbi_mpc, gate: E2, title: "RBI MPC decision (meeting moved to 3-5 Aug)", source_url: "https://www.rbi.org.in/Scripts/Annualpolicy.aspx"}
+  - {date: 2022-09-30, time: "12:00", time_assumed: true, type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://website.rbi.org.in/web/rbi/-/press-releases/meeting-schedule-of-the-monetary-policy-committee-for-2022-2023-53486"}
+  - {date: 2022-12-07, time: "12:00", time_assumed: true, type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://website.rbi.org.in/web/rbi/-/press-releases/meeting-schedule-of-the-monetary-policy-committee-for-2022-2023-53486"}
+  - {date: 2023-02-08, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://website.rbi.org.in/web/rbi/-/press-releases/meeting-schedule-of-the-monetary-policy-committee-for-2022-2023-53486"}
+  - {date: 2023-04-06, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://website.rbi.org.in/as/web/rbi/-/press-releases/meeting-schedule-of-the-monetary-policy-committee-for-2023-2024-55410"}
+  - {date: 2023-06-08, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.business-standard.com/economy/news/rbi-mpc-when-and-where-to-watch-policy-announcement-by-shaktikanta-das-123060800216_1.html"}
+  - {date: 2023-08-10, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://website.rbi.org.in/as/web/rbi/-/press-releases/meeting-schedule-of-the-monetary-policy-committee-for-2023-2024-55410"}
+  - {date: 2023-10-06, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://website.rbi.org.in/as/web/rbi/-/press-releases/meeting-schedule-of-the-monetary-policy-committee-for-2023-2024-55410"}
+  - {date: 2023-12-08, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.business-standard.com/amp/finance/news/rbi-monetary-policy-meeting-repo-rate-announcement-today-check-when-where-to-watch-what-to-expect-123120800136_1.html"}
+  - {date: 2024-02-08, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.business-standard.com/amp/finance/news/rbi-mpc-today-when-where-to-watch-address-of-guv-das-and-what-to-expect-124020800105_1.html"}
+  - {date: 2024-04-05, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://website.rbi.org.in/pa/web/rbi/-/press-releases/meeting-schedule-of-the-monetary-policy-committee-for-2024-2025"}
+  - {date: 2024-06-07, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://website.rbi.org.in/pa/web/rbi/-/press-releases/meeting-schedule-of-the-monetary-policy-committee-for-2024-2025"}
+  - {date: 2024-08-08, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://website.rbi.org.in/pa/web/rbi/-/press-releases/meeting-schedule-of-the-monetary-policy-committee-for-2024-2025"}
+  - {date: 2024-10-09, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.business-standard.com/amp/finance/news/rbi-s-monetary-policy-committee-meet-date-time-members-and-agenda-124100700722_1.html"}
+  - {date: 2024-12-06, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://website.rbi.org.in/pa/web/rbi/-/press-releases/meeting-schedule-of-the-monetary-policy-committee-for-2024-2025"}
+  - {date: 2025-02-07, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://website.rbi.org.in/pa/web/rbi/-/press-releases/meeting-schedule-of-the-monetary-policy-committee-for-2024-2025"}
+  - {date: 2025-04-09, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.rbi.org.in/Scripts/Annualpolicy.aspx"}
+  - {date: 2025-06-06, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.rbi.org.in/Scripts/Annualpolicy.aspx"}
+  - {date: 2025-08-06, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.rbi.org.in/Scripts/Annualpolicy.aspx"}
+  - {date: 2025-10-01, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.rbi.org.in/Scripts/Annualpolicy.aspx"}
+  - {date: 2025-12-05, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.angelone.in/news/economy/rbi-mpc-today-decision-on-repo-rate-crr-and-more-to-come-by-10-am"}
+  - {date: 2026-02-06, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.newsonair.gov.in/rbi-to-announce-monetary-policy-today-governor-sanjay-malhotra-to-speak-at-10-am"}
+  - {date: 2026-04-08, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx?prid=62422"}
+  - {date: 2026-06-05, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx?prid=62422"}
+  - {date: 2026-08-05, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx?prid=62422"}
+  - {date: 2026-10-07, time: "10:00", type: rbi_mpc, gate: E2, title: "RBI MPC decision", source_url: "https://www.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx?prid=62422"}
+
+  # --- Union Budget speeches (11:00 IST; weekend sessions are special sessions, excluded anyway by R8) ---
+  - {date: 2019-02-01, time: "11:00", type: budget, gate: E2, title: "Interim Union Budget 2019-20", source_url: "https://www.indiabudget.gov.in/"}
+  - {date: 2019-07-05, time: "11:00", type: budget, gate: E2, title: "Union Budget 2019-20", source_url: "https://www.indiabudget.gov.in/"}
+  - {date: 2020-02-01, time: "11:00", type: budget, gate: E2, title: "Union Budget 2020-21 (Saturday session)", source_url: "https://www.indiabudget.gov.in/"}
+  - {date: 2021-02-01, time: "11:00", type: budget, gate: E2, title: "Union Budget 2021-22", source_url: "https://www.indiabudget.gov.in/"}
+  - {date: 2022-02-01, time: "11:00", type: budget, gate: E2, title: "Union Budget 2022-23", source_url: "https://www.indiabudget.gov.in/"}
+  - {date: 2023-02-01, time: "11:00", type: budget, gate: E2, title: "Union Budget 2023-24", source_url: "https://www.indiabudget.gov.in/"}
+  - {date: 2024-02-01, time: "11:00", type: budget, gate: E2, title: "Interim Union Budget 2024-25", source_url: "https://www.indiabudget.gov.in/"}
+  - {date: 2024-07-23, time: "11:00", type: budget, gate: E2, title: "Union Budget 2024-25", source_url: "https://www.indiabudget.gov.in/"}
+  - {date: 2025-02-01, time: "11:00", type: budget, gate: E2, title: "Union Budget 2025-26 (Saturday session)", source_url: "https://www.indiabudget.gov.in/"}
+  - {date: 2026-02-01, time: "11:00", type: budget, gate: E2, title: "Union Budget 2026-27 (Sunday session)", source_url: "https://www.indiabudget.gov.in/"}
+
+  # --- general-election results (no trade) ---
+  - {date: 2019-05-23, type: election_results, gate: E3, title: "Lok Sabha 2019 results", source_url: "https://results.eci.gov.in/"}
+  - {date: 2024-06-04, type: election_results, gate: E3, title: "Lok Sabha 2024 results", source_url: "https://results.eci.gov.in/"}
+
+  # --- Nifty 50 rebalance days: the last session before a membership change (config/nifty50_membership.yaml) ---
+  - {date: 2019-03-28, type: index_rebalance, gate: E1, title: "Nifty 50 rebalance", source_url: "https://en.wikipedia.org/w/index.php?title=NIFTY_50&oldid=1379683379"}
+  - {date: 2019-09-26, type: index_rebalance, gate: E1, title: "Nifty 50 rebalance", source_url: "https://en.wikipedia.org/w/index.php?title=NIFTY_50&oldid=1379683379"}
+  - {date: 2020-03-18, type: index_rebalance, gate: E1, title: "Nifty 50 rebalance (Yes Bank)", source_url: "https://en.wikipedia.org/w/index.php?title=NIFTY_50&oldid=1379683379"}
+  - {date: 2020-07-30, type: index_rebalance, gate: E1, title: "Nifty 50 rebalance", source_url: "https://en.wikipedia.org/w/index.php?title=NIFTY_50&oldid=1379683379"}
+  - {date: 2020-09-24, type: index_rebalance, gate: E1, title: "Nifty 50 rebalance", source_url: "https://en.wikipedia.org/w/index.php?title=NIFTY_50&oldid=1379683379"}
+  - {date: 2021-03-30, type: index_rebalance, gate: E1, title: "Nifty 50 rebalance", source_url: "https://en.wikipedia.org/w/index.php?title=NIFTY_50&oldid=1379683379"}
+  - {date: 2022-03-30, type: index_rebalance, gate: E1, title: "Nifty 50 rebalance", source_url: "https://en.wikipedia.org/w/index.php?title=NIFTY_50&oldid=1379683379"}
+  - {date: 2022-09-29, type: index_rebalance, gate: E1, title: "Nifty 50 rebalance", source_url: "https://en.wikipedia.org/w/index.php?title=NIFTY_50&oldid=1379683379"}
+  - {date: 2023-07-12, type: index_rebalance, gate: E1, title: "Nifty 50 rebalance (HDFC merger)", source_url: "https://en.wikipedia.org/w/index.php?title=NIFTY_50&oldid=1379683379"}
+  - {date: 2024-03-27, type: index_rebalance, gate: E1, title: "Nifty 50 rebalance", source_url: "https://en.wikipedia.org/w/index.php?title=NIFTY_50&oldid=1379683379"}
+  - {date: 2024-09-27, type: index_rebalance, gate: E1, title: "Nifty 50 rebalance", source_url: "https://en.wikipedia.org/w/index.php?title=NIFTY_50&oldid=1379683379"}
+  - {date: 2025-03-27, type: index_rebalance, gate: E1, title: "Nifty 50 rebalance", source_url: "https://en.wikipedia.org/w/index.php?title=NIFTY_50&oldid=1379683379"}
+  - {date: 2025-09-29, type: index_rebalance, gate: E1, title: "Nifty 50 rebalance", source_url: "https://en.wikipedia.org/w/index.php?title=NIFTY_50&oldid=1379683379"}
+  - {date: 2026-03-27, type: index_rebalance, gate: E1, title: "Nifty semi-annual review (no Nifty 50 change)", source_url: "https://niftyindices.com/Press_Release/ind_prs23022026.pdf"}
+  - {date: 2026-09-29, type: index_rebalance, gate: E1, title: "Nifty 50 rebalance", source_url: "https://niftyindices.com/Press_Release/ind_prs10082026.pdf"}

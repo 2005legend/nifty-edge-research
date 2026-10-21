@@ -23,6 +23,9 @@ class Event:
     gate: str
     title: str
     source_url: str
+    scheduled: bool = True          # off-cycle moves were not known in advance (R9)
+    announced_on: date | None = None
+    time_assumed: bool = False      # the time is a conservative assumption, not a sourced one
 
 
 def load_events(path: Path) -> list[Event]:
@@ -52,7 +55,11 @@ def load_events(path: Path) -> list[Event]:
         if problems:
             errors.append(f"{label}: " + "; ".join(problems))
             continue
-        events.append(Event(day, at, entry["type"], entry["gate"], entry.get("title", ""), url))
+        announced = entry.get("announced_on")
+        events.append(Event(day, at, entry["type"], entry["gate"], entry.get("title", ""), url,
+                            scheduled=bool(entry.get("scheduled", True)),
+                            announced_on=date.fromisoformat(str(announced)) if announced else None,
+                            time_assumed=bool(entry.get("time_assumed", False))))
     if errors:
         raise EventValidationError("Invalid events:\n" + "\n".join(errors))
     return events

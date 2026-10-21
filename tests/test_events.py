@@ -70,3 +70,20 @@ def test_continuous_session_stops_at_closing_auction_from_3_aug_2026():
     assert continuous_session(date(2026, 10, 19), session) == (time(9, 15), time(15, 15))
     assert continuous_session(date(2026, 8, 3), session) == (time(9, 15), time(15, 15))
     assert continuous_session(date(2026, 7, 31), session) == (time(9, 15), time(15, 30))
+
+
+def test_history_file_is_valid_and_marks_off_cycle_moves_unscheduled():
+    events = load_events(project_root() / "config" / "events_history.yaml")
+    off_cycle = {e.date for e in events if not e.scheduled}
+    assert off_cycle == {date(2020, 3, 27), date(2020, 5, 22), date(2022, 5, 4)}
+    assert all(e.announced_on == e.date for e in events if not e.scheduled)
+    assumed = [e for e in events if e.time_assumed]
+    assert assumed and all(e.time.hour == 12 for e in assumed)
+
+
+def test_new_event_fields_default_to_a_scheduled_known_time(tmp_path):
+    path = tmp_path / "e.yaml"
+    path.write_text("events:\n  - {date: 2026-10-07, time: '10:00', type: rbi_mpc, gate: E2, title: RBI, "
+                    "source_url: 'https://rbi.org.in'}\n")
+    (event,) = load_events(path)
+    assert event.scheduled and event.announced_on is None and not event.time_assumed
