@@ -51,10 +51,14 @@ def _levels(side: str, rows) -> list[tuple]:
 
 
 def normalize_tick(raw: dict, received_at: datetime) -> Tick:
-    """Convert a SmartWebSocketV2 message (prices in paise, epoch ms UTC) to a Tick in rupees/IST."""
-    ts_ms = raw.get("exchange_timestamp") or raw.get("last_traded_timestamp")
-    exchange_ts = (datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).astimezone(IST)
-                   if ts_ms else received_at)
+    """Convert a SmartWebSocketV2 message (prices in paise) to a Tick in rupees/IST.
+    exchange_timestamp is epoch milliseconds; last_traded_timestamp is epoch *seconds* (checked live 21 Oct 2026)."""
+    if raw.get("exchange_timestamp"):
+        exchange_ts = datetime.fromtimestamp(raw["exchange_timestamp"] / 1000, tz=timezone.utc).astimezone(IST)
+    elif raw.get("last_traded_timestamp"):
+        exchange_ts = datetime.fromtimestamp(raw["last_traded_timestamp"], tz=timezone.utc).astimezone(IST)
+    else:
+        exchange_ts = received_at
     buys = _levels("buy", raw.get("best_5_buy_data"))
     sells = _levels("sell", raw.get("best_5_sell_data"))
     depth = tuple(buys + sells) if (buys or sells) else None

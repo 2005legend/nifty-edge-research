@@ -175,3 +175,12 @@ def test_add_tokens_never_mutates_a_published_subscription_map():
     stream.add_tokens({2: ["b"], 4: ["c"]})
     assert published == snapshot
     assert stream._subscribed == {2: {"a", "b"}, 4: {"c"}}
+
+
+def test_last_traded_timestamp_fallback_is_epoch_seconds():
+    """Live 21 Oct 2026 (Nifty future): last_traded_timestamp = 1792567293, i.e. 12:51:33 IST in seconds,
+    while exchange_timestamp is in milliseconds. The fallback assumed ms and gave a 1970 date (backlog 14)."""
+    raw = raw_tick(last_traded_timestamp=1792567293)
+    raw.pop("exchange_timestamp", None)
+    tick = normalize_tick(raw, received_at=START)
+    assert tick.exchange_ts == datetime(2026, 10, 21, 12, 51, 33, tzinfo=IST)

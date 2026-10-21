@@ -101,3 +101,9 @@ def test_live_ws_tick_scale(app):
     stream.close()
     assert got, "no tick received in 20 s"
     assert abs(got[0].ltp / rest_ltp - 1) < 0.02
+    # ws.normalize_tick falls back to last_traded_timestamp as epoch seconds (seen live 21 Oct 2026).
+    raw = got[0].last_traded_ts_raw
+    if raw:
+        as_s = datetime.fromtimestamp(raw, tz=IST)
+        assert abs((as_s - got[0].exchange_ts).total_seconds()) < 3600, \
+            f"last_traded_timestamp {raw} is not epoch seconds (as s: {as_s}, exchange_ts: {got[0].exchange_ts})"
