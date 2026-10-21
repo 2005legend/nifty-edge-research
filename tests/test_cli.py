@@ -189,3 +189,13 @@ def test_bhavcopy_backfill_bootstraps_nse_cookies(app, monkeypatch):
     monkeypatch.setattr(cli, "backfill_bhavcopy", lambda *a, **k: {})
     assert cli.main(["backfill", "--what", "bhavcopy", "--start", "2026-10-12"]) == 0
     assert session.bootstrapped == [app.settings["urls"]["nse_home"]]
+
+
+def test_news_refuses_a_second_copy(app, monkeypatch, capsys):
+    """Backlog 6: two pollers store every headline twice."""
+    from quantdesk.recorder.live import run_lock
+
+    monkeypatch.setattr(cli, "poll_once", lambda *a, **k: (_ for _ in ()).throw(AssertionError("polled")))
+    with run_lock(app.store, "news"):
+        assert cli.main(["news", "--once"]) == 0
+    assert "already running" in capsys.readouterr().out

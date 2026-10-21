@@ -17,7 +17,7 @@ from quantdesk.history.backfill import default_targets, run_backfill
 from quantdesk.macro.collect import run_macro_daily, run_macro_intraday
 from quantdesk.news.collect import SeenIndex, poll_gdelt_once, poll_once, run_news_loop
 from quantdesk.quality import build_health_report, write_health_report
-from quantdesk.recorder.live import AlreadyRunningError, RecordingSummary, run_recording
+from quantdesk.recorder.live import AlreadyRunningError, RecordingSummary, run_lock, run_recording
 
 ANGEL_SECRETS = ["ANGEL_API_KEY", "ANGEL_CLIENT_CODE", "ANGEL_PIN", "ANGEL_TOTP_SECRET"]
 
@@ -183,11 +183,15 @@ def cmd_news(app, args) -> int:
             print(f"gdelt skipped: {type(exc).__name__}")
         print(f"news {now:%H:%M}: new {report.new_items}; failed {report.failed}; stale {report.stale}")
 
-    if args.once:
-        poll()
-        return 0
-    run_news_loop(poll=poll, clock=app.clock, sleep=app.sleep, is_trading_day=app.is_trading_day,
-                  schedule=config["schedule"])
+    try:
+        with run_lock(app.store, "news"):  # two pollers would store every headline twice
+            if args.once:
+                poll()
+                return 0
+            run_news_loop(poll=poll, clock=app.clock, sleep=app.sleep, is_trading_day=app.is_trading_day,
+                          schedule=config["schedule"])
+    except AlreadyRunningError as exc:
+        print(f"{exc} - nothing to do; leave that one running.")
     return 0
 
 

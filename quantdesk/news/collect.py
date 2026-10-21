@@ -162,9 +162,13 @@ def next_interval(now: datetime, is_trading_day, schedule: dict) -> int:
     return int(minutes * 60)
 
 
-def run_news_loop(*, poll, clock, sleep, is_trading_day, schedule: dict, max_cycles: int | None = None) -> None:
+def run_news_loop(*, poll, clock, sleep, is_trading_day, schedule: dict, max_cycles: int | None = None,
+                  on_error=None) -> None:
     cycles = 0
     while max_cycles is None or cycles < max_cycles:
-        poll()
+        try:
+            poll()
+        except Exception as exc:  # noqa: BLE001 - one bad cycle never ends the continuous poller
+            (on_error or (lambda e: print(f"news poll failed: {type(e).__name__}: {e}")))(exc)
         cycles += 1
         sleep(next_interval(clock.now(), is_trading_day, schedule))

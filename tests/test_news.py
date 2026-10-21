@@ -136,3 +136,22 @@ def test_recurring_titles_with_different_links_kept(tmp_path):
     poll(store, seen, FakeClock(NOW), {"https://f/a": (200, feed([(1, "Board meeting"), (2, "Financial results")]))})
     poll(store, seen, FakeClock(NOW), {"https://f/a": (200, feed([(3, "Dividend record date")]))})
     assert len(store.read("news")) == 3
+
+
+def test_news_loop_survives_a_failing_poll():
+    """Backlog 6: one unexpected exception ended the continuous poller for the day."""
+    from quantdesk.news.collect import run_news_loop
+
+    calls, errors = [], []
+
+    def poll():
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("feed parser crashed")
+
+    clock = FakeClock(datetime(2026, 10, 19, 10, 0, tzinfo=IST))
+    schedule = {"active": ["07:00", "19:30"], "active_every_minutes": 5, "idle_every_minutes": 60}
+    run_news_loop(poll=poll, clock=clock, sleep=lambda s: clock.advance(s), is_trading_day=lambda d: True,
+                  schedule=schedule, max_cycles=3, on_error=errors.append)
+    assert len(calls) == 3
+    assert len(errors) == 1 and "feed parser crashed" in str(errors[0])
