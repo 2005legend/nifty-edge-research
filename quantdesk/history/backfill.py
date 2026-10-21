@@ -1,7 +1,8 @@
 """Resumable historical candle backfill from Angel One.
 
 Writes kind `history_<interval>` (e.g. history_one_minute) with a `target` column, and a
-manifest of JSON lines at data/raw/history/manifest.jsonl recording every chunk's status.
+manifest of JSON lines at data/state/history_manifest.jsonl recording every chunk's status
+(older runs wrote data/raw/history/manifest.jsonl, which is still read).
 Consumers de-duplicate on (target, ts): a re-run re-fetches the open-ended last chunk.
 """
 
@@ -51,16 +52,21 @@ def default_targets(master, constituents: dict[str, str], settings: dict, today:
 
 
 def _manifest_path(store: Store):
-    return store.root / "raw" / "history" / "manifest.jsonl"
+    return store.root / "state" / "history_manifest.jsonl"  # data/raw is never edited
+
+
+def _legacy_manifest_path(store: Store):
+    return store.root / "raw" / "history" / "manifest.jsonl"  # read-only, written by versions before 21 Oct 2026
 
 
 def _load_done(store: Store) -> dict[tuple, str]:
     """(target, interval, chunk_start) -> latest chunk_end iso for chunks with status ok/empty."""
-    path = _manifest_path(store)
     done: dict[tuple, str] = {}
-    if not path.exists():
-        return done
-    for line in path.read_text(encoding="utf-8").splitlines():
+    lines: list[str] = []
+    for path in (_legacy_manifest_path(store), _manifest_path(store)):  # oldest first, so newer rows win
+        if path.exists():
+            lines += path.read_text(encoding="utf-8").splitlines()
+    for line in lines:
         row = json.loads(line)
         key = (row["target"], row["interval"], row["chunk_start"])
         if row["status"] in ("ok", "empty"):

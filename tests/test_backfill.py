@@ -39,7 +39,7 @@ def small_targets():
 
 
 def manifest(store):
-    path = store.root / "raw" / "history" / "manifest.jsonl"
+    path = store.root / "state" / "history_manifest.jsonl"  # data/raw is never edited (backlog 12)
     return [json.loads(line) for line in path.read_text().splitlines()]
 
 
@@ -91,3 +91,18 @@ def test_empty_chunk_marked_empty(tmp_path):
     rows = store.read("history_one_minute")
     assert len(rows) == len(client.calls) - 1
     assert set(rows["target"]) == {"NIFTY"}
+
+
+def test_progress_in_the_old_raw_location_is_still_honoured(tmp_path):
+    """Backlog 12: the manifest moved to data/state; chunks a run recorded under data/raw stay done."""
+    store = Store(tmp_path)
+    first = FakeCandleClient()
+    run_backfill(small_targets(), first, store, FakeClock(NOW), load_settings())
+    new_path = tmp_path / "state" / "history_manifest.jsonl"
+    old_path = tmp_path / "raw" / "history" / "manifest.jsonl"
+    old_path.parent.mkdir(parents=True, exist_ok=True)
+    new_path.replace(old_path)  # as if an older version had written it
+    second = FakeCandleClient()
+    report = run_backfill(small_targets(), second, store, FakeClock(NOW), load_settings())
+    assert second.calls == []
+    assert report.chunks_skipped == len(first.calls)
