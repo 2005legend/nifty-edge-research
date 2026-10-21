@@ -107,6 +107,10 @@ def cmd_backfill(app, args) -> int:
         start = date.fromisoformat(args.start or app.settings["backfill"]["minute_start"])
         days = trading_days(start, today - timedelta(days=1), app.events)
         session = app.session()
+        try:
+            session.bootstrap(app.settings["urls"]["nse_home"])  # NSE serves files only with its cookies
+        except Exception:  # noqa: BLE001 - best effort, like run_eod
+            pass
         results = {}
         for exchange in ("NSE", "BSE"):
             status = backfill_bhavcopy(session, app.store, days, app.settings["urls"], exchange=exchange) or {}
@@ -124,11 +128,17 @@ def cmd_backfill(app, args) -> int:
 
 
 def cmd_eod(app, args) -> int:
-    if not _require(ANGEL_SECRETS):
-        return 2
     day = _day(args.day, app)
+    if not app.is_trading_day(day):
+        print(f"eod {day}: holiday, nothing to download")
+        return 0
+    client = None
+    if missing_secrets(ANGEL_SECRETS):
+        print("Angel One secrets missing: the India VIX daily candle is skipped; NSE/BSE files still download.")
+    else:
+        client = app.client()
     until = time.fromisoformat(args.until or app.settings["eod"]["retry_until"])
-    report = run_eod(day, session=app.session(), store=app.store, client=app.client(), clock=app.clock,
+    report = run_eod(day, session=app.session(), store=app.store, client=client, clock=app.clock,
                      sleep=app.sleep, settings=app.settings, until=until)
     app.store.write_report("eod", day, asdict(report))
     print(f"eod {day}: {report.status}")

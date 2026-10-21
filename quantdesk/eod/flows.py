@@ -91,6 +91,8 @@ def fetch_nifty50_list(session, store: Store, day: date, urls: dict) -> Path:
 
 
 def _vix_daily(client, store: Store, day: date, settings: dict) -> None:
+    if not store.read("vix_daily", day).empty:
+        return  # already stored by an earlier run
     spec = settings["angel"]["index_tokens"]["INDIAVIX"]
     start = datetime.combine(day, time(0, 0), tzinfo=IST)
     frame = client.candles(spec["exchange"], spec["token"], "ONE_DAY", start, start + timedelta(hours=23, minutes=59))
@@ -116,16 +118,26 @@ def run_eod(day: date, *, session, store: Store, client, clock, sleep, settings:
     except Exception:  # noqa: BLE001 - cookies are best effort
         pass
     pending = list(ITEMS)
+    if client is None:  # only the VIX daily candle needs an Angel One login
+        pending.remove("vix_daily")
+        report.status["vix_daily"] = "skipped: no Angel One credentials"
+    reason: dict[str, str] = {}
     while True:
         still = []
         for item in pending:
             try:
                 actions[item]()
                 report.status[item] = "ok"
+            # Not published yet, an exchange block page, or a network error: all retried hourly.
             except NotPublishedError:
                 still.append(item)
+                reason[item] = "not_published"
             except BadDownloadError:
-                report.status[item] = "bad_download"
+                still.append(item)
+                reason[item] = "bad_download"
+            except (ConnectionError, TimeoutError, OSError) as exc:  # requests' errors are OSErrors
+                still.append(item)
+                reason[item] = f"failed: {type(exc).__name__}"
             except Exception as exc:  # noqa: BLE001 - one item never stops the others
                 report.status[item] = f"failed: {type(exc).__name__}"
         pending = still
@@ -133,5 +145,5 @@ def run_eod(day: date, *, session, store: Store, client, clock, sleep, settings:
             break
         sleep(RETRY_EVERY_S)
     for item in pending:
-        report.status[item] = "not_published"
+        report.status[item] = reason.get(item, "not_published")
     return report

@@ -99,3 +99,23 @@ def test_bse_body_without_udiff_header_rejected(tmp_path):
     with pytest.raises(BadDownloadError):
         fetch_bse_fo_bhavcopy(session, Store(tmp_path), DAY, URLS)
     assert not (tmp_path / "raw" / "bse_fo").exists()
+
+
+def test_backfill_continues_after_a_network_error(tmp_path):
+    """Backlog 5: one requests exception aborted a multi-hour backfill."""
+    from datetime import date as _date
+
+    from quantdesk.config import load_settings
+    from quantdesk.net.http import PoliteSession
+    from quantdesk.storage import Store
+    from tests.fakes import FakeClock, FakeHttp, FakeSleep
+
+    urls = load_settings()["urls"]
+    d1, d2 = _date(2026, 10, 15), _date(2026, 10, 16)
+    zipped = (Path(__file__).parent / "fixtures" / "nse_fo_udiff_sample.zip").read_bytes()
+    clock = FakeClock(datetime(2026, 10, 20, 19, 0, tzinfo=IST))
+    http = FakeHttp({urls["nse_fo_bhavcopy"].format(yyyymmdd="20261015"): ConnectionError("reset"),
+                     urls["nse_fo_bhavcopy"].format(yyyymmdd="20261016"): (200, zipped)}, clock=clock)
+    session = PoliteSession(min_interval_s=0.0, clock=clock, sleep=FakeSleep(clock), http=http)
+    status = backfill_bhavcopy(session, Store(tmp_path), [d1, d2], urls, exchange="NSE")
+    assert status == {d1: "failed: ConnectionError", d2: "ok"}

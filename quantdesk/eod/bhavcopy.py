@@ -91,4 +91,6 @@ def backfill_bhavcopy(session, store: Store, trading_days: Iterable[date], urls:
             status[day] = "not_published"
         except BadDownloadError:
             status[day] = "bad_download"
+        except (ConnectionError, TimeoutError, OSError) as exc:  # one network error never ends the run
+            status[day] = f"failed: {type(exc).__name__}"
     return status

@@ -151,3 +151,41 @@ def test_record_reports_master_fallback(app, angel_env, monkeypatch):
     assert cli.main(["record"]) == 0
     warnings = app.store.read_report("recording", date(2026, 10, 19))["warnings"]
     assert any("2026-10-16 copy" in w for w in warnings)
+
+
+def test_eod_on_holiday_does_nothing(app, angel_env, monkeypatch, capsys):
+    monkeypatch.setattr(app, "is_trading_day", lambda day: False)
+    monkeypatch.setattr(cli, "run_eod", lambda *a, **k: (_ for _ in ()).throw(AssertionError("ran on a holiday")))
+    assert cli.main(["eod", "--day", "2026-10-20"]) == 0
+    assert "holiday" in capsys.readouterr().out
+
+
+def test_eod_without_angel_secrets_still_downloads_exchange_files(app, monkeypatch, capsys):
+    """Backlog 5: NSE/BSE files need no Angel One login; only the VIX daily candle does."""
+    for name in ANGEL:
+        monkeypatch.delenv(name, raising=False)
+    seen = {}
+
+    def fake_run_eod(day, **kw):
+        seen.update(kw)
+        from quantdesk.eod.flows import EodReport
+        return EodReport(status={"nse_fo": "ok", "vix_daily": "skipped: no Angel One credentials"})
+
+    monkeypatch.setattr(cli, "run_eod", fake_run_eod)
+    assert cli.main(["eod", "--day", "2026-10-19"]) == 0
+    assert seen["client"] is None
+
+
+def test_bhavcopy_backfill_bootstraps_nse_cookies(app, monkeypatch):
+    class Session:
+        def __init__(self):
+            self.bootstrapped = []
+
+        def bootstrap(self, url):
+            self.bootstrapped.append(url)
+
+    session = Session()
+    monkeypatch.setattr(app, "session", lambda: session)
+    monkeypatch.setattr(cli, "backfill_bhavcopy", lambda *a, **k: {})
+    assert cli.main(["backfill", "--what", "bhavcopy", "--start", "2026-10-12"]) == 0
+    assert session.bootstrapped == [app.settings["urls"]["nse_home"]]

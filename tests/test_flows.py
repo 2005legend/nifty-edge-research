@@ -89,3 +89,47 @@ def test_participant_body_without_header_is_bad_download(tmp_path):
     report, _ = make_run(tmp_path, (200, b"Service temporarily unavailable"))
     assert report.status["participant_oi"] == "bad_download"
     assert not (tmp_path / "raw" / "participant_oi").exists()
+
+
+def test_network_error_is_retried_hourly(tmp_path):
+    """Backlog 5: a timeout or reset at 19:00 was final for the day; it is now retried like 'not published'."""
+    content = (FIX / "fao_participant_oi_sample.csv").read_bytes()
+
+    def participant(clock):
+        return ConnectionError("connection reset") if clock.now().hour < 20 else (200, content)
+
+    report, sleep = make_run(tmp_path, participant)
+    assert report.status["participant_oi"] == "ok"
+    assert 3600 in sleep.calls
+
+
+def test_block_page_is_retried_hourly(tmp_path):
+    content = (FIX / "fao_participant_oi_sample.csv").read_bytes()
+
+    def participant(clock):
+        return (200, b"<html><body>Access Denied</body></html>") if clock.now().hour < 20 else (200, content)
+
+    report, _ = make_run(tmp_path, participant)
+    assert report.status["participant_oi"] == "ok"
+
+
+def test_failure_still_present_at_deadline_keeps_its_reason(tmp_path):
+    report, _ = make_run(tmp_path, ConnectionError("connection reset"))
+    assert report.status["participant_oi"] == "failed: ConnectionError"
+
+
+def test_rerun_does_not_duplicate_vix_daily(tmp_path):
+    make_run(tmp_path, (200, (FIX / "fao_participant_oi_sample.csv").read_bytes()))
+    make_run(tmp_path, (200, (FIX / "fao_participant_oi_sample.csv").read_bytes()))
+    assert len(Store(tmp_path).read("vix_daily", DAY)) == 1
+
+
+def test_without_angel_client_vix_is_skipped_and_nse_files_still_download(tmp_path):
+    clock = FakeClock(datetime(2026, 10, 19, 19, 0, tzinfo=IST))
+    sleep = FakeSleep(clock)
+    http = FakeHttp(routes((200, (FIX / "fao_participant_oi_sample.csv").read_bytes())), clock=clock)
+    session = PoliteSession(min_interval_s=0.0, clock=clock, sleep=sleep, http=http)
+    report = run_eod(DAY, session=session, store=Store(tmp_path), client=None, clock=clock,
+                     sleep=sleep, settings=SETTINGS, until=time(23, 0))
+    assert report.status["vix_daily"] == "skipped: no Angel One credentials"
+    assert report.status["nse_fo"] == "ok" and report.status["participant_oi"] == "ok"
