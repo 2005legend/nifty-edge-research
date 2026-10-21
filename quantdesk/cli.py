@@ -12,7 +12,7 @@ from quantdesk.app import build_app
 from quantdesk.calendar.events import trading_days
 from quantdesk.config import MissingSecretError, get_secret, project_root
 from quantdesk.eod.bhavcopy import backfill_bhavcopy
-from quantdesk.eod.flows import run_eod
+from quantdesk.eod.flows import backfill_participant_oi, run_eod
 from quantdesk.history.backfill import default_targets, run_backfill
 from quantdesk.macro.collect import run_macro_daily, run_macro_intraday
 from quantdesk.news.collect import SeenIndex, poll_gdelt_once, poll_once, run_news_loop
@@ -130,6 +130,27 @@ def _backfill(app, args) -> int:
             results[exchange] = {str(k): v for k, v in status.items()}
         app.store.write_report("bhavcopy_backfill", today, results)
         print(f"bhavcopy backfill: {sum(len(v) for v in results.values())} day-files checked")
+    elif args.what == "participant_oi":
+        start = date.fromisoformat(args.start or app.settings["backfill"]["minute_start"])
+        days = trading_days(start, today - timedelta(days=1), app.events)
+        session = app.session()
+        try:
+            session.bootstrap(app.settings["urls"]["nse_home"])
+        except Exception:  # noqa: BLE001 - best effort, like run_eod
+            pass
+        status = backfill_participant_oi(session, app.store, days, app.settings["urls"]) or {}
+        app.store.write_report("participant_oi_backfill", today, {str(k): v for k, v in status.items()})
+        print(f"participant OI backfill: {len(status)} days checked")
+    elif args.what == "macro":
+        # Every daily series from 2015, for HAR, shock and stress (R13, R25). The economic calendar is too
+        # large to page back through, and the NSE index file has its own backfill (--what fundamentals).
+        start = date.fromisoformat(args.start or app.settings["backfill"]["daily_start"])
+        skip = {"econ_calendar", "nifty_fundamentals", "india_gsec10y_price"}
+        settings = dict(app.settings)
+        settings["macro"] = {**app.settings["macro"],
+                             "series": [s for s in app.settings["macro"]["series"] if s["id"] not in skip]}
+        report = run_macro_daily(today, store=app.store, settings=settings, sleep=app.sleep, start=start)
+        print(f"macro backfill: {report.status}")
     else:  # fundamentals
         start = date.fromisoformat(args.start or app.settings["backfill"]["daily_start"])
         settings = dict(app.settings)
@@ -248,7 +269,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("login-check", help="verify Angel One credentials").set_defaults(func=cmd_login_check)
     sub.add_parser("record", help="record today's market session").set_defaults(func=cmd_record)
     backfill = sub.add_parser("backfill", help="download history")
-    backfill.add_argument("--what", choices=["history", "bhavcopy", "fundamentals"], required=True)
+    backfill.add_argument("--what", choices=["history", "bhavcopy", "fundamentals", "participant_oi", "macro"], required=True)
     backfill.add_argument("--start")
     backfill.add_argument("--end", help="last day to fetch (fundamentals only; default today)")
     backfill.set_defaults(func=cmd_backfill)

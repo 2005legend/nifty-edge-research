@@ -133,3 +133,18 @@ def test_without_angel_client_vix_is_skipped_and_nse_files_still_download(tmp_pa
                      sleep=sleep, settings=SETTINGS, until=time(23, 0))
     assert report.status["vix_daily"] == "skipped: no Angel One credentials"
     assert report.status["nse_fo"] == "ok" and report.status["participant_oi"] == "ok"
+
+
+def test_participant_oi_backfill_skips_existing_and_records_status(tmp_path):
+    from quantdesk.eod.flows import backfill_participant_oi
+
+    store = Store(tmp_path)
+    urls = load_settings()["urls"]
+    body = (Path(__file__).parent / "fixtures" / "fao_participant_oi_sample.csv").read_bytes()
+    day1, day2, day3 = date(2019, 1, 1), date(2019, 1, 2), date(2019, 1, 3)
+    store.write_raw("participant_oi", day1, "fao_participant_oi_01012019.csv", body)
+    http = FakeHttp({urls["nse_participant_oi"].format(ddmmyyyy="02012019"): (200, body),
+                     urls["nse_participant_oi"].format(ddmmyyyy="03012019"): ConnectionError("reset")})
+    status = backfill_participant_oi(http, store, [day1, day2, day3], urls)
+    assert status == {day1: "skipped_existing", day2: "ok", day3: "failed: ConnectionError"}
+    assert store.raw_exists("participant_oi", day2, "fao_participant_oi_02012019.csv")

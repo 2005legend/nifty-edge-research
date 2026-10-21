@@ -147,3 +147,23 @@ def run_eod(day: date, *, session, store: Store, client, clock, sleep, settings:
     for item in pending:
         report.status[item] = reason.get(item, "not_published")
     return report
+
+
+def backfill_participant_oi(session, store: Store, days, urls: dict) -> dict[date, str]:
+    """NSE's participant-wise OI files for past days (the FII-flip context, spec §5A.2); files on disk are kept."""
+    status: dict[date, str] = {}
+    for day in days:
+        stamp = day.strftime("%d%m%Y")
+        if store.raw_exists("participant_oi", day, f"fao_participant_oi_{stamp}.csv"):
+            status[day] = "skipped_existing"
+            continue
+        try:
+            fetch_participant_oi(session, store, day, urls)
+            status[day] = "ok"
+        except NotPublishedError:
+            status[day] = "not_published"
+        except BadDownloadError:
+            status[day] = "bad_download"
+        except (ConnectionError, TimeoutError, OSError) as exc:  # one network error never ends the run
+            status[day] = f"failed: {type(exc).__name__}"
+    return status

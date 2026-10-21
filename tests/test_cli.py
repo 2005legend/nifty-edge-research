@@ -253,3 +253,23 @@ def test_backfill_refuses_a_second_copy(app, angel_env, monkeypatch, capsys):
     with run_lock(app.store, "backfill-history"):
         assert cli.main(["backfill", "--what", "history"]) == 0
     assert "already running" in capsys.readouterr().out
+
+
+def test_backfill_participant_oi_and_macro_dispatch(app, monkeypatch):
+    calls = []
+
+    class Session:
+        def bootstrap(self, url):
+            pass
+
+    monkeypatch.setattr(app, "session", lambda: Session())
+    monkeypatch.setattr(cli, "backfill_participant_oi", lambda session, store, days, urls: calls.append(("oi", days[0])) or {})
+    monkeypatch.setattr(cli, "run_macro_daily",
+                        lambda day, **kw: calls.append(("macro", kw["start"], sorted(s["id"] for s in kw["settings"]["macro"]["series"]))) or MacroReport(status={}))
+    assert cli.main(["backfill", "--what", "participant_oi", "--start", "2026-10-12"]) == 0
+    assert cli.main(["backfill", "--what", "macro", "--start", "2015-01-01"]) == 0
+    assert calls[0] == ("oi", date(2026, 10, 12))
+    kind, start, ids = calls[1]
+    assert (kind, start) == ("macro", date(2015, 1, 1))
+    assert "dgs10" in ids and "brent" in ids
+    assert not {"econ_calendar", "nifty_fundamentals", "india_gsec10y_price"} & set(ids)  # calendar too big; NSE ones have their own backfill
