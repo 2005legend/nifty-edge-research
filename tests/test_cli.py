@@ -99,3 +99,15 @@ def test_record_no_session_exits_nonzero_with_reason(app, angel_env, monkeypatch
     assert cli.main(["record"]) == 1
     out = capsys.readouterr().out
     assert "no_session" in out and "LoginError" in out
+
+
+def test_record_second_copy_prints_notice_not_traceback(app, angel_env, monkeypatch, capsys):
+    from quantdesk.recorder.live import AlreadyRunningError
+
+    def refuse(day, **kw):
+        raise AlreadyRunningError("record already running (pid 18988)")
+
+    monkeypatch.setattr(cli, "run_recording", refuse)
+    assert cli.main(["record"]) == 0
+    out = capsys.readouterr().out
+    assert "already running (pid 18988)" in out and "nothing to do" in out
