@@ -155,3 +155,18 @@ def test_news_loop_survives_a_failing_poll():
                   schedule=schedule, max_cycles=3, on_error=errors.append)
     assert len(calls) == 3
     assert len(errors) == 1 and "feed parser crashed" in str(errors[0])
+
+
+def test_gdelt_same_file_is_not_stored_twice(tmp_path):
+    """Backlog 11: 5-minute polls re-read GDELT's 15-minute file, storing each row three times."""
+    lastupdate = b"3 c http://data.gdeltproject.org/gdeltv2/20261019043000.gkg.csv.zip\n"
+    http = FakeHttp({"https://data.gdeltproject.org/gdeltv2/lastupdate.txt": (200, lastupdate),
+                     "http://data.gdeltproject.org/gdeltv2/20261019043000.gkg.csv.zip": (200, gkg_zip())})
+    store = Store(tmp_path)
+    args = dict(http_get=http.get, store=store, clock=FakeClock(NOW),
+                lastupdate_url="https://data.gdeltproject.org/gdeltv2/lastupdate.txt",
+                themes=["ECON_INTEREST_RATES", "ECON_STOCKMARKET"])
+    assert poll_gdelt_once(**args) == 1
+    assert poll_gdelt_once(**args) == 0
+    assert len(store.read("news_gdelt")) == 1
+    assert http.requested.count("http://data.gdeltproject.org/gdeltv2/20261019043000.gkg.csv.zip") == 1

@@ -132,6 +132,10 @@ def poll_gdelt_once(*, http_get, store: Store, clock, lastupdate_url: str, theme
     """Keep GKG records located in India whose themes match `themes`. Returns rows kept."""
     listing = http_get(lastupdate_url).content.decode("utf-8", errors="replace").split()
     gkg_url = next(token for token in listing if token.endswith(".gkg.csv.zip"))
+    # GDELT publishes every 15 minutes and we poll every 5: skip a file already processed.
+    last_file = store.root / "state" / "gdelt_last_gkg.txt"
+    if last_file.exists() and last_file.read_text(encoding="utf-8").strip() == gkg_url:
+        return 0
     response = http_get(gkg_url)
     if response.status_code != 200 or response.content[:2] != b"PK":
         raise ConnectionError(f"GDELT GKG file unavailable (HTTP {response.status_code}): {gkg_url}")
@@ -152,6 +156,8 @@ def poll_gdelt_once(*, http_get, store: Store, clock, lastupdate_url: str, theme
                      "source": cols[3], "url": cols[4], "themes": cols[7][:1000], "first_seen": now})
     if rows:
         store.append_parquet("news_gdelt", now.date(), pd.DataFrame(rows))
+    last_file.parent.mkdir(parents=True, exist_ok=True)
+    last_file.write_text(gkg_url, encoding="utf-8")
     return len(rows)
 
 
