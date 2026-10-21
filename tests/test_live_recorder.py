@@ -243,3 +243,18 @@ def test_opening_ticks_keep_raw_feed_fields(tmp_path):
         (99.5, 6500, 3900, 65, 42)
     assert (row["day_open"], row["day_high"], row["day_low"], row["prev_close"]) == (98.0, 101.0, 97.5, 96.0)
     assert row["depth"] is not None and "130" in row["depth"]
+
+
+def test_option_meta_saved_at_start_and_after_recenter(tmp_path):
+    """NSE reuses F&O tokens, so the day's token -> contract map must be stored with the data (backlog 1)."""
+    master = load_master(FIXTURE)
+    moved = [Tick("99926000", 1, 22550.0 + 6 * 50, at(9, 15, s), at(9, 15, s)) for s in range(0, 60, 10)]
+    ticks = moved + make_ticks(master, at(9, 16), at(9, 17, 30))
+    summary, store = run(tmp_path, ticks, start=at(9, 14))
+    meta = store.read("option_meta", DAY)
+    assert {"token", "underlying", "expiry", "strike", "side", "subscribed_at"} <= set(meta.columns)
+    assert summary.recenter_events >= 1
+    first = meta[meta["subscribed_at"] == meta["subscribed_at"].min()]
+    assert option_token(master) in set(first["token"])
+    assert len(meta) > len(first)  # the recentre's new strikes were added
+    assert meta["token"].is_unique

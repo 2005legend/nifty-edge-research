@@ -1,6 +1,6 @@
 """Market-hours recorder: subscribes to the planned tokens and writes 1-minute data.
 
-Storage kinds: bars, option_snapshots, depth, opening_ticks, recorder_events.
+Storage kinds: bars, option_snapshots, depth, opening_ticks, option_meta, recorder_events.
 """
 
 import contextlib
@@ -125,6 +125,7 @@ def run_recording(day: date, *, client, stream_factory, master: pd.DataFrame, co
         spot_token = {index_specs[u]["token"]: u for u in ("NIFTY", "SENSEX")}
 
         plan = plan_subscriptions(master, spots, day, constituents, settings)
+        planned_at = clock.now()
         option_tokens = set(plan.option_meta["token"])
         jump_tokens = set(spot_token)  # India VIX legitimately moves >5%: never jump-filtered
         agg = MinuteAggregator(option_tokens=option_tokens, depth_tokens=plan.depth_tokens,
@@ -197,6 +198,9 @@ def run_recording(day: date, *, client, stream_factory, master: pd.DataFrame, co
             except Exception as exc:  # noqa: BLE001 - one failed write never ends the session
                 record_error(f"write {kind}", exc)
 
+        # NSE reuses F&O tokens, so the day's token -> contract map is stored with the data.
+        write("option_meta", plan.option_meta.assign(subscribed_at=planned_at))
+
         def flush(minute_end):
             with lock:
                 result = agg.flush(minute_end)
@@ -235,6 +239,8 @@ def run_recording(day: date, *, client, stream_factory, master: pd.DataFrame, co
                         if added:
                             new_options = set(plan.option_meta["token"]) - option_tokens
                             option_tokens |= new_options
+                            meta = plan.option_meta
+                            write("option_meta", meta[meta["token"].isin(new_options)].assign(subscribed_at=now))
                             with lock:
                                 agg.add_tokens(option_tokens=new_options, depth_tokens=plan.depth_tokens)
                                 events.append({"event": "recenter", "time": now,
