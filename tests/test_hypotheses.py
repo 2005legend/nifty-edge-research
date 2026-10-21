@@ -4,10 +4,25 @@ import pytest
 
 from quantdesk.validation.hypotheses import HypothesesError, load_hypotheses, param, validate
 
+NEW_KEYS = ["event.rebalance_hard_exit", "planning.stop_horizon_min", "planning.target_horizon_min",
+            "fill.sign_flip_check_min", "exit.x0_stall_min", "exit.x0_deadline_min", "macro.score_terms",
+            "macro.fii_flip_window", "shock.cusum_sigma_window", "shock.cusum_block", "shock.cusum_resamples",
+            "clock.weight_winsor_q", "pricing.forward", "pricing.skew_floor", "pricing.skew_max_abs_z",
+            "har.overnight_c", "har.percentile_min", "gate.vol_rich_reference_time", "gate.dsr_sr_sd_floor",
+            "cv.embargo_both_sides", "options_score.strike_steps", "options_score.rr_delta",
+            "meta.calibration_split", "alert.entry_limit_ticks", "alert.backstop_limit"]
+
 
 def test_the_registered_file_is_complete():
     """research/hypotheses.yaml is the pre-registration: every value sourced, every gate fully specified."""
     assert validate(load_hypotheses()) == []
+
+
+def test_plan_parameters_are_registered():
+    h = load_hypotheses()
+    assert [k for k in NEW_KEYS if k not in h["parameters"]] == []
+    assert param(h, "planning.stop_horizon_min") == 15 and param(h, "har.percentile_min") == 60
+    assert validate(h) == []
 
 
 def test_a_parameter_without_provenance_is_a_problem():

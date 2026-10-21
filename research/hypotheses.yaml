@@ -192,6 +192,34 @@ parameters:
   gate.addon_years_better_min: {value: 4, source: "spec §6.3 (4 of 6 years)", provenance: spec}
   holdout.setups: {value: 150, source: "spec §6.3 (D4)", provenance: owner}
 
+  # --- SP2 design pass (21 Oct 2026): values the spec left undefined, fixed before any run ---
+  # Each is argued in docs/superpowers/specs/2026-10-21-sp2-detailed-design.md; §17 lists them.
+  event.rebalance_hard_exit: {value: "15:00", source: "SP2 detailed design §17", provenance: design_ruling}
+  planning.stop_horizon_min: {value: 15, source: "SP2 detailed design §17", provenance: design_ruling}
+  planning.target_horizon_min: {value: 60, source: "SP2 detailed design §17", provenance: design_ruling}
+  fill.sign_flip_check_min: {value: 3, source: "SP2 detailed design §17", provenance: design_ruling}
+  exit.x0_stall_min: {value: 45, source: "SP2 detailed design §17", provenance: design_ruling}
+  exit.x0_deadline_min: {value: 90, source: "SP2 detailed design §17", provenance: design_ruling}
+  macro.score_terms: {value: "post_holiday_fade + fii_flip (expiry term dropped, R39)", source: "SP2 detailed design §17", provenance: design_ruling}
+  macro.fii_flip_window: {value: 5, source: "SP2 detailed design §17", provenance: design_ruling}
+  shock.cusum_sigma_window: {value: 250, source: "SP2 detailed design §17", provenance: design_ruling}
+  shock.cusum_block: {value: 20, source: "SP2 detailed design §17", provenance: design_ruling}
+  shock.cusum_resamples: {value: 1000, source: "SP2 detailed design §17", provenance: design_ruling}
+  clock.weight_winsor_q: {value: 0.999, source: "SP2 detailed design §17", provenance: design_ruling}
+  pricing.forward: {value: "F = S, r = 0", source: "SP2 detailed design §17", provenance: design_ruling}
+  pricing.skew_floor: {value: 0.5, source: "SP2 detailed design §17", provenance: design_ruling}
+  pricing.skew_max_abs_z: {value: 3, source: "SP2 detailed design §17", provenance: design_ruling}
+  har.overnight_c: {value: 1.0e-8, source: "SP2 detailed design §17", provenance: design_ruling}
+  har.percentile_min: {value: 60, source: "SP2 detailed design §17", provenance: design_ruling}
+  gate.vol_rich_reference_time: {value: "09:45", source: "SP2 detailed design §17", provenance: design_ruling}
+  gate.dsr_sr_sd_floor: {value: 0.04, source: "SP2 detailed design §17", provenance: design_ruling}
+  cv.embargo_both_sides: {value: true, source: "SP2 detailed design §17", provenance: design_ruling}
+  options_score.strike_steps: {value: 10, source: "SP2 detailed design §17", provenance: design_ruling}
+  options_score.rr_delta: {value: 0.25, source: "SP2 detailed design §17", provenance: design_ruling}
+  meta.calibration_split: {value: 0.8, source: "SP2 detailed design §17", provenance: design_ruling}
+  alert.entry_limit_ticks: {value: 2, source: "SP2 detailed design §17", provenance: design_ruling}
+  alert.backstop_limit: {value: "max(10% of trigger, 5 ticks)", source: "SP2 detailed design §17", provenance: design_ruling}
+
 gates:
   event_shock:
     rule: "no entry on E3 days, within event.rbi_wait_min after an RBI decision, or when intraday VIX moved more than gate.intraday_vix_band from the prior close; headline window is live only"
