@@ -93,8 +93,10 @@ def plan_subscriptions(master: pd.DataFrame, spots: dict[str, float], today: dat
 def recenter(plan: SubscriptionPlan, spots: dict[str, float], master: pd.DataFrame,
              settings: dict) -> tuple[SubscriptionPlan, dict[int, list[str]]]:
     """Add strikes when ATM has moved more than `recenter_strikes` from a chain's centre.
-    Existing subscriptions are never dropped."""
+    Existing subscriptions are never dropped, and the total never exceeds max_tokens_per_connection:
+    when room runs out, the strikes nearest the new ATM are added first."""
     rec = settings["recorder"]
+    room = rec["max_tokens_per_connection"] - plan.count()
     new_plan = copy.deepcopy(plan)
     existing = set(plan.option_meta["token"])
     added: dict[int, list[str]] = {}
@@ -111,12 +113,17 @@ def recenter(plan: SubscriptionPlan, spots: dict[str, float], master: pd.DataFra
         if moved <= rec["recenter_strikes"]:
             continue
         segment = UNDERLYING_SEGMENTS[underlying][0]
-        for row in _chain_rows(master, underlying, expiry, new_atm, plan.width):
-            if row["token"] not in existing:
-                existing.add(row["token"])
-                new_rows.append(row)
-                _add(new_plan.tokens, segment, row["token"])
-                added.setdefault(EXCHANGE_TYPES[segment], []).append(row["token"])
+        fresh = [row for row in _chain_rows(master, underlying, expiry, new_atm, plan.width)
+                 if row["token"] not in existing]
+        fresh.sort(key=lambda row: (abs(row["strike"] - new_atm), row["side"]))
+        for row in fresh:
+            if room <= 0:
+                break
+            room -= 1
+            existing.add(row["token"])
+            new_rows.append(row)
+            _add(new_plan.tokens, segment, row["token"])
+            added.setdefault(EXCHANGE_TYPES[segment], []).append(row["token"])
         new_plan.centres[(underlying, expiry)] = new_atm
         if expiry == min(e for (u, e) in plan.centres if u == underlying):
             new_plan.depth_tokens |= _depth(master, underlying, expiry, new_atm, rec["depth_width"])

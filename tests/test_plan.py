@@ -64,3 +64,22 @@ def test_recenter_adds_only_when_moved_more_than_5_strikes(master):
     meta = new_plan.option_meta
     new_strikes = set(meta[meta["token"].isin(added_tokens)]["strike"])
     assert min(new_strikes) > 22550 + 15 * 50
+
+
+def test_recenter_stays_within_the_token_budget(master):
+    """Backlog 13: a recentre added strikes without re-checking max_tokens_per_connection."""
+    import copy
+
+    settings = copy.deepcopy(load_settings())
+    plan = plan_subscriptions(master, SPOTS, TODAY, CONSTITUENTS, settings)
+    settings["recorder"]["max_tokens_per_connection"] = plan.count() + 2
+    new_atm = 22550 + 6 * 50
+    new_plan, added = recenter(plan, {"NIFTY": new_atm, "SENSEX": 73400.0}, master, settings)
+    added_tokens = {t for toks in added.values() for t in toks}
+    assert new_plan.count() <= settings["recorder"]["max_tokens_per_connection"]
+    assert len(added_tokens) == 2
+    meta = new_plan.option_meta
+    kept = meta[meta["token"].isin(added_tokens)]
+    # The new chain's first strike outside the old one (22550 + 16 steps) is nearest the new ATM: CE and PE.
+    assert set(kept["strike"]) == {22550 + 16 * 50}
+    assert set(kept["side"]) == {"CE", "PE"}
