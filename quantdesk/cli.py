@@ -96,6 +96,16 @@ def cmd_record(app, args) -> int:
 
 
 def cmd_backfill(app, args) -> int:
+    """One copy per kind: the nightly job must not overlap a long manual run (they would store chunks twice)."""
+    try:
+        with run_lock(app.store, f"backfill-{args.what}"):
+            return _backfill(app, args)
+    except AlreadyRunningError as exc:
+        print(f"{exc} - nothing to do; leave that one running.")
+        return 0
+
+
+def _backfill(app, args) -> int:
     today = app.clock.now().date()
     if args.what == "history":
         if not _require(ANGEL_SECRETS):

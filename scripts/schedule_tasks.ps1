@@ -34,6 +34,8 @@ $jobs = @(
     @{ Name = 'macro-intraday'; At = '08:58'; Args = 'macro --intraday'; Hours = 8 },
     @{ Name = 'eod';            At = '18:35'; Args = 'eod';              Hours = 6; Wake = $true },
     @{ Name = 'macro-evening';  At = '18:35'; Args = 'macro';            Hours = 1 },
+    # Retries errored history chunks and adds recent days; skips everything already saved.
+    @{ Name = 'backfill-history'; At = '20:30'; Args = 'backfill --what history'; Hours = 10 },
     # SP4 phase 0: one TradingAgents run on Groq per evening; it stops itself after 10 runs.
     @{ Name = 'desk-pilot';     At = '19:30'; Exe = $deskPython; Run = 'desk\run_pilot.py'; Hours = 2 }
 )

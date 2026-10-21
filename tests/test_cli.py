@@ -214,3 +214,14 @@ def test_label_sample_writes_a_sheet_for_pilot_8(app, capsys):
     sheet = pd.read_csv(app.store.root / "labels" / "pilot8_headlines.csv", encoding="utf-8-sig")
     assert list(sheet["title"]) == ["RBI keeps repo rate unchanged"]
     assert "1 headlines" in capsys.readouterr().out
+
+
+def test_backfill_refuses_a_second_copy(app, angel_env, monkeypatch, capsys):
+    """Two history backfills would fetch and store the same chunks; the nightly job must not overlap a long run."""
+    from quantdesk.recorder.live import run_lock
+
+    monkeypatch.setattr(cli, "run_backfill", lambda *a, **k: (_ for _ in ()).throw(AssertionError("ran twice")))
+    monkeypatch.setattr(cli, "default_targets", lambda *a, **k: [])
+    with run_lock(app.store, "backfill-history"):
+        assert cli.main(["backfill", "--what", "history"]) == 0
+    assert "already running" in capsys.readouterr().out
