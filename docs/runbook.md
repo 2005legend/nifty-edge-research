@@ -32,22 +32,26 @@ How to run the data foundation every day, and what to do when something goes wro
 
 ## Windows Task Scheduler
 
-Create one task per row above:
-- **Trigger:** weekly, Monday–Friday, at the time shown.
-- **Action:** start a program.
-  - Program: `"C:\Users\USER\sidaarth\Trading project\.venv\Scripts\python.exe"`
-  - Arguments: `-m quantdesk record`, or the other command
-  - Start in: `C:\Users\USER\sidaarth\Trading project`
-- **Settings:**
-  - Tick "Run whether user is logged on or not" only if the PC stays on.
-  - Tick "Stop the task if it runs longer than 12 hours".
+One script registers all six jobs for your Windows user:
 
-The PC must be on and awake during market hours. Turn sleep off while plugged in.
+```
+powershell -ExecutionPolicy Bypass -File scripts\schedule_tasks.ps1
+```
+
+Run it again after changing a time; it updates the jobs in place. `-Remove` deletes them all. The jobs are named `quantdesk-news`, `-macro-morning`, `-record`, `-macro-intraday`, `-eod` and `-macro-evening`. Each one:
+- runs hidden while you are logged in, so there is no window to close by accident
+- appends its output to `logs	asks\<job>.log`
+- is never started twice while it is still running
+- starts later if the PC was off at its time, and keeps running on battery
+
+`record` and `eod` may also wake the PC from sleep. The news poller runs continuously, so its job has no time limit. Don't also run `python -m quantdesk news` in a terminal, or every headline is stored twice.
+
+The PC must be on during market hours. Turn sleep off while plugged in.
 
 ## Reading the health report
 
 `python -m quantdesk status` shows:
-- `minutes_recorded` for Nifty, Sensex and VIX. Expect 375 on a full trading day, 0 on holidays.
+- `minutes_recorded` for Nifty, Sensex and VIX. Expect 360 on a full trading day (09:15–15:14; the index has no 1-minute bars during the 15:15 closing auction, from 3 Aug 2026), 0 on holidays.
 - `problems`: a plain list. Empty is good.
 
 ## What to do when…
@@ -63,7 +67,7 @@ The PC must be on and awake during market hours. Turn sleep off while plugged in
 | `news feed stale: X` | Feed X published nothing for 24 h | Fine on holidays; otherwise check the URL in `config/news_feeds.yaml` |
 | `feed stale periods: N` | The live feed stopped for 30+ seconds N times | The recorder reconnects by itself. Check your internet if N is large. |
 | `NIFTY: N minutes missing` | Recording started late or the PC slept | Check the PC sleep settings |
-| `AlreadyRunningError` | A recorder is already running | Don't start a second one |
+| `record already running (pid N) - nothing to do` | A recorder is already running (often the scheduled one) | Nothing. Leave that one running |
 
 ## Notes
 
