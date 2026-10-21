@@ -236,3 +236,14 @@ The first recording started at 11:45, so the day is partial.
 - BSE files before UDiFF are not covered. Sensex weekly options restarted only in May 2023.
 
 **Consequence.** The bhavcopy backfill started at 12:29 runs the old code. It will mark 2019 to mid-2024 as `not_published` and only save files from July 2024 onward. Re-running `backfill --what bhavcopy` with the new code fills the missing years and skips files already saved.
+
+## 2026-10-21: Expired futures have no 1-minute candles at Angel One (spec §9 item 1)
+
+The Nifty September 2026 future (expired 29 Sep) returned 0 candles for 25 Sep. The October future, whose token is identical in NSE's bhavcopy and Angel's master, returned 376 candles for the same day. So 1-minute futures history exists only while a contract trades: the backfill's current-future window, plus our own recordings from now on.
+
+**Open for the SP2 design pass: where historical VWAP comes from.** Candidates:
+- (a) a volume-weighted proxy built from the 50 constituents' 1-minute bars, which the history backfill is downloading
+- (b) running the H1 backtest only where futures 1-minute data exists, which is short
+- (c) an index-only VWAP substitute, such as a time-weighted average, with its limits stated
+
+Each changes what the backtest can claim, so this needs the owner's decision.

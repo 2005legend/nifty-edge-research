@@ -816,7 +816,11 @@ The pilot's own calls are logged but not scored.
 
 ## 9. Open items to settle during implementation
 
-1. Can Angel One serve expired futures 1-minute candles? This decides the source of VWAP (section 5.6).
+1. ~~Can Angel One serve expired futures 1-minute candles?~~ **Settled 2026-10-21: no.**
+   - The Nifty Sep-2026 future (token 68407, from NSE's bhavcopy) returned 0 candles.
+   - Control: the still-trading Oct future (token 48704, identical in NSE's file and Angel's master) returned 376 candles for the same day.
+   - So historical futures VWAP (2019–2026) cannot come from Angel One. Choosing the VWAP source for the backtest is an SP2 design-pass decision.
+   - F&O trades through the 15:15 closing auction: futures have bars to 15:30, while the index pauses.
 2. Angel One's websocket token limit per connection and the OI update frequency.
 3. ~~The current Sensex lot size and tick sizes.~~ **Settled 2026-10-20** from Angel One's live instrument master:
    - Sensex lot 20, Nifty lot 65.
