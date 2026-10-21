@@ -1,6 +1,12 @@
 # All tunable values for quantdesk. No secrets here: those live in .env.
 timezone: Asia/Kolkata
-session: {open: "09:15", close: "15:30", minutes: 375}
+session:
+  open: "09:15"
+  close: "15:30"
+  minutes: 375
+  # From 3 Aug 2026 index values are not computed during the closing auction: Nifty 1-minute
+  # candles stop at 15:14 and one 15:29 bar carries the close (live candles, 19 Oct 2026).
+  closing_auction: {start: "15:15", since: "2026-08-03"}
 paths: {data_dir: data}
 
 angel:

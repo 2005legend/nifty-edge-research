@@ -9,6 +9,7 @@ import threading
 import time
 from datetime import date, datetime, timedelta
 
+import pandas as pd
 import pytest
 
 import quantdesk.config as config
@@ -59,11 +60,26 @@ def test_live_index_ltp_used_at_recorder_start(app):
         assert low < price < high, f"{name}: {price}"
 
 
-def test_live_candles_one_day(app):
+@pytest.mark.parametrize("name", ["NIFTY", "SENSEX", "INDIAVIX"])
+def test_live_candles_one_day(app, name):
+    """Every minute of the continuous session is present (09:15–15:14 since the 3 Aug 2026 closing auction)."""
+    from quantdesk.calendar.events import continuous_session
+
     day = last_trading_day(app)
+    spec = app.settings["angel"]["index_tokens"][name]
     start = datetime(day.year, day.month, day.day, 9, 15, tzinfo=IST)
-    frame = app.client().candles("NSE", "99926000", "ONE_MINUTE", start, start + timedelta(hours=6, minutes=15))
-    assert len(frame) == 375
+    frame = app.client().candles(spec["exchange"], spec["token"], "ONE_MINUTE", start,
+                                 start + timedelta(hours=6, minutes=15))
+    first, end = continuous_session(day, app.settings["session"])
+    have = {t.tz_convert(IST).strftime("%H:%M") for t in pd.to_datetime(frame["ts"])}
+    minute = datetime.combine(day, first)
+    missing = []
+    while minute.time() < end:
+        if minute.strftime("%H:%M") not in have:
+            missing.append(minute.strftime("%H:%M"))
+        minute += timedelta(minutes=1)
+    after = sorted(h for h in have if h >= end.strftime("%H:%M"))
+    assert missing == [], f"{name} {day}: missing {missing}; bars at/after {end}: {after}"
 
 
 def test_live_ws_tick_scale(app):

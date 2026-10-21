@@ -1,9 +1,12 @@
 """Daily data health report, written to data/reports/health/<date>.json."""
 
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
-from quantdesk.calendar.events import is_trading_day
+import pandas as pd
+
+from quantdesk.calendar.events import continuous_session, is_trading_day
+from quantdesk.clock import IST
 from quantdesk.storage import Store
 
 OK_STATUSES = {"ok", "empty"}
@@ -11,13 +14,15 @@ OK_STATUSES = {"ok", "empty"}
 
 def build_health_report(day: date, *, store: Store, events: list, settings: dict) -> dict:
     trading = is_trading_day(day, events)
-    expected = settings["session"]["minutes"] if trading else 0
+    start, end = continuous_session(day, settings["session"])
+    span = datetime.combine(day, end) - datetime.combine(day, start)
+    expected = int(span.total_seconds() // 60) if trading else 0
     problems: list[str] = []
 
     bars = store.read("bars", day)
     minutes = {}
     for name, spec in settings["angel"]["index_tokens"].items():
-        recorded = int(bars[bars["token"] == spec["token"]]["minute"].nunique()) if not bars.empty else 0
+        recorded = _minutes_in_window(bars, spec["token"], start, end)
         minutes[name] = recorded
         if trading and recorded < expected:
             problems.append(f"{name}: {expected - recorded} minutes missing")
@@ -61,6 +66,16 @@ def build_health_report(day: date, *, store: Store, events: list, settings: dict
         "backfill_progress": {"done": backfill.get("chunks_done", 0), "errors": backfill.get("errors", 0)},
         "problems": problems,
     }
+
+
+def _minutes_in_window(bars: pd.DataFrame, token: str, start, end) -> int:
+    """Distinct bar minutes for `token` within [start, end) IST; bars outside it (the 15:29 close) don't count."""
+    if bars.empty:
+        return 0
+    stamps = pd.to_datetime(bars.loc[bars["token"] == token, "minute"])
+    stamps = stamps.dt.tz_localize(IST) if stamps.dt.tz is None else stamps.dt.tz_convert(IST)
+    times = stamps.dt.time
+    return int(stamps[(times >= start) & (times < end)].nunique())
 
 
 def write_health_report(report: dict, store: Store) -> Path:

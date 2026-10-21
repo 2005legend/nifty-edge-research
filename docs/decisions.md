@@ -165,3 +165,24 @@ Both have their decision rules fixed in the spec before any run. Neither looks a
 **Expected outcome.** Pilot 7 most likely ends with "keep HAR, or use the HAR + TTM average". About 280 sessions since Sep 2025 may not detect a narrow gain. This is a guess; the pilot measures the noise.
 
 **Open.** Kronos's and TTM's training date ranges are unpublished (spec §9 item 11).
+
+## 2026-10-21: First live run; the closing auction changes the index minute count
+
+**Live results (owner's credentials, 11:44 IST).** Each of these worked:
+- `login-check` logged in.
+- The instrument master returned the expected tokens and lot sizes.
+- The start-up price lookups for Nifty, Sensex and VIX returned prices.
+- The live feed delivered ticks at the right price scale.
+- The regular Trading API key also returned 1-minute historical candles, so no separate historical-data key is needed.
+
+The first recording started at 11:45, so the day is partial.
+
+**Finding.** The candles for Mon 19 Oct 2026 had 361 Nifty bars, not 375. They run 09:15–15:14 without a gap, followed by a single 15:29 bar with open = high = low = close. This matches the closing auction that started on 3 Aug 2026: during it the index is not computed, and only the close is published.
+
+**Decision.**
+- The health report now counts index minutes only in the continuous session. From 3 Aug 2026 that is 09:15–15:14 (360 minutes); before that it is the full 375.
+- The rule lives in `settings.yaml` as `session.closing_auction` and in `continuous_session()` in `calendar/events.py`, so SP2's market-rules-by-date table can reuse it.
+- The live candle test now checks Nifty, Sensex and VIX against the same rule.
+- Without this change, the report would have flagged "14 minutes missing" every day, and real gaps would get lost in that noise.
+
+**Still to observe.** Do Sensex and VIX also stop during the auction? The 3-index live test will show it. Does the live feed send index ticks during 15:15–15:29? Today's recording will show it.

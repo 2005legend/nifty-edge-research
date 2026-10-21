@@ -71,6 +71,18 @@ def is_trading_day(day: date, events: list[Event], exchange: str = "NSE") -> boo
     return day.weekday() < 5 and day not in _holidays(events, exchange, day.year)
 
 
+def continuous_session(day: date, session: dict) -> tuple[time, time]:
+    """[start, end) of the minutes in which index 1-minute bars are expected on `day`.
+
+    From the closing auction's start date the index is not computed during the auction;
+    only the closing value appears, as a single 15:29 bar."""
+    start, end = time.fromisoformat(session["open"]), time.fromisoformat(session["close"])
+    auction = session.get("closing_auction")
+    if auction and day >= date.fromisoformat(auction["since"]):
+        end = time.fromisoformat(auction["start"])
+    return start, end
+
+
 def trading_days(start: date, end: date, events: list[Event],
                  history_days: set[date] | None = None, exchange: str = "NSE") -> list[date]:
     days, cursor = [], start

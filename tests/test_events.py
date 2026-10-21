@@ -57,3 +57,16 @@ def test_seed_file_is_valid():
     events = load_events(project_root() / "config" / "events.yaml")
     assert any(e.type == "holiday_nse" for e in events)
     assert is_trading_day(date(2026, 11, 24), events) is False
+
+
+def test_continuous_session_stops_at_closing_auction_from_3_aug_2026():
+    """Live candles on 19 Oct 2026: Nifty 1-minute bars stop at 15:14, then a single 15:29 close bar."""
+    from datetime import time
+
+    from quantdesk.calendar.events import continuous_session
+    from quantdesk.config import load_settings
+
+    session = load_settings()["session"]
+    assert continuous_session(date(2026, 10, 19), session) == (time(9, 15), time(15, 15))
+    assert continuous_session(date(2026, 8, 3), session) == (time(9, 15), time(15, 15))
+    assert continuous_session(date(2026, 7, 31), session) == (time(9, 15), time(15, 30))
