@@ -393,3 +393,24 @@ The plan was approved on 21 Oct 2026. The rulings are in spec §6.4, and every v
   table it reads. Without the column the day card could not read its own expiry calendar.
 - **57% of chain rows are untraded** (measured on a 19-session sample), so the `traded` flag is not a
   formality: every surface and skew fit must filter on it.
+
+## 2026-10-21: SP2 plan 1 - members_minute, and one interface change to plan 1
+
+- **`member_breadth` and `build_members_minute` take `top_n`; plan 1 showed them without it.**
+  - Why: plan 1's global constraint is that every number comes from `research/hypotheses.yaml` via
+    `param`, and `gate.breadth_top_n` is already registered there as 5. Hard-coding 5 in the table that
+    the breadth gate reads would let the two disagree. `cmd_derive` passes it, exactly as it passes
+    `backtest.nifty_from` and `backtest.sensex_from`.
+- **Each day's bars are read once, for every symbol that has ever been a member.**
+  - Why: the top-5 weights are the previous session's traded value of *today's* members. Reading the
+    previous session again with today's list would double the queries; reading the whole ever-member set
+    once and letting `member_breadth` keep today's members is exact and halves the run.
+- **Coverage is not ready for the real `derive` run (plan 1 task 8, owner step).** 14 former members have
+    no bars anywhere yet (BPCL, BRITANNIA, GAIL, HDFC, HEROMOTOCO, INDUSINDBK, INDUSTOWER, IOC,
+    SAMMAANCAP, UPL, VEDL, WIPRO, YESBANK, ZEEL), so `members_present` is 36 of 50 on 2019-06-14 and 42
+    of 50 on 2023-07-12, against 50 of 50 on 2026-10-19. The table is built as designed - members are
+    counted, never filled - but the VWAP proxy would be a 36-stock proxy until the history backfill runs.
+- **Stray bars after the session are kept.** On auction-era days the stock candles include a few prints
+    at 15:24-15:29 (98 shares across 51 stocks at 15:29 on 2026-10-19), so those minutes get a row with a
+    near-zero `tv`. Nothing reads them: no entry after 14:00, hard exits at 15:00 and 15:10, and no spot
+    print after 15:15 is ever used.
