@@ -457,3 +457,22 @@ The plan was approved on 21 Oct 2026. The rulings are in spec §6.4, and every v
   beta, s2 and n per refit to be saved to a derived table. `HarFit` carries all three, but nothing writes
   them yet. It should land with plan 3 (the registry and its audit trail), or as a `derive --only har_fits`
   table if the owner wants it sooner.
+
+## 2026-10-21: SP2 plan 1 - clock rulings
+
+- **`bt` refuses an endpoint that is not a session rather than inventing a weight for it.** The design
+  formula is written for two session days; a Saturday or a holiday has no minute weights, so any answer
+  would be a guess. `sigma_bt` already rolls a non-session expiry back to the previous 15:30 (design §7),
+  and every other caller decides inside a session, so raising is both safe and loud.
+- **Holidays come from the session list, not from config/events.yaml.** A weekday strictly between two
+  consecutive sessions is a holiday by construction, which is what the plan says and keeps the frozen clock
+  independent of a hand-maintained calendar. On the real 1929 sessions the longest gap is five days
+  (2021-11-03 to 2021-11-08, Diwali week: two weekend days and two holidays), and the six weekend sessions
+  (2020-02-01, 2024-01-20, 2024-03-02, 2024-05-18, 2025-02-01, 2026-02-01) simply shorten the gap around them.
+- **`Clock` is frozen with eq=False.** A 375-value ndarray field has no scalar ==, so the generated
+  `__eq__` would raise on any comparison; identity comparison is the honest behaviour for a frozen artefact.
+  The weights are validated at construction (375 values, summing to 1 within 1e-9) because a truncated YAML
+  would otherwise misprice every option silently.
+- **Irregular sessions still count as sessions** (design §7): 15 of the 1929 real sessions are irregular,
+  including 2025-10-21 with 72 bars and 2026-07-23 with 299. They are excluded from signals and band
+  windows, but time passes on them, so `bt` gives them a full unit.
