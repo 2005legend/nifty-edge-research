@@ -11,6 +11,12 @@ import yaml
 from quantdesk.app import build_app
 from quantdesk.calendar.events import trading_days
 from quantdesk.config import MissingSecretError, get_secret, project_root
+from quantdesk.derived.daily import build_daily
+from quantdesk.derived.macro import build_macro
+from quantdesk.derived.members import build_members_minute
+from quantdesk.derived.minutes import build_minutes, build_sessions
+from quantdesk.derived.options import build_expiries, build_fii_ratio, build_options_eod
+from quantdesk.derived.store import DerivedStore
 from quantdesk.eod.bhavcopy import backfill_bhavcopy
 from quantdesk.eod.flows import backfill_participant_oi, run_eod
 from quantdesk.history.backfill import default_targets, run_backfill
@@ -22,8 +28,10 @@ from quantdesk.news.labels import sample_for_labelling, write_label_sheet
 from quantdesk.power import keep_awake
 from quantdesk.quality import build_health_report, write_health_report
 from quantdesk.recorder.live import AlreadyRunningError, RecordingSummary, run_lock, run_recording
+from quantdesk.validation.hypotheses import load_hypotheses, param
 
 ANGEL_SECRETS = ["ANGEL_API_KEY", "ANGEL_CLIENT_CODE", "ANGEL_PIN", "ANGEL_TOTP_SECRET"]
+DERIVE_TABLES = ["minutes", "sessions", "daily", "macro", "options_eod", "expiries", "fii_ratio", "members_minute"]
 
 
 def missing_secrets(names: list[str]) -> list[str]:
@@ -168,6 +176,38 @@ def _backfill(app, args) -> int:
     return 0
 
 
+def cmd_derive(app, args) -> int:
+    try:
+        with run_lock(app.store, "derive"):  # two rebuilds would race over the same table and manifest entry
+            return _derive(app, args)
+    except AlreadyRunningError as exc:
+        print(f"{exc} - nothing to do; leave that one running.")
+        return 0
+
+
+def _derive(app, args) -> int:
+    """Rebuild every derived table from data/raw. The order is the dependency order: sessions reads
+    minutes, expiries reads options_eod, members_minute reads minutes and sessions."""
+    derived = DerivedStore(app.store.root / "derived")
+    h = load_hypotheses()
+    builders = {
+        "minutes": lambda: build_minutes(app.store, derived),
+        "sessions": lambda: build_sessions(derived, app.settings["session"]),
+        "daily": lambda: build_daily(app.store, derived),
+        "macro": lambda: build_macro(app.store, derived),
+        "options_eod": lambda: build_options_eod(app.store, derived, app.settings["urls"],
+                                                 date.fromisoformat(param(h, "backtest.nifty_from")),
+                                                 date.fromisoformat(param(h, "backtest.sensex_from"))),
+        "expiries": lambda: build_expiries(derived),
+        "fii_ratio": lambda: build_fii_ratio(app.store, derived),
+        "members_minute": lambda: build_members_minute(derived, load_membership(), param(h, "gate.breadth_top_n")),
+    }
+    for name in [args.only] if args.only else DERIVE_TABLES:
+        print(f"{name}: {builders[name]()}")
+    print(f"data_hash {derived.data_hash()}")
+    return 0
+
+
 def cmd_eod(app, args) -> int:
     day = _day(args.day, app)
     if not app.is_trading_day(day):
@@ -278,6 +318,9 @@ def build_parser() -> argparse.ArgumentParser:
     backfill.add_argument("--start")
     backfill.add_argument("--end", help="last day to fetch (fundamentals only; default today)")
     backfill.set_defaults(func=cmd_backfill)
+    derive = sub.add_parser("derive", help="rebuild every derived table from data/raw")
+    derive.add_argument("--only", choices=DERIVE_TABLES, help="rebuild one table instead of all of them")
+    derive.set_defaults(func=cmd_derive)
     eod = sub.add_parser("eod", help="end-of-day NSE/BSE downloads")
     eod.add_argument("--day")
     eod.add_argument("--until")

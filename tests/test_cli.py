@@ -1,18 +1,23 @@
 from datetime import date, datetime
 
+import pandas as pd
 import pytest
 
 import quantdesk.cli as cli
 from quantdesk.clock import IST
 from quantdesk.config import load_settings
+from quantdesk.derived.store import DerivedStore
 from quantdesk.history.backfill import BackfillReport
 from quantdesk.macro.collect import MacroReport
 from quantdesk.recorder.live import RecordingSummary
 from quantdesk.storage import Store
+from quantdesk.validation.hypotheses import load_hypotheses, param
 from tests.fakes import FakeClock
 
 ANGEL = ["ANGEL_API_KEY", "ANGEL_CLIENT_CODE", "ANGEL_PIN", "ANGEL_TOTP_SECRET"]
 NOW = datetime(2026, 10, 19, 16, 0, tzinfo=IST)
+DAY = date(2026, 10, 19)
+DERIVE_TABLES = ["minutes", "sessions", "daily", "macro", "options_eod", "expiries", "fii_ratio", "members_minute"]
 
 
 class FakeApp:
@@ -290,3 +295,68 @@ def test_history_backfill_includes_former_nifty_members(app, angel_env, monkeypa
     monkeypatch.setattr(cli, "run_backfill", lambda *a, **k: BackfillReport())
     assert cli.main(["backfill", "--what", "history"]) == 0
     assert seen["WIPRO"] == "t-WIPRO"
+
+
+def _stub_builders(monkeypatch, ran):
+    def stub(name):
+        def run(*args, **kwargs):
+            ran.append(name)
+            return {}
+
+        return run
+
+    for name in DERIVE_TABLES:
+        monkeypatch.setattr(cli, f"build_{name}", stub(name))
+
+
+def test_derive_builds_every_table_in_order_and_prints_the_data_hash(app, monkeypatch, capsys):
+    """Order matters: sessions reads minutes, expiries reads options_eod, members_minute reads both."""
+    ran = []
+    _stub_builders(monkeypatch, ran)
+
+    def daily(store, derived):
+        ran.append("daily")
+        return derived.write_frame("daily", pd.DataFrame([{"day": DAY, "close": 1.0, "available_at": NOW}]))
+
+    monkeypatch.setattr(cli, "build_daily", daily)
+    monkeypatch.setattr(cli, "load_membership", lambda: object())
+    assert cli.main(["derive"]) == 0
+    assert ran == DERIVE_TABLES
+    derived = DerivedStore(app.store.root / "derived")
+    assert derived.manifest()["daily"]["rows"] == 1
+    assert f"data_hash {derived.data_hash()}" in capsys.readouterr().out
+
+
+def test_derive_only_builds_the_named_table(app, monkeypatch):
+    ran = []
+    _stub_builders(monkeypatch, ran)
+    monkeypatch.setattr(cli, "load_membership", lambda: object())
+    assert cli.main(["derive", "--only", "daily"]) == 0
+    assert ran == ["daily"]
+
+
+def test_derive_takes_its_windows_from_the_pre_registration(app, monkeypatch):
+    """R11/R12: the Sensex and Nifty option history start dates are registered values, not literals here."""
+    h = load_hypotheses()
+    seen = {}
+    _stub_builders(monkeypatch, [])
+    monkeypatch.setattr(cli, "load_membership", lambda: "MEMBERSHIP")
+    monkeypatch.setattr(cli, "build_options_eod",
+                        lambda store, derived, urls, nifty_from, sensex_from:
+                        seen.update(urls=urls, nifty=nifty_from, sensex=sensex_from) or {})
+    monkeypatch.setattr(cli, "build_members_minute",
+                        lambda derived, membership, top_n: seen.update(membership=membership, top_n=top_n) or {})
+    assert cli.main(["derive"]) == 0
+    assert seen == {"urls": app.settings["urls"], "nifty": date.fromisoformat(param(h, "backtest.nifty_from")),
+                    "sensex": date.fromisoformat(param(h, "backtest.sensex_from")), "membership": "MEMBERSHIP",
+                    "top_n": param(h, "gate.breadth_top_n")}
+
+
+def test_derive_refuses_a_second_copy(app, monkeypatch, capsys):
+    """Two rebuilds of the same table would race over data/derived/<name>/ and its manifest entry."""
+    from quantdesk.recorder.live import run_lock
+
+    monkeypatch.setattr(cli, "build_minutes", lambda *a, **k: (_ for _ in ()).throw(AssertionError("ran twice")))
+    with run_lock(app.store, "derive"):
+        assert cli.main(["derive"]) == 0
+    assert "already running" in capsys.readouterr().out
