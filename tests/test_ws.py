@@ -161,3 +161,17 @@ def test_reconnect_drops_connection_and_resubscribes():
     assert len(factory.connections) == 2
     assert factory.connections[0].closed
     assert factory.connections[1].subscribe_calls  # every token resubscribed on the new connection
+
+
+def test_add_tokens_never_mutates_a_published_subscription_map():
+    """Backlog 8: the recorder thread adds tokens while the websocket thread may be resubscribing on reconnect.
+    Copy-on-write means a reader always iterates a mapping nobody changes."""
+    clock = FakeClock(START)
+    stream = TickStream("jwt", "key", "C1", "feed", on_tick=lambda t: None, on_stale=lambda *a: None,
+                        clock=clock, ws_factory=FakeStream([]), stale_seconds=30, sleep=FakeSleep(clock))
+    stream.subscribe({2: ["a"]})
+    published = stream._subscribed
+    snapshot = {ex: set(toks) for ex, toks in published.items()}
+    stream.add_tokens({2: ["b"], 4: ["c"]})
+    assert published == snapshot
+    assert stream._subscribed == {2: {"a", "b"}, 4: {"c"}}

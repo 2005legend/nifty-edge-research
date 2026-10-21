@@ -112,13 +112,17 @@ class TickStream:
 
     # subscriptions --------------------------------------------------------
     def _merge(self, tokens: dict) -> dict[int, set[str]]:
+        """Copy-on-write: the websocket thread may be iterating the current map while resubscribing on
+        reconnect, so it is replaced by one reference swap and never changed in place."""
+        updated = {ex: set(toks) for ex, toks in self._subscribed.items()}
         new: dict[int, set[str]] = {}
         for ex, toks in tokens.items():
-            have = self._subscribed.setdefault(int(ex), set())
+            have = updated.setdefault(int(ex), set())
             fresh = {str(t) for t in toks} - have
             have.update(fresh)
             if fresh:
                 new[int(ex)] = fresh
+        self._subscribed = updated
         return new
 
     def subscribe(self, tokens: dict, mode: int = SNAP_QUOTE) -> None:
@@ -143,8 +147,9 @@ class TickStream:
     def _on_open(self, wsapp) -> None:
         self._connected = True
         self._attempt = 0  # a successful connection resets the reconnect budget
-        if self._subscribed:
-            self._send_subscribe({ex: set(toks) for ex, toks in self._subscribed.items()})
+        subscribed = self._subscribed  # one read; never changed in place (see _merge)
+        if subscribed:
+            self._send_subscribe(subscribed)
 
     def _on_data(self, wsapp, message) -> None:
         now = self._clock.now()
