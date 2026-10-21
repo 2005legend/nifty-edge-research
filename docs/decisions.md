@@ -344,3 +344,20 @@ The plan was approved on 21 Oct 2026. The rulings are in spec §6.4, and every v
 - the "setup forming" pre-alert
 
 **What the owner sees next:** pilots P1, P2 and P10 at the D2 checkpoint, with the X2 opt-in.
+
+## 2026-10-21: SP2 plan 1 - two data traps found building `daily` and `macro`
+
+- **`daily` takes the day from the candle timestamp, never from a `date` column.**
+  - Why: the `date` on a `history_one_day` part is the day the chunk was *stored*, not the bar's day. The
+    `date=2015-01-01` part holds bars for 2015-01-02, 2015-01-05 and onward, so every row but the first
+    would be misdated. `day` is `cast(timezone('Asia/Kolkata', ts) as date)` instead.
+  - The table dedupes on (target, day), not (target, ts): overlapping backfill chunks store the same day
+    under two folder dates, and the later file must win, as in `minutes`.
+  - *Cost if wrong:* every band anchor and every HAR input shifts by up to a chunk length.
+- **The macro lag table classifies all 22 stored series, including the NSE index file.**
+  - Why: plan 1's lag list omitted `india_gsec10y_price` and `nifty_fundamentals`, but design section 4
+    stamps the NSE index file at d 20:00 IST, and the stress score reads the India 10-year from the G-sec
+    clean-price index. `available_at` raises `KeyError` on an unclassified series by design, so the omission
+    would have stopped `derive` outright.
+  - A test now walks `config/settings.yaml` and fails if any collected series has no lag rule.
+  - *Cost if wrong:* an unlagged series reads as same-day knowledge, which is look-ahead.
