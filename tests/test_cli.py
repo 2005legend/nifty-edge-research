@@ -5,6 +5,7 @@ import pytest
 import quantdesk.cli as cli
 from quantdesk.clock import IST
 from quantdesk.config import load_settings
+from quantdesk.history.backfill import BackfillReport
 from quantdesk.macro.collect import MacroReport
 from quantdesk.recorder.live import RecordingSummary
 from quantdesk.storage import Store
@@ -273,3 +274,19 @@ def test_backfill_participant_oi_and_macro_dispatch(app, monkeypatch):
     assert (kind, start) == ("macro", date(2015, 1, 1))
     assert "dgs10" in ids and "brent" in ids
     assert not {"econ_calendar", "nifty_fundamentals", "india_gsec10y_price"} & set(ids)  # calendar too big; NSE ones have their own backfill
+
+
+def test_history_backfill_includes_former_nifty_members(app, angel_env, monkeypatch):
+    """R7: a 2019 setup must see the 2019 index, so ex-members' minutes are downloaded too."""
+    seen = {}
+
+    class Stub:
+        def backfill_symbols(self):
+            return ["WIPRO", "RELIANCE"]
+
+    monkeypatch.setattr(cli, "load_membership", lambda: Stub())
+    monkeypatch.setattr(cli, "equity_tokens", lambda master, symbols: {s: f"t-{s}" for s in symbols})
+    monkeypatch.setattr(cli, "default_targets", lambda master, constituents, settings, today: seen.update(constituents) or [])
+    monkeypatch.setattr(cli, "run_backfill", lambda *a, **k: BackfillReport())
+    assert cli.main(["backfill", "--what", "history"]) == 0
+    assert seen["WIPRO"] == "t-WIPRO"

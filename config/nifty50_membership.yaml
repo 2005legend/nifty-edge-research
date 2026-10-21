@@ -1,0 +1,42 @@
+# Point-in-time Nifty 50 membership (R7): who was in the index on each day from 2019. Used for the VWAP
+# proxy's traded value and for breadth, so a 2019 setup sees the 2019 index, not today's survivors.
+#
+# Changes take effect at the start of `effective` (NSE: "effective from", i.e. after the previous day's close).
+# Replaying every change from `start_members` must give the list NSE publishes today; a test checks this.
+# Symbols are as listed at the time; `aliases` maps renamed listings to today's symbol and token.
+# HDFC Ltd (member until 12 Jul 2023) delisted on its merger into HDFC Bank: no data exists, a documented gap.
+# TMPV is Tata Motors (same listing and token 3456; renamed at the Oct 2025 demerger). The demerged TMCV's
+# temporary inclusion under NSE's spin-off rule is ignored.
+
+start: "2019-01-01"
+source: "https://en.wikipedia.org/w/index.php?title=NIFTY_50&oldid=1379683379 (change table citing Mint, ET, BloombergQuint, Business Today, TOI, BusinessLine, New Indian Express) and NSE Indices press releases"
+
+start_members: [ADANIPORTS, ASIANPAINT, AXISBANK, BAJAJ-AUTO, BAJAJFINSV, BAJFINANCE, BHARTIARTL, BPCL, CIPLA,
+                COALINDIA, DRREDDY, EICHERMOT, GAIL, GRASIM, HCLTECH, HDFC, HDFCBANK, HEROMOTOCO, HINDALCO,
+                HINDPETRO, HINDUNILVR, IBULHSGFIN, ICICIBANK, INDUSINDBK, INFRATEL, INFY, IOC, ITC, JSWSTEEL,
+                KOTAKBANK, LT, M&M, MARUTI, NTPC, ONGC, POWERGRID, RELIANCE, SBIN, SUNPHARMA, TATASTEEL, TCS,
+                TECHM, TITAN, TMPV, ULTRACEMCO, UPL, VEDL, WIPRO, YESBANK, ZEEL]
+
+changes:
+  - {effective: "2019-03-29", add: [BRITANNIA], remove: [HINDPETRO], source: "https://www.livemint.com (Britannia to replace Hindustan Petroleum in Nifty 50 from 29 March)"}
+  - {effective: "2019-09-27", add: [NESTLEIND], remove: [IBULHSGFIN], source: "https://www.livemint.com (Nestle India to be included in NSE Nifty 50 Index)"}
+  - {effective: "2020-03-19", add: [SHREECEM], remove: [YESBANK], source: "https://www.livemint.com (Yes Bank to be excluded from Nifty 50; reconstruction scheme)"}
+  - {effective: "2020-07-31", add: [HDFCLIFE], remove: [VEDL], source: "https://economictimes.indiatimes.com (HDFC Life replaces Vedanta in Nifty)"}
+  - {effective: "2020-09-25", add: [SBILIFE, DIVISLAB], remove: [ZEEL, INFRATEL], source: "https://www.bloombergquint.com (Nifty rejig September 2020)"}
+  - {effective: "2021-03-31", add: [TATACONSUM], remove: [GAIL], source: "https://www.bloombergquint.com (Tata Consumer Products to replace GAIL in Nifty 50)"}
+  - {effective: "2022-03-31", add: [APOLLOHOSP], remove: [IOC], source: "https://www.bloombergquint.com (Apollo Hospitals replaces IOC in Nifty 50)"}
+  - {effective: "2022-09-30", add: [ADANIENT], remove: [SHREECEM], source: "https://www.businesstoday.in (Adani Enterprises to replace Shree Cement in Nifty 50)"}
+  - {effective: "2023-07-13", add: [LTIM], remove: [HDFC], source: "https://timesofindia.indiatimes.com (NSE to replace HDFC with LTIMindtree)"}
+  - {effective: "2024-03-28", add: [SHRIRAMFIN], remove: [UPL], source: "https://economictimes.indiatimes.com (Shriram Finance to replace UPL in Nifty)"}
+  - {effective: "2024-09-30", add: [BEL, TRENT], remove: [LTIM, DIVISLAB], source: "https://economictimes.indiatimes.com (Nifty50 rejig: Trent, Bharat Electronics enter)"}
+  - {effective: "2025-03-28", add: [JIOFIN, ETERNAL], remove: [BRITANNIA, BPCL], source: "https://www.thehindubusinessline.com (Jio Financial, Zomato to enter Nifty from March 28)"}
+  - {effective: "2025-09-30", add: [INDIGO, MAXHEALTH], remove: [INDUSINDBK, HEROMOTOCO], source: "https://www.newindianexpress.com (Nifty rejig: Indigo, Max Health in)"}
+  - {effective: "2026-09-30", add: [BSE], remove: [WIPRO], source: "https://niftyindices.com/Press_Release/ind_prs10082026.pdf"}
+# The Feb 2026 review made no Nifty 50 change: https://niftyindices.com/Press_Release/ind_prs23022026.pdf
+
+aliases:   # symbol at the time -> today's NSE symbol (same listing, same Angel token)
+  IBULHSGFIN: SAMMAANCAP
+  INFRATEL: INDUSTOWER
+  LTIM: LTM
+
+no_data: [HDFC]

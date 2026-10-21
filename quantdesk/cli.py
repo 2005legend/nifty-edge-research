@@ -14,6 +14,8 @@ from quantdesk.config import MissingSecretError, get_secret, project_root
 from quantdesk.eod.bhavcopy import backfill_bhavcopy
 from quantdesk.eod.flows import backfill_participant_oi, run_eod
 from quantdesk.history.backfill import default_targets, run_backfill
+from quantdesk.instruments import equity_tokens
+from quantdesk.market.membership import load_membership
 from quantdesk.macro.collect import run_macro_daily, run_macro_intraday
 from quantdesk.news.collect import SeenIndex, poll_gdelt_once, poll_once, run_news_loop
 from quantdesk.news.labels import sample_for_labelling, write_label_sheet
@@ -112,7 +114,10 @@ def _backfill(app, args) -> int:
     if args.what == "history":
         if not _require(ANGEL_SECRETS):
             return 2
-        targets = default_targets(app.master(today), app.constituents(today), app.settings, today)
+        master = app.master(today)
+        # Former members too (R7), so breadth and the VWAP proxy see the index as it was on each day.
+        former = equity_tokens(master, load_membership().backfill_symbols())
+        targets = default_targets(master, {**former, **app.constituents(today)}, app.settings, today)
         report = run_backfill(targets, app.client(), app.store, app.clock, app.settings)
         app.store.write_report("backfill", today, asdict(report))
         print(f"history backfill: {asdict(report)}")
