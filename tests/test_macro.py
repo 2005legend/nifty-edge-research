@@ -177,3 +177,21 @@ def test_no_series_uses_fbil():
     sources = {s["source"] for s in load_settings()["macro"]["series"]}
     assert "fbil" not in sources and "nse_index_fundamentals" not in sources
     assert "nse_index_close" in sources
+
+
+def test_one_unreadable_day_is_skipped_not_fatal(caplog):
+    """Live 21 Oct 2026: the 2015-2026 backfill failed outright because one file in the range did not parse."""
+    from quantdesk.macro.sources import fetch_nse_index_close
+    from tests.fakes import FakeResponse
+
+    spec = {"id": "nifty_fundamentals", "source": "nse_index_close", "url": INDEX_URL,
+            "indices": ["Nifty 50", "CNX Nifty"], "fields": "fundamentals"}
+    good = _index_close_getter([date(2026, 10, 19), date(2026, 10, 21)])
+    bad_url = INDEX_URL.format(ddmmyyyy="20102026")
+
+    def get(url):
+        return FakeResponse(200, b"Name,Value\nsomething,else\n", url) if url == bad_url else good(url)
+
+    frame = fetch_nse_index_close(spec, date(2026, 10, 19), date(2026, 10, 21), http_get=get)
+    assert list(frame["date"]) == [date(2026, 10, 19), date(2026, 10, 21)]
+    assert "2026-10-20" in caplog.text

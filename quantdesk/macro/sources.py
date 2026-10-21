@@ -6,6 +6,7 @@ OpenBB is imported inside the fetchers, so the rest of quantdesk works without i
 
 import functools
 import io
+import logging
 import time
 from datetime import date, timedelta
 
@@ -16,6 +17,7 @@ from quantdesk.config import get_secret
 from quantdesk.net.http import PoliteSession, looks_like_html
 
 VALUE_COLUMNS = ["series_id", "date", "value"]
+log = logging.getLogger(__name__)
 
 
 def normalize_yf(frame: pd.DataFrame, series_id: str) -> pd.DataFrame:
@@ -146,8 +148,13 @@ def fetch_nse_index_close(spec: dict, start: date, end: date, http_get=None) -> 
         if day.weekday() < 5:
             response = get(spec["url"].format(ddmmyyyy=day.strftime("%d%m%Y")))
             if response.status_code == 200 and not looks_like_html(response.content):
-                frame = parse_index_close(response.content)
-                frames.append(frame[frame["index_name"].str.lower().isin(names)])
+                try:
+                    frame = parse_index_close(response.content)
+                except Exception as exc:  # noqa: BLE001 - one odd file never sinks an 11-year backfill
+                    errors += 1
+                    log.warning("NSE index file for %s unreadable, skipped: %s: %s", day, type(exc).__name__, exc)
+                else:
+                    frames.append(frame[frame["index_name"].str.lower().isin(names)])
             elif response.status_code != 404:
                 errors += 1
         day += timedelta(days=1)
