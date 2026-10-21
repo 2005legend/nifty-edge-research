@@ -157,3 +157,38 @@ def test_rate_refusals_are_retried_for_a_full_minute():
                            datetime(2026, 10, 19, 9, 15, tzinfo=IST), datetime(2026, 10, 19, 15, 30, tzinfo=IST))
     assert len(frame) == 3
     assert sum(sleep.calls[sleeps_before:]) >= 60
+
+
+def _one_day(client):
+    return client.candles("NSE", "99926000", "ONE_MINUTE",
+                          datetime(2026, 10, 19, 9, 15, tzinfo=IST), datetime(2026, 10, 19, 15, 30, tzinfo=IST))
+
+
+def test_token_exception_relogs_in_and_retries_the_call():
+    """Backlog 3: the SDK raises TokenException (HTTP 403) for an expired session instead of returning a dict."""
+    from SmartApi.smartExceptions import TokenException
+
+    fake = FakeSmartConnect(candle_responses=[TokenException("Invalid Token", code=403), candle_rows])
+    client, _, _ = make_client(fake)
+    client.login()
+    assert len(_one_day(client)) == 3
+    assert len(fake.login_calls) == 2
+
+
+def test_camelcase_session_error_relogs_in_and_retries_the_call():
+    fake = FakeSmartConnect(candle_responses=[
+        {"status": False, "message": "Invalid Token", "errorCode": "AG8001", "data": None}, candle_rows])
+    client, _, _ = make_client(fake)
+    client.login()
+    assert len(_one_day(client)) == 3
+    assert len(fake.login_calls) == 2
+
+
+def test_login_from_before_midnight_is_renewed():
+    """Angel One logs every session out at midnight; a run crossing midnight must log in again."""
+    fake = FakeSmartConnect(candle_responses=[candle_rows])
+    client, clock, _ = make_client(fake)
+    client.login()  # 08:50 on 20 Oct
+    clock.advance((15 * 60 + 40) * 60)  # 00:30 on 21 Oct
+    _one_day(client)
+    assert len(fake.login_calls) == 2

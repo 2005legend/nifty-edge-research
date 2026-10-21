@@ -51,6 +51,15 @@ def _is_retryable(exc: Exception) -> bool:
     return isinstance(exc, (ConnectionError, TimeoutError, OSError))
 
 
+def _is_session_error(exc: Exception) -> bool:
+    """An expired or invalid session: the SDK raises TokenException (HTTP 403) or returns AG80xx."""
+    if type(exc).__name__ == "TokenException":
+        return True
+    if isinstance(exc, AngelApiError):
+        return exc.code.startswith("AG80") or "invalid token" in exc.message.lower()
+    return False
+
+
 class AngelClient:
     def __init__(self, api_key: str, client_code: str, pin: str, totp_secret: str, *,
                  smart_factory, limiter: MultiWindowLimiter, clock, sleep, settings: dict):
@@ -116,7 +125,9 @@ class AngelClient:
         now = self._clock.now()
         hh, mm = map(int, self._settings["angel"]["relogin_time"].split(":"))
         cutoff = datetime.combine(now.date(), time(hh, mm), tzinfo=IST)
-        stale = self._last_login is None or (now >= cutoff > self._last_login)
+        # Angel One logs every session out at midnight; a login from an earlier day is always renewed.
+        stale = (self._last_login is None or self._last_login.date() < now.date()
+                 or now >= cutoff > self._last_login)
         if stale or self._last_error_code.startswith("AG80"):
             self.login()
 
@@ -128,7 +139,7 @@ class AngelClient:
     # market data ----------------------------------------------------------
     def _unwrap(self, response):
         if not response or not response.get("status"):
-            code = (response or {}).get("errorcode", "")
+            code = (response or {}).get("errorcode") or (response or {}).get("errorCode") or ""
             self._last_error_code = code
             raise AngelApiError(code, (response or {}).get("message", "empty response"))
         return response.get("data")
@@ -138,9 +149,18 @@ class AngelClient:
             self._limiter.acquire()
             return self._unwrap(fn())
 
-        # Waits 1, 2, 4, 8, 16, 32 s: just over a minute, so a per-minute refusal can clear.
-        return retry(attempt, attempts=7, base_delay=1, max_delay=32,
-                     retry_on=_is_retryable, sleep=self._sleep)
+        def with_retries():
+            # Waits 1, 2, 4, 8, 16, 32 s: just over a minute, so a per-minute refusal can clear.
+            return retry(attempt, attempts=7, base_delay=1, max_delay=32,
+                         retry_on=_is_retryable, sleep=self._sleep)
+
+        try:
+            return with_retries()
+        except Exception as exc:  # noqa: BLE001 - only an expired session is handled here
+            if not _is_session_error(exc):
+                raise
+            self.login()  # the session expired mid-run; log in again and repeat the call once
+            return with_retries()
 
     def ltp(self, exchange: str, tradingsymbol: str, token: str) -> float:
         self.ensure_session()
