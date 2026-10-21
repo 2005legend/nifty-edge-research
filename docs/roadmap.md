@@ -88,12 +88,12 @@ A design pass turns spec §5A and §6 into exact rules, then I write 2–3 imple
 5. The pipeline, as pure functions: day card → H1 trigger → gates → meta-model → EV gate → strike picker → exit plan → alert.
 6. The backtester: entry delays of 0, 1, 3 and 5 minutes; chase and lapse rules; spreads by time of day; report splits at June 2024, 20 Nov 2024, 1 Sep 2025 and 3 Aug 2026.
 7. Leakage tests and placebo tests.
-8. The research registry: `research/hypotheses.yaml` and `research/experiments.csv`, the six zero-trial pilots, the D2 checkpoint, then the trials in registry order with a hard cap of 13.
+8. The research registry: `research/hypotheses.yaml` and `research/experiments.csv`, the eight zero-trial pilots (including pilot 7, pretrained volatility models against HAR, and pilot 8, the headline tone classifier), the D2 checkpoint, then the trials in registry order with a hard cap of 13.
 9. The recorded-day pricing check: the median error in modelled premium change must be 15% or less.
 
 Phase 4 ends with a verdict: alert-on for a configuration that passes every gate in spec §6.3, or alert-off.
 
-Items 1–3 are pure functions with known answers and don't depend on any strategy choice. They can start before the design pass.
+Items 1–3 are pure functions with known answers and don't depend on any strategy choice. They can start before the design pass. So can the labelling for pilot 8: about 300 collected headlines, each marked for tone and whether it moves the market, done before any model has scored them.
 
 ### Phase 5: SP3 live engine, dashboard, journal (design pass with mockups first)
 
@@ -124,6 +124,7 @@ Monitoring runs as in spec §7. Moving above 1 lot needs all four:
 | Backlog items | Either | They are well defined and each has a clear test. The two `High` recorder items are a good first task |
 | Cost model, Black-76 pricing, market-rules-by-date table | You, if you want a bigger piece | Pure functions checked against known numbers |
 | Desk pilot | I set it up, you run it daily | Runs happen in the evening |
+| Labelling 300 headlines for pilot 8 | You | You read Indian market news daily, and the labels must be made before any model output is seen. About 1–2 hours |
 | SP2 and SP3 design passes, the registry, the validation statistics | Me, with your decisions | This is where a mistake quietly inflates backtest results |
 | Reviewing your branches | Me | A second read before merge |
 

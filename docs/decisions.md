@@ -143,3 +143,25 @@ A fresh whole-branch review found 1 critical and 8 important issues. All are fix
 12. `_subscribed` is shared across threads without a lock.
 13. `last_traded_timestamp` fallback assumes milliseconds.
 14. `recenter` does not re-check the token budget.
+
+## 2026-10-21: Open-source finance models, measured as pilots, never as a direction signal
+
+**Decision.** Spec §6.3 gains two zero-trial pilots:
+- **Pilot 7:** pretrained volatility models (Kronos-mini/small, IBM TTM, and their average with HAR) against HAR-IV-ON. Tested zero-shot, only on data after each model's release.
+- **Pilot 8:** a headline tone classifier (FinBERT-tone, an Indian FinBERT fine-tune, Groq, keywords). Tested on about 300 headlines the owner labels blind.
+
+Both have their decision rules fixed in the spec before any run. Neither looks at P&L, so neither uses up any of the 13 trials. No pretrained model is used to pick the trade direction. A fine-tuned Kronos is not used as the desk's model either.
+
+**Why.**
+- **Direction.** A 2026 benchmark found pretrained models beat a random walk on stock returns with significance in only 2 of 10 cases. A direction signal would use up a trial on the least likely idea.
+- **Volatility.** A 2026 study of 9 models on 50 assets found only IBM's TTM beat log-HAR at every horizon, and narrowly. Kronos reports 9% lower volatility error, zero-shot.
+- **Headline tone.** The shock gate needs some tone classifier anyway. A local model gives the same answer every time, so recorded days replay exactly.
+
+**Why not fine-tune on Indian data straight away.** Compute is not the blocker: Kronos-small (24.7M parameters) can be fine-tuned on the owner's 4 GB GPU.
+- **The evidence for a gain is thin and mixed.** A Nov 2025 study found ready-made models stayed poor on financial data even after fine-tuning.
+- **Honest use is expensive.** A model fine-tuned on 2019–2025 Nifty has seen those years' answers, so it cannot score them in the backtest. It would have to be retrained once per year on past data only, with no tuning on test data.
+- **So fine-tuning is stage 2 of pilot 7.** It runs only if the zero-shot result comes within 5% of HAR or beats it.
+
+**Expected outcome.** Pilot 7 most likely ends with "keep HAR, or use the HAR + TTM average". About 280 sessions since Sep 2025 may not detect a narrow gain. This is a guess; the pilot measures the noise.
+
+**Open.** Kronos's and TTM's training date ranges are unpublished (spec §9 item 11).

@@ -392,7 +392,7 @@ The research discipline still applies. Every indicator below is a *tested featur
 |---|---|---|---|
 | Trend structure | 20/50/200-DMA position and slope; swing highs/lows (fractal pivots) giving higher-high/higher-low or lower-high/lower-low structure; EMA 9/21 on 5-min | Daily, 60-min, 15-min, 5-min | Displayed; the slow-trend part feeds the hurdle layer (RV-3) |
 | Momentum | RSI(14), MACD histogram, ADX with +DI/−DI, rate of change | Daily, 15-min | Displayed |
-| Volatility | ATR(14), Bollinger bandwidth, opening range, noise band, HAR-IV-ON remaining-day move and its percentile | Daily, intraday | Sets stops and targets. The HAR percentile is the meta-model's regime feature. |
+| Volatility | ATR(14), Bollinger bandwidth, opening range, noise band, HAR-IV-ON remaining-day move and its percentile (or the forecaster chosen by pilot 7 in §6.3) | Daily, intraday | Sets stops and targets. The HAR percentile is the meta-model's regime feature. |
 | Volume and flow | Futures VWAP and its bands; anchored VWAP from the day open and from the last swing; previous-day volume profile (POC, value-area high/low); 5-level order-flow imbalance | Intraday | Location score, trailing-stop anchor, OFI veto |
 | Level map | Prior day/week high, low and close; round 100s; swing pivots; classic pivot/CPR (shown only); expiry-day OI walls | Daily and intraday | Room-to-run gate, targets and stops |
 | Chart and candle patterns | Inside bar / narrow-range day; engulfing and rejection candles at key levels; flag/consolidation break; double top/bottom at prior extremes | 15-min, daily | Displayed only |
@@ -460,7 +460,7 @@ The research showed macro data predicts *range, risk and timing*, not intraday d
 - No extra confirmation bar. No pullback variant.
 
 **4. Gates, in this order. All must pass:**
-1. **Event and shock gate:** no severe unscheduled headline in the last 15–30 minutes (from the news collector), and intraday VIX within about ±8%.
+1. **Event and shock gate:** no severe unscheduled headline in the last 15–30 minutes (from the news collector, read by the classifier chosen in pilot 8), and intraday VIX within about ±8%.
 2. **Stop fit:** the structural stop (band edge or VWAP) × a 1.3 overshoot factor fits the ₹400 budget, and the index planning target is ≥ 2.3× the stop. Re-checked at the fill.
 3. **Room in time:** the expected remaining excursion is at least 2 × (target distance + theta drag), with the multiplier fixed in advance.
 4. **Room to run:** no opposing level (round 100s, prior-day high/low, multi-touch session extremes) before the target.
@@ -539,6 +539,40 @@ The research showed macro data predicts *range, risk and timing*, not intraday d
 4. the Nifty daily AR(1) and MAC(5) estimate
 5. OI walls against settlement
 6. the option-depth and latency logs
+7. **Volatility forecaster comparison** (decided 21 Oct 2026). Does a pretrained time-series model forecast Nifty/Sensex volatility better than our HAR-IV-ON?
+   - **Candidates, zero-shot:**
+     - Kronos-mini and Kronos-small (MIT licence)
+     - IBM Tiny Time Mixer (TTM)
+     - the equal-weight average of HAR-IV-ON and the best of these
+   - **Targets:** the same ones HAR-IV-ON forecasts. These are next-day realized variance, and the remaining-session move at each 15-minute check time.
+   - **Window:** only data after each model's public release; Kronos from 1 Sep 2025. Earlier data may have been in its training set (its corpus dates are unpublished, and its 45 exchanges probably include NSE). The window grows as recorded sessions accumulate.
+   - **Scoring:** QLIKE loss (MSE as a secondary check), pooled across Nifty and Sensex. Diebold–Mariano test against HAR-IV-ON with HAC errors, at 5%.
+   - **Decision rule, fixed before any run:**
+     - A candidate replaces HAR-IV-ON only if its QLIKE is lower and the test rejects at 5%.
+     - Otherwise HAR-IV-ON stays.
+     - The choice is made before trial B0 and then frozen.
+   - **Stage 2, fine-tuning on Indian data.** Runs only if stage 1's best candidate is better than HAR-IV-ON or within 5% of its QLIKE.
+     - One recipe, fixed in advance; no hyperparameter search.
+     - Annual vintages, each trained only on data up to the end of the year before it is used. A model trained on 2019–2025 has seen those years' answers, so it cannot score them in the backtest.
+     - Same decision rule as stage 1.
+   - **If a pretrained model is adopted:** backtest periods before its release are reported as "forecaster may have seen this data", in the same way 2026 is reported as touched (D4). The clean forward holdout stays the deciding test.
+   - **Expected result:** keep HAR-IV-ON, or use the average. Published gains over log-HAR are narrow, and about 280 sessions may not be enough to detect them.
+8. **Headline tone classifier check** (decided 21 Oct 2026). Which model reads Indian market headlines best, for the shock gate (§6.1, gate 1) and the desk?
+   - **Test set:**
+     - The owner hand-labels about 300 headlines sampled from the news collector, across all feeds and without price restatements.
+     - Two labels each: tone (negative, neutral, positive) and whether it is market-moving.
+     - Labelled blind, before any model output is seen.
+   - **Candidates:**
+     - FinBERT-tone
+     - a FinBERT model fine-tuned on Indian news (for example `kdave/FineTuned_Finbert`; check its licence)
+     - a Groq model, zero-shot
+     - a keyword baseline
+   - **Scoring:** macro-F1 on tone, plus recall on market-moving negative headlines. That recall is what the gate needs.
+   - **Decision rule:**
+     - Pick the highest macro-F1.
+     - A local model is preferred to Groq when it is within 0.03, because it gives the same answer on every run, so recorded days replay exactly.
+     - If no candidate reaches macro-F1 0.70, the gate stays keyword-based and the classifier output is only displayed.
+   - **Never a direction signal.** Sentiment stays a veto (§5A.3).
 
 **Registry: hard cap of 13 cumulative trials**, including 2 reserve (D5):
 
@@ -797,6 +831,7 @@ The pilot's own calls are logged but not scored.
 8. Whether Groq accepts forced `tool_choice` on gpt-oss and qwen.
 9. Whether `max_tokens` counts against Groq's per-minute limit.
 10. A clean OpenBB lean install on Windows with Python 3.11. That combination is supported but not CI-tested.
+11. The pretraining date range of Kronos and TTM, and whether it includes NSE/BSE data. This decides how much of the backtest pilot 7 must label as possibly seen.
 
 ## 10. Risks
 
