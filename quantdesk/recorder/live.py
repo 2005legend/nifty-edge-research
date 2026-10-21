@@ -6,7 +6,6 @@ Storage kinds: bars, option_snapshots, depth, opening_ticks, option_meta, record
 import contextlib
 import json
 import os
-import sys
 import threading
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
@@ -44,49 +43,39 @@ class RecordingSummary:
     warnings: list = field(default_factory=list)  # degraded but recording, e.g. an older instrument master
 
 
-def pid_alive(pid: int) -> bool:
-    """True if a process with this PID is running. Never sends a signal on Windows."""
-    if pid <= 0:
-        return False
-    if sys.platform == "win32":
-        import ctypes
-
-        kernel32 = ctypes.windll.kernel32
-        handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
-        if not handle:
-            return False
-        try:
-            code = ctypes.c_ulong()
-            kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
-            return code.value == 259  # STILL_ACTIVE
-        finally:
-            kernel32.CloseHandle(handle)
-    try:
-        os.kill(pid, 0)
-    except OSError:
-        return False
-    return True
+LOCK_OFFSET = 4096  # the lock sits past the PID text: on Windows a locked byte cannot be read
 
 
 @contextlib.contextmanager
 def run_lock(store: Store, name: str = "record"):
+    """One running copy per job. The OS lock dies with its process, so a crash, a reboot or a reused PID
+    never blocks the next run. The file holds the owner's PID for the error message."""
+    import msvcrt
+
     path = store.root / "run" / f"{name}.lock"
     path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists():
-        try:
-            other = int(path.read_text().strip() or 0)
-        except ValueError:
-            other = 0
-        if other != os.getpid() and pid_alive(other):
-            raise AlreadyRunningError(f"{name} already running (pid {other})")
-        if other == os.getpid():
-            raise AlreadyRunningError(f"{name} already running in this process")
-        path.unlink()
-    path.write_text(str(os.getpid()))
+    handle = open(path, "a+b")  # "a+" never truncates a live owner's PID
+    fd = handle.fileno()
     try:
+        handle.seek(LOCK_OFFSET)
+        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+    except OSError:
+        os.lseek(fd, 0, os.SEEK_SET)
+        other = os.read(fd, 32).decode("ascii", "replace").strip() or "?"  # unbuffered: stops short of the lock
+        handle.close()
+        raise AlreadyRunningError(f"{name} already running (pid {other})") from None
+    try:
+        handle.seek(0)
+        handle.truncate()
+        handle.write(str(os.getpid()).encode("ascii"))
+        handle.flush()
         yield path
     finally:
-        with contextlib.suppress(FileNotFoundError):
+        handle.seek(LOCK_OFFSET)
+        with contextlib.suppress(OSError):
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        handle.close()
+        with contextlib.suppress(OSError):
             path.unlink()
 
 

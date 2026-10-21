@@ -269,3 +269,32 @@ def test_silent_feed_during_session_forces_reconnect(tmp_path):
     assert holder["stream"].reconnects >= 2  # once when it went silent, again a minute later
     assert "reconnect" in set(store.read("recorder_events", DAY)["event"])
     assert summary.stale_periods
+
+
+def test_lock_file_naming_a_live_unrelated_process_does_not_block(tmp_path):
+    """Backlog 9: after a reboot the old PID can belong to another program; that must not block recording."""
+    store = Store(tmp_path)
+    lock = tmp_path / "run" / "record.lock"
+    lock.parent.mkdir(parents=True)
+    lock.write_text(str(os.getppid()))  # alive, but holds no lock
+    with run_lock(store):
+        assert lock.read_text() == str(os.getpid())
+
+
+def test_lock_held_by_another_process_refuses(tmp_path):
+    import subprocess
+    import sys
+
+    holder = subprocess.Popen(
+        [sys.executable, "-c",
+         "import sys, time; from quantdesk.storage import Store; from quantdesk.recorder.live import run_lock\n"
+         "with run_lock(Store(sys.argv[1])):\n    print('locked', flush=True); time.sleep(30)",
+         str(tmp_path)], stdout=subprocess.PIPE, text=True)
+    try:
+        assert holder.stdout.readline().strip() == "locked"
+        with pytest.raises(AlreadyRunningError, match="already running"):  # pid is the venv launcher's child
+            with run_lock(Store(tmp_path)):
+                pass
+    finally:
+        holder.kill()
+        holder.wait()
