@@ -1,11 +1,13 @@
 from datetime import date, datetime
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 from quantdesk.clock import IST
 from quantdesk.config import load_settings
 from quantdesk.eod.bhavcopy import (
+    COLUMNS,
     NotPublishedError,
     backfill_bhavcopy,
     fetch_nse_fo_bhavcopy,
@@ -119,3 +121,41 @@ def test_backfill_continues_after_a_network_error(tmp_path):
     session = PoliteSession(min_interval_s=0.0, clock=clock, sleep=FakeSleep(clock), http=http)
     status = backfill_bhavcopy(session, Store(tmp_path), [d1, d2], urls, exchange="NSE")
     assert status == {d1: "failed: ConnectionError", d2: "ok"}
+
+
+LEGACY = Path(__file__).parent / "fixtures" / "fo25SEP2023bhav_sample.csv.zip"
+LEGACY_URL = "https://nsearchives.nseindia.com/content/historical/DERIVATIVES/2023/SEP/fo25SEP2023bhav.csv.zip"
+
+
+def test_parse_legacy_nse_bhavcopy_to_common_columns():
+    """NSE files before July 2024 use the old layout (checked live 21 Oct 2026); volume is contracts in both."""
+    frame = parse_fo_bhavcopy(LEGACY)
+    assert list(frame.columns) == COLUMNS
+    fut = frame[frame["instrument"] == "IDF"].iloc[0]
+    assert fut["symbol"] == "NIFTY" and fut["date"] == date(2023, 9, 25) and fut["expiry"] == date(2023, 9, 28)
+    assert pd.isna(fut["strike"]) and pd.isna(fut["option_type"])  # missing, as in UDiFF futures rows
+    assert fut["settle"] == 19700.5 and fut["oi"] == 7741000 and fut["volume"] == 124504
+    assert pd.isna(fut["underlying"])
+    calls = frame[(frame["instrument"] == "IDO") & (frame["option_type"] == "CE")]
+    assert list(calls["strike"]) == [19700.0]
+    assert set(frame["instrument"]) == {"IDF", "IDO", "STO"}
+
+
+def test_fetch_before_july_2024_uses_the_legacy_archive(tmp_path):
+    clock = FakeClock(datetime(2026, 10, 21, 13, 0, tzinfo=IST))
+    http = FakeHttp({LEGACY_URL: (200, LEGACY.read_bytes())}, clock=clock)
+    session = PoliteSession(min_interval_s=0.0, clock=clock, sleep=FakeSleep(clock), http=http)
+    path = fetch_nse_fo_bhavcopy(session, Store(tmp_path), date(2023, 9, 25), load_settings()["urls"])
+    assert path.name == "fo25SEP2023bhav.csv.zip"
+    assert http.requested == [LEGACY_URL]
+
+
+def test_legacy_backfill_skips_days_already_stored(tmp_path):
+    store = Store(tmp_path)
+    store.write_raw("nse_fo", date(2023, 9, 25), "fo25SEP2023bhav.csv.zip", LEGACY.read_bytes())
+    clock = FakeClock(datetime(2026, 10, 21, 13, 0, tzinfo=IST))
+    http = FakeHttp({}, clock=clock)
+    session = PoliteSession(min_interval_s=0.0, clock=clock, sleep=FakeSleep(clock), http=http)
+    status = backfill_bhavcopy(session, store, [date(2023, 9, 25)], load_settings()["urls"], exchange="NSE")
+    assert status == {date(2023, 9, 25): "skipped_existing"}
+    assert http.requested == []

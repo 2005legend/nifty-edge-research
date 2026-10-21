@@ -225,3 +225,14 @@ The first recording started at 11:45, so the day is partial.
 - **Backlog.** All 14 items from the SP1 review are fixed, test-first; see the roadmap's Phase 2.
 - **Live finding.** `last_traded_timestamp` is epoch *seconds*, while `exchange_timestamp` is milliseconds. The old fallback would have dated those ticks to 1970.
 - **Transition note.** Today's recorder, history backfill and terminal news poller still run the code they started with. The terminal poller holds no lock, so it must be stopped before tomorrow's 06:55 scheduled job.
+
+## 2026-10-21: NSE F&O bhavcopy before July 2024 comes from the old archive
+
+**Finding (live).** NSE serves the UDiFF F&O bhavcopy only from about July 2024. Earlier days return 404 at the UDiFF address, but they exist in the old layout at `content/historical/DERIVATIVES/YYYY/MON/foDDMONYYYYbhav.csv.zip`, which was checked for 2019, 2023 and 5 Jul 2024. Turnover ÷ (price × volume) equals the lot size in both layouts, so volume is in contracts in both.
+
+**Decision.**
+- Days before 8 Jul 2024 try the old archive first and fall back to UDiFF on a 404.
+- Both layouts parse to the same columns. Instrument codes are mapped to UDiFF (`FUTIDX→IDF`, `OPTIDX→IDO`, `FUTSTK→STF`, `OPTSTK→STO`), futures get a blank strike and option type, and `underlying` is empty for old-layout days.
+- BSE files before UDiFF are not covered. Sensex weekly options restarted only in May 2023.
+
+**Consequence.** The bhavcopy backfill started at 12:29 runs the old code. It will mark 2019 to mid-2024 as `not_published` and only save files from July 2024 onward. Re-running `backfill --what bhavcopy` with the new code fills the missing years and skips files already saved.
