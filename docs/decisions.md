@@ -218,3 +218,10 @@ The first recording started at 11:45, so the day is partial.
   - the first full-day health report
   - expired-futures candles (§9 item 1)
   - the FBIL and NSE P/E URLs
+
+## 2026-10-21: SP1 backlog closed; daily jobs scheduled
+
+- **Scheduled jobs.** `scripts/schedule_tasks.ps1` registers the six daily jobs in Windows Task Scheduler. They run hidden, write to `logs/tasks/`, never start twice, run on battery, and catch up after the PC was off. The owner asked for this ("go full and complete all").
+- **Backlog.** All 14 items from the SP1 review are fixed, test-first; see the roadmap's Phase 2.
+- **Live finding.** `last_traded_timestamp` is epoch *seconds*, while `exchange_timestamp` is milliseconds. The old fallback would have dated those ticks to 1970.
+- **Transition note.** Today's recorder, history backfill and terminal news poller still run the code they started with. The terminal poller holds no lock, so it must be stopped before tomorrow's 06:55 scheduled job.

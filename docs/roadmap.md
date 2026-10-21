@@ -45,26 +45,23 @@ The research also says the most likely result of SP2 is that no configuration pa
 
 Phase 1 is done after 5 trading days in a row with full recordings and no unexplained problems in the health report.
 
-### Phase 2: SP1 backlog (during the first two weeks of recording; you or me)
+### Phase 2: SP1 backlog (done 21 Oct 2026)
 
-These came out of the final review. Write the failing test first for each one.
-
-| Priority | Fix | Where |
-|---|---|---|
-| High | Save the token-to-contract map (`option_meta`) every day and after every recentre. NSE reuses tokens, so without it the snapshots cannot be tied to strikes once that day's master is gone | `recorder/live.py`, `recorder/plan.py` |
-| High | Reconnect when the feed freezes but the socket stays open (today it is only logged) | `broker/ws.py` |
-| High | Check during the live run that an expired session (HTTP 403, or `errorCode` in camelCase) triggers a relogin | `broker/angel.py` |
-| High | Check for a holiday before downloading the master and the Nifty 50 list. If the list fails, record options anyway and flag it | `cli.py`, `app.py` |
-| Medium | EOD job. Retry network errors hourly. Stop duplicate VIX rows on re-runs. Skip holidays. Don't require Angel credentials for NSE files. Let the bhavcopy backfill continue past one network error, and bootstrap NSE cookies first | `eod/flows.py`, `eod/bhavcopy.py`, `cli.py` |
-| Medium | News poller: catch exceptions per cycle, refuse to run twice, and fix the runbook's 12-hour task limit, which stops the poller at 18:55 | `news/collect.py`, `docs/runbook.md` |
-| Medium | Show in the health report when an old copy of the instrument master was used | `app.py`, `quality.py` |
-| Medium | Guard the subscription set with a lock (two threads touch it) | `broker/ws.py` |
-| Medium | Replace the PID run lock with `msvcrt.locking`, which Windows releases when the process dies | `recorder/live.py` |
-| Low | Count the first bar's volume correctly per token; use `max` of cumulative volume for out-of-order ticks | `recorder/bars.py` |
-| Low | Skip GDELT records already stored (`record_id`) | `news/collect.py` |
-| Low | Move `manifest.jsonl` from `data/raw` to `data/state` | `history/backfill.py` |
-| Low | Make `recenter` respect the token budget | `recorder/plan.py` |
-| Low | Confirm the unit of `last_traded_timestamp` from live data | `broker/ws.py` |
+All 14 items from the final review are fixed, each with a test that failed first (commits `0d6503d`..`c14e719`):
+- the day's token-to-contract map is saved
+- a frozen feed forces a reconnect
+- the session is renewed after midnight or a `TokenException`
+- holidays are checked before downloads
+- the end-of-day job retries network errors and block pages hourly and works without Angel credentials
+- the news poller survives errors and runs once only
+- the master fallback and recorder errors appear in the health report
+- the run lock is an OS file lock
+- the subscription map is copy-on-write
+- bar volume is correct at the open and for out-of-order ticks
+- GDELT files are processed once
+- the history manifest lives in `data/state`
+- recentring respects the token budget
+- `last_traded_timestamp` is read as epoch seconds (checked live)
 
 ### Phase 3: SP4 desk pilot (starts once SP1 records daily)
 
