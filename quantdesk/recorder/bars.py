@@ -41,8 +41,10 @@ class FlushResult:
 
 
 class MinuteAggregator:
-    def __init__(self, option_tokens: set[str], depth_tokens: set[str], index_tokens: set[str]):
+    def __init__(self, option_tokens: set[str], depth_tokens: set[str], index_tokens: set[str],
+                 session_open: datetime | None = None):
         self.option_tokens = set(option_tokens)
+        self.session_open = session_open  # the day's running volume is zero at the open
         self.depth_tokens = set(depth_tokens)
         self.index_tokens = set(index_tokens)
         self._buckets: dict[datetime, dict[str, list[Tick]]] = defaultdict(lambda: defaultdict(list))
@@ -89,9 +91,13 @@ class MinuteAggregator:
         volumes = [t.volume for t in ticks if t.volume is not None]
         volume = None
         if volumes:
-            base = self._last_volume.get(token, volumes[0])
-            volume = max(0, volumes[-1] - base)
-            self._last_volume[token] = volumes[-1]
+            end = max(volumes)  # running total; max() is safe against out-of-order ticks
+            if token in self._last_volume:
+                volume = max(0, end - self._last_volume[token])
+            elif self.session_open is not None and minute == self.session_open:
+                volume = end
+            # else: first bar seen mid-day (recentre, restart); what traded earlier in it is unknown
+            self._last_volume[token] = max(end, self._last_volume.get(token, 0))
         last = ticks[-1]
         return {"minute": minute, "token": token, "open": prices[0], "high": max(prices),
                 "low": min(prices), "close": prices[-1], "volume": volume, "n_ticks": len(ticks),

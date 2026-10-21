@@ -120,7 +120,7 @@ def run_recording(day: date, *, client, stream_factory, master: pd.DataFrame, co
         option_tokens = set(plan.option_meta["token"])
         jump_tokens = set(spot_token)  # India VIX legitimately moves >5%: never jump-filtered
         agg = MinuteAggregator(option_tokens=option_tokens, depth_tokens=plan.depth_tokens,
-                               index_tokens=jump_tokens)
+                               index_tokens=jump_tokens, session_open=open_t)
         summary = RecordingSummary(status="ok", subscription_count=plan.count(), reduced=plan.reduced,
                                    errors=errors)
         lock = threading.Lock()

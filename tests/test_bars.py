@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
 
+import pandas as pd
+
 from quantdesk.broker.ws import Tick
 from quantdesk.clock import IST
 from quantdesk.recorder.bars import MinuteAggregator, is_bad_tick
@@ -14,13 +16,15 @@ def tick(token, ltp, seconds=0, **kw):
 
 
 def test_bars_ohlc_and_volume_delta():
-    agg = MinuteAggregator(option_tokens=set(), depth_tokens=set(), index_tokens=set())
+    """T0 is the 09:15 open: the day's running volume starts at zero, so the whole 1300 traded in it.
+    (Before backlog item 10 this bar counted only 300, losing the first tick's 1000.)"""
+    agg = MinuteAggregator(option_tokens=set(), depth_tokens=set(), index_tokens=set(), session_open=T0)
     for i, (price, vol) in enumerate([(100, 1000), (102, 1100), (99, 1200), (101, 1300)]):
         agg.add(tick("FUT", price, seconds=i * 10, volume=vol))
     bars = agg.flush(T0 + timedelta(minutes=1)).bars
     row = bars.iloc[0]
     assert (row["open"], row["high"], row["low"], row["close"]) == (100, 102, 99, 101)
-    assert row["volume"] == 300
+    assert row["volume"] == 1300
     assert row["n_ticks"] == 4
     assert row["minute"] == T0
 
@@ -107,3 +111,27 @@ def test_flush_keeps_later_minutes():
     second = agg.flush(T0 + timedelta(minutes=2))
     assert len(second.bars) == 1
     assert second.bars.iloc[0]["minute"] == T0 + timedelta(minutes=1)
+
+
+def test_first_bar_seen_mid_day_has_unknown_volume_then_deltas():
+    """Backlog 10: after a recentre or restart the volume traded earlier in that minute is unknown."""
+    agg = MinuteAggregator(option_tokens=set(), depth_tokens=set(), index_tokens=set(), session_open=T0)
+    start = 30 * 60
+    for i, vol in enumerate([5000, 5200]):
+        agg.add(tick("FUT", 100, seconds=start + i * 10, volume=vol))
+    first = agg.flush(T0 + timedelta(minutes=31)).bars.iloc[0]
+    assert pd.isna(first["volume"])
+    agg.add(tick("FUT", 100, seconds=start + 70, volume=5500))
+    second = agg.flush(T0 + timedelta(minutes=32)).bars.iloc[0]
+    assert second["volume"] == 300
+
+
+def test_out_of_order_ticks_use_the_largest_running_volume():
+    agg = MinuteAggregator(option_tokens=set(), depth_tokens=set(), index_tokens=set(), session_open=T0)
+    agg.add(tick("FUT", 100, seconds=10, volume=900))
+    agg.flush(T0 + timedelta(minutes=1))
+    for i, vol in enumerate([1000, 1300, 1200]):  # the 1200 tick arrived late
+        agg.add(tick("FUT", 100, seconds=60 + i * 10, volume=vol))
+    assert agg.flush(T0 + timedelta(minutes=2)).bars.iloc[0]["volume"] == 400
+    agg.add(tick("FUT", 100, seconds=130, volume=1350))
+    assert agg.flush(T0 + timedelta(minutes=3)).bars.iloc[0]["volume"] == 50
