@@ -94,8 +94,9 @@ def har_series(daily: pd.DataFrame, vix: pd.DataFrame, window: int, c: float, pe
             month = (day.year, day.month)
             if complete >= MIN_FIT_ROWS:
                 fit = fit_har(design, day, window)
-        known = bool(row.notna().all())
-        if fit is not None and known:
+        inputs = bool(row[list(TERMS)].notna().all())   # what the 09:16 forecast needs
+        known = inputs and not math.isnan(row["y"])         # what a later fit can learn from
+        if fit is not None and inputs:
             rv, no_gap = forecast(fit, row)
             rows.append((day, rv, no_gap, math.sqrt(rv)))
         else:

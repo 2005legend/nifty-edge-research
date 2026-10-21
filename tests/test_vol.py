@@ -145,3 +145,13 @@ def test_har_series_columns_and_the_percentile_floor():
     first = frame["har_pct"].first_valid_index()
     assert len(frame.loc[:first, "rv_hat"].iloc[:-1].dropna()) == PCT_MIN
     assert frame["har_pct"].dropna().between(0.0, 1.0).all()
+
+
+def test_a_day_whose_own_realised_variance_is_missing_still_gets_a_forecast():
+    """The forecast for day t needs x1..x5, all known at 09:16; y_t is the target, known only after the close."""
+    daily, vix = _toy_market(400)
+    flat = daily.index[-1]
+    daily.loc[flat, ["high", "low", "close"]] = daily.loc[flat, "open"]   # a zero-range day: y is NaN
+    out = har_series(daily, vix, window=WINDOW, c=C, percentile_window=PCT_WINDOW, percentile_min=PCT_MIN)
+    assert np.isnan(har_design(daily, vix, C)["y"].iloc[-1])
+    assert not np.isnan(out["rv_hat"].iloc[-1])
