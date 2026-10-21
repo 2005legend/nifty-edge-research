@@ -360,3 +360,20 @@ def test_derive_refuses_a_second_copy(app, monkeypatch, capsys):
     with run_lock(app.store, "derive"):
         assert cli.main(["derive"]) == 0
     assert "already running" in capsys.readouterr().out
+
+
+def test_fit_clock_writes_the_frozen_file_once_unless_forced(app, monkeypatch, tmp_path, capsys):
+    """A frozen fit is refit only on purpose (R15): the second run refuses, --force overwrites."""
+    import numpy as np
+
+    from quantdesk.pricing.clock import Clock
+    frozen, pilots = tmp_path / "frozen", tmp_path / "pilots"
+    monkeypatch.setattr(cli, "frozen_dir", lambda: frozen)
+    monkeypatch.setattr(cli, "pilots_dir", lambda: pilots)
+    clock = Clock(np.full(375, 1 / 375), 0.5, 0.1, 0.2, (DAY,))
+    monkeypatch.setattr(cli, "fit_clock_from", lambda derived, h, holidays: (clock, {"theta_night": 0.5}, "report"))
+    assert cli.main(["fit", "clock"]) == 0
+    assert (frozen / "clock_v1.yaml").exists() and (pilots / "CLOCK.md").exists()
+    assert cli.main(["fit", "clock"]) == 1
+    assert "already frozen" in capsys.readouterr().out
+    assert cli.main(["fit", "clock", "--force"]) == 0

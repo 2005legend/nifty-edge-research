@@ -4,6 +4,7 @@ import argparse
 import json
 from dataclasses import asdict
 from datetime import date, datetime, time, timedelta
+from pathlib import Path
 
 import requests
 import yaml
@@ -26,6 +27,7 @@ from quantdesk.macro.collect import run_macro_daily, run_macro_intraday
 from quantdesk.news.collect import SeenIndex, poll_gdelt_once, poll_once, run_news_loop
 from quantdesk.news.labels import sample_for_labelling, write_label_sheet
 from quantdesk.power import keep_awake
+from quantdesk.pricing.fitting import clock_sessions, fit_clock_from, fit_surface_from
 from quantdesk.quality import build_health_report, write_health_report
 from quantdesk.recorder.live import AlreadyRunningError, RecordingSummary, run_lock, run_recording
 from quantdesk.validation.hypotheses import load_hypotheses, param
@@ -208,6 +210,45 @@ def _derive(app, args) -> int:
     return 0
 
 
+def frozen_dir() -> Path:
+    return project_root() / "config" / "frozen"
+
+
+def pilots_dir() -> Path:
+    return project_root() / "research" / "pilots"
+
+
+def cmd_fit(app, args) -> int:
+    """Fit a frozen file once, on 2019-2022 (R15). A refit needs --force and an entry in docs/decisions.md."""
+    from quantdesk.pricing.clock import load_clock, save_clock
+    from quantdesk.pricing.surface import save_surface
+
+    names = {"clock": "clock_v1.yaml", "surface": "surface_v1.yaml", "shock": "shock_v1.yaml"}
+    target = frozen_dir() / names[args.what]
+    if target.exists() and not args.force:
+        print(f"{target} is already frozen. Refitting changes every later trial: pass --force and log why in docs/decisions.md.")
+        return 1
+    derived = DerivedStore(app.store.root / "derived")
+    h = load_hypotheses()
+    holidays = {e.date for e in app.events if e.type == "holiday_nse"}
+    report = pilots_dir() / "CLOCK.md"
+    report.parent.mkdir(parents=True, exist_ok=True)
+    if args.what == "clock":
+        clock, meta, text = fit_clock_from(derived, h, holidays)
+        save_clock(target, clock, meta)
+        report.write_text(text, encoding="utf-8")
+    elif args.what == "surface":
+        clock = load_clock(frozen_dir() / names["clock"], clock_sessions(derived, holidays))
+        surface, meta, text = fit_surface_from(derived, h, clock)
+        save_surface(target, surface, meta)
+        with open(report, "a", encoding="utf-8") as f:
+            f.write(text)
+    else:
+        raise NotImplementedError("fit shock arrives with the shock hurdle (plan 2, task 8)")
+    print(f"wrote {target}; report {report}. If this is a refit, log it in docs/decisions.md.")
+    return 0
+
+
 def cmd_eod(app, args) -> int:
     day = _day(args.day, app)
     if not app.is_trading_day(day):
@@ -318,6 +359,10 @@ def build_parser() -> argparse.ArgumentParser:
     backfill.add_argument("--start")
     backfill.add_argument("--end", help="last day to fetch (fundamentals only; default today)")
     backfill.set_defaults(func=cmd_backfill)
+    fit = sub.add_parser("fit", help="fit a frozen file on 2019-2022 (clock, surface, shock)")
+    fit.add_argument("what", choices=["clock", "surface", "shock"])
+    fit.add_argument("--force", action="store_true", help="overwrite an existing frozen file (log it in decisions.md)")
+    fit.set_defaults(func=cmd_fit)
     derive = sub.add_parser("derive", help="rebuild every derived table from data/raw")
     derive.add_argument("--only", choices=DERIVE_TABLES, help="rebuild one table instead of all of them")
     derive.set_defaults(func=cmd_derive)
