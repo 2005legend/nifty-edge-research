@@ -1,5 +1,6 @@
 import copy
 from datetime import date, datetime
+from pathlib import Path
 
 import pandas as pd
 
@@ -112,3 +113,67 @@ def test_intraday_writes_only_configured_tickers(tmp_path):
     assert seen["tickers"] == settings["macro"]["intraday_tickers"]
     assert set(store.read("macro_intraday")["ticker"]) == set(settings["macro"]["intraday_tickers"])
     assert all(v == "ok" for v in report.status.values())
+
+
+INDEX_CLOSE = Path(__file__).parent / "fixtures" / "ind_close_all_sample.csv"
+INDEX_URL = "https://nsearchives.nseindia.com/content/indices/ind_close_all_{ddmmyyyy}.csv"
+
+
+def test_parse_index_close_reads_fundamentals_and_bond_index():
+    from quantdesk.macro.sources import parse_index_close
+
+    frame = parse_index_close(INDEX_CLOSE.read_bytes())
+    nifty = frame[frame["index_name"] == "Nifty 50"].iloc[0]
+    assert nifty["date"] == date(2026, 10, 19)
+    assert (nifty["close"], nifty["pe"], nifty["pb"], nifty["div_yield"]) == (22888.95, 19.33, 2.81, 1.5)
+    gsec = frame[frame["index_name"] == "Nifty 10 yr Benchmark G-Sec (Clean Price)"].iloc[0]
+    assert gsec["close"] == 841.87 and pd.isna(gsec["pe"])
+
+
+def _index_close_getter(days_with_files, old_name_day=None):
+    """Fake http_get: an index file for each day in days_with_files, 404 otherwise."""
+    from tests.fakes import FakeResponse
+
+    body = INDEX_CLOSE.read_text()
+
+    def get(url):
+        for day in days_with_files:
+            if url == INDEX_URL.format(ddmmyyyy=day.strftime("%d%m%Y")):
+                text = body.replace("19-10-2026", day.strftime("%d-%m-%Y"))
+                if day == old_name_day:
+                    text = text.replace("Nifty 50,", "CNX Nifty,")
+                return FakeResponse(200, text.encode(), url)
+        return FakeResponse(404, b"<!DOCTYPE html>", url)
+    return get
+
+
+def test_fetch_nifty_fundamentals_over_a_range_skips_holidays():
+    from quantdesk.macro.sources import fetch_nse_index_close
+
+    spec = {"id": "nifty_fundamentals", "source": "nse_index_close", "url": INDEX_URL,
+            "indices": ["Nifty 50", "CNX Nifty"], "fields": "fundamentals"}
+    d1, holiday, d2 = date(2015, 3, 2), date(2015, 3, 3), date(2015, 3, 4)
+    frame = fetch_nse_index_close(spec, d1, d2, http_get=_index_close_getter([d1, d2], old_name_day=d1))
+    assert list(frame["date"]) == [d1, d2]
+    assert set(frame["series_id"]) == {"nifty_fundamentals"}
+    assert list(frame["pe"]) == [19.33, 19.33]
+
+
+def test_fetch_gsec_clean_price_as_a_value_series():
+    from quantdesk.macro.sources import VALUE_COLUMNS, fetch_nse_index_close
+
+    spec = {"id": "india_gsec10y_price", "source": "nse_index_close", "url": INDEX_URL,
+            "indices": ["Nifty 10 yr Benchmark G-Sec (Clean Price)"]}
+    day = date(2026, 10, 19)
+    frame = fetch_nse_index_close(spec, day, day, http_get=_index_close_getter([day]))
+    assert list(frame.columns) == VALUE_COLUMNS
+    assert frame.iloc[0].to_dict() == {"series_id": "india_gsec10y_price", "date": day, "value": 841.87}
+
+
+def test_no_series_uses_fbil():
+    """FBIL's terms require a paid subscription for back-testing and risk use (checked 21 Oct 2026)."""
+    from quantdesk.config import load_settings
+
+    sources = {s["source"] for s in load_settings()["macro"]["series"]}
+    assert "fbil" not in sources and "nse_index_fundamentals" not in sources
+    assert "nse_index_close" in sources

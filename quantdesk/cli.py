@@ -121,7 +121,8 @@ def cmd_backfill(app, args) -> int:
         start = date.fromisoformat(args.start or app.settings["backfill"]["daily_start"])
         settings = dict(app.settings)
         settings["macro"] = {**app.settings["macro"],
-                             "series": [s for s in app.settings["macro"]["series"] if s["id"] == "nifty_fundamentals"]}
+                             "series": [s for s in app.settings["macro"]["series"]
+                                        if s["id"] in ("nifty_fundamentals", "india_gsec10y_price")]}
         report = run_macro_daily(today, store=app.store, settings=settings, sleep=app.sleep, start=start)
         print(f"fundamentals backfill: {report.status}")
     return 0

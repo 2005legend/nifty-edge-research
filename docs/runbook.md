@@ -63,7 +63,7 @@ The PC must be on during market hours. Turn sleep off while plugged in.
 | `eod nse_fo: not_published` | NSE hadn't published by 23:00 | Run `python -m quantdesk eod --day YYYY-MM-DD` the next morning |
 | `eod …: bad_download` | NSE/BSE returned a block page | Wait and re-run. NSE sometimes blocks for a while. |
 | `macro dgs10: missing_key` | No `FRED_API_KEY` in `.env` | Add the key |
-| `macro india_gsec10y: failed` / `nifty_fundamentals: failed` | Their URLs are not set up yet (open item) | Ignore until configured |
+| `macro india_gsec10y_price: failed` / `nifty_fundamentals: failed` | NSE's daily index file could not be fetched (block page or network) | Re-run `python -m quantdesk macro` later |
 | `news feed stale: X` | Feed X published nothing for 24 h | Fine on holidays; otherwise check the URL in `config/news_feeds.yaml` |
 | `feed stale periods: N` | The live feed stopped for 30+ seconds N times | The recorder reconnects by itself. Check your internet if N is large. |
 | `NIFTY: N minutes missing` | Recording started late or the PC slept | Check the PC sleep settings |

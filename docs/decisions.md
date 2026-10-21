@@ -247,3 +247,15 @@ The Nifty September 2026 future (expired 29 Sep) returned 0 candles for 25 Sep. 
 - (c) an index-only VWAP substitute, such as a time-weighted average, with its limits stated
 
 Each changes what the backtest can claim, so this needs the owner's decision.
+
+## 2026-10-21: India 10-year and Nifty P/E come from NSE's daily index file; stored dates fixed
+
+- **Nifty P/E.** `nifty_fundamentals` gives Nifty 50 P/E, P/B and dividend yield from NSE's public `ind_close_all_DDMMYYYY.csv`. It covers 2015 to today; before 9 Nov 2015 the index was named "CNX Nifty".
+- **India 10-year.** `india_gsec10y_price` is the "Nifty 10 yr Benchmark G-Sec (Clean Price)" index from the same file.
+  - FBIL's par yield was rejected. Its terms of use call back-testing and risk management commercial use, which needs a paid subscription. Its public archive also lagged by a week.
+  - The SP2 macro engine will turn price changes into approximate yield changes (Δy ≈ −ΔP/P ÷ modified duration). That is enough for the stress score's 5-day change, but it gives no yield level.
+- **Bug found while checking this.** `Store.read` and the DuckDB views let the folder name `date=YYYY-MM-DD` (the day rows were stored) overwrite a table's own `date` column. So every macro series read back dated by collection day. Now:
+  - a table's own `date` is kept, and the folder date becomes `stored_on`
+  - tables without a `date` column still get the folder date as `date`
+  - the files on disk were always right
+- The two series backfill with `backfill --what fundamentals`: about 2,900 files from 2015, at 1.5 s each, roughly 75 minutes.

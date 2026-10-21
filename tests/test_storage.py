@@ -61,3 +61,25 @@ def test_failed_parquet_write_leaves_no_partial_part(tmp_path, monkeypatch):
     assert not list((tmp_path / "raw" / "bars").rglob("*.parquet"))
     store.append_parquet("bars", DAY, pd.DataFrame({"x": [1]}))
     assert len(store.read("bars", DAY)) == 1
+
+
+def test_read_keeps_the_datas_own_date_column(tmp_path):
+    """Live 21 Oct 2026: macro rows for 15-19 Oct all read back dated 21 Oct, because the folder name
+    date=2026-10-21 overrode the data's own 'date' column."""
+    store = Store(tmp_path)
+    frame = pd.DataFrame({"series_id": ["x", "x"], "date": [date(2026, 10, 15), date(2026, 10, 16)],
+                          "value": [1.0, 2.0]})
+    store.append_parquet("macro_daily", date(2026, 10, 21), frame)
+    out = store.read("macro_daily")
+    assert sorted(pd.to_datetime(out["date"]).dt.date) == [date(2026, 10, 15), date(2026, 10, 16)]
+    assert set(pd.to_datetime(out["stored_on"]).dt.date) == {date(2026, 10, 21)}
+    view = store.connect().sql("select date, stored_on from macro_daily order by date").df()
+    assert list(pd.to_datetime(view["date"]).dt.date) == [date(2026, 10, 15), date(2026, 10, 16)]
+
+
+def test_kinds_without_a_date_column_still_get_the_folder_date(tmp_path):
+    store = Store(tmp_path)
+    store.append_parquet("bars", date(2026, 10, 21), pd.DataFrame({"token": ["1"], "close": [1.0]}))
+    out = store.read("bars")
+    assert list(pd.to_datetime(out["date"]).dt.date) == [date(2026, 10, 21)]
+    assert "stored_on" not in out.columns

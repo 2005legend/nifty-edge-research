@@ -65,12 +65,22 @@ class Store:
             return None
         return (folder / "**" / "*.parquet").as_posix()
 
+    @staticmethod
+    def _select(pattern: str, con=None) -> str:
+        """SQL selecting every part of a kind. The folder date (date=YYYY-MM-DD, the day the rows were stored)
+        becomes column `date`, unless the rows carry their own `date` (macro series, fundamentals): then theirs
+        is kept and the folder date is `stored_on`. DuckDB's hive_partitioning would overwrite theirs."""
+        source = f"read_parquet('{pattern}', hive_partitioning=false, union_by_name=true, filename=true)"
+        columns = {row[0] for row in (con or duckdb).sql(f"describe select * from {source}").fetchall()}
+        stored = r"cast(regexp_extract(filename, 'date=(\d{4}-\d{2}-\d{2})', 1) as date)"
+        alias = "stored_on" if "date" in columns else "date"
+        return f"select * exclude (filename), {stored} as {alias} from {source}"
+
     def read(self, kind: str, day: date | None = None) -> pd.DataFrame:
         pattern = self._parquet_glob(kind, day)
         if pattern is None:
             return pd.DataFrame()
-        query = f"select * from read_parquet('{pattern}', hive_partitioning=true, union_by_name=true)"
-        return duckdb.sql(query).df()
+        return duckdb.sql(self._select(pattern)).df()
 
     def connect(self) -> duckdb.DuckDBPyConnection:
         con = duckdb.connect()
@@ -79,10 +89,7 @@ class Store:
             for folder in sorted(p for p in raw.iterdir() if p.is_dir()):
                 pattern = self._parquet_glob(folder.name, None)
                 if pattern is not None:
-                    con.sql(
-                        f"create view \"{folder.name}\" as select * from read_parquet("
-                        f"'{pattern}', hive_partitioning=true, union_by_name=true)"
-                    )
+                    con.sql(f"create view \"{folder.name}\" as {self._select(pattern, con)}")
         return con
 
     # derived reports ------------------------------------------------------
