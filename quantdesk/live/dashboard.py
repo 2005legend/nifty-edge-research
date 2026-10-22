@@ -22,7 +22,7 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from quantdesk.live.monitor import book, locks
+from quantdesk.live.monitor import effective_mode, locks
 
 STATIC = Path(__file__).parent / "static"
 TURNOVER_BUDGET = 1_000_000
@@ -84,7 +84,8 @@ def create_app(journal, research_dir: Path, h: dict, today, sessions: list[date]
     def today_view():
         day = today()
         snap = snapshot() if snapshot else {}
-        return {"day": day.isoformat(), "mode": journal.get_state("mode", "shadow"),
+        mode = effective_mode(journal, day, journal.get_state("verdict_mode", "shadow"))
+        return {"day": day.isoformat(), "mode": mode, "kill_switch": journal.get_state("kill_switch") or None,
                 "locks": locks(journal, day, sessions, h),
                 "alerts": _records(journal.alerts(day.isoformat())),
                 "open_papers": _records(journal.open_papers()),
@@ -109,7 +110,7 @@ def create_app(journal, research_dir: Path, h: dict, today, sessions: list[date]
     def unlock(body: UnlockIn):
         journal.log_event("unlock", f"{body.lock}|{body.period}|{body.reason}")
         if body.lock == "kill_switch":
-            journal.set_state("mode", "live")
+            journal.set_state("kill_switch", "")
         return {"ok": True}
 
     @app.post("/api/shadow-pause")

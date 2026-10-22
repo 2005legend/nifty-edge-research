@@ -65,3 +65,13 @@ def test_research_lists_pilots_and_the_verdict(client):
     c, _ = client
     res = c.get("/api/research").json()
     assert "P1" in res["pilots"] and "alert-off" in res["verdict"]
+
+
+def test_mode_shows_the_kill_switch_and_unlock_lifts_it(client):
+    c, j = client
+    j.set_state("verdict_mode", "live")
+    assert c.get("/api/today").json()["mode"] == "live"
+    j.set_state("kill_switch", "sprt")
+    assert c.get("/api/today").json()["mode"] == "shadow"
+    r = c.post("/api/unlock", json={"lock": "kill_switch", "period": "2026-10-22", "reason": "reviewed the trades"})
+    assert r.status_code == 200 and j.get_state("kill_switch") == "" and c.get("/api/today").json()["mode"] == "live"

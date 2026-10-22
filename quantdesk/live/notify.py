@@ -63,6 +63,12 @@ def _hhmm(at) -> str:
     return at.strftime("%H:%M") if hasattr(at, "strftime") else str(at)[11:16]
 
 
+def format_kill(reasons: str, at) -> str:
+    return (f"KILL SWITCH {_hhmm(at)}: {reasons}\n"
+            "New alerts are shadow only from now (do not trade them).\n"
+            "Open trades keep their exit messages. Lift it on the dashboard with a typed reason.")
+
+
 def format_alert(a: dict) -> str:
     shadow = " (SHADOW - do not trade)" if a.get("mode") == "shadow" else ""
     return (f"ALERT{shadow} {_hhmm(a['at'])}\n"

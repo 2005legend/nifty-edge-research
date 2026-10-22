@@ -92,3 +92,22 @@ def test_the_paper_trade_ratchets_and_exits_with_messages(tmp_path):
     assert any(t.startswith("EXIT NOW") for t in notes.sent)
     closed = j.closed_trades("paper")
     assert len(closed) == 1 and closed.loc[0, "reason"] == "stop" and closed.loc[0, "pnl"] > 0
+
+
+def test_a_kill_switch_after_a_close_turns_alerts_to_shadow(tmp_path):
+    e, j, notes = engine(tmp_path)
+    e.kill_params = {"mu0": 20.0, "breakeven": 0.0, "sigma": 100.0, "cusum_h": 0.1}
+    now = AT + timedelta(seconds=5)
+    while now < AT + timedelta(minutes=90):
+        e.step(now)
+        now += timedelta(minutes=1)
+    assert j.get_state("kill_switch") == "cusum"
+    assert any(t.startswith("KILL SWITCH") for t in notes.sent)
+    assert (j.events()["kind"] == "kill_switch").any()
+
+
+def test_a_fired_kill_switch_keeps_new_alerts_in_shadow(tmp_path):
+    e, j, notes = engine(tmp_path)
+    j.set_state("kill_switch", "sprt")
+    e.step(AT + timedelta(seconds=5))
+    assert j.alerts().loc[0, "mode"] == "shadow" and notes.sent == []

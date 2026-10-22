@@ -19,7 +19,7 @@ import pandas as pd
 from quantdesk.analysis.bands import band_edges, slot
 from quantdesk.costs import round_trip
 from quantdesk.live import notify as fmt
-from quantdesk.live.monitor import locks
+from quantdesk.live.monitor import effective_mode, kill_switches, locks
 from quantdesk.strategy.exits import OpenTrade, _path_a
 from quantdesk.strategy.pipeline import decide
 from quantdesk.strategy.timeline import check_times
@@ -40,13 +40,26 @@ class LiveEngine:
     model: object
     h: dict
     today: date
-    mode: str = "shadow"                   # "live" or "shadow" (S2)
+    mode: str = "shadow"                   # the verdict's mode, "live" or "shadow" (S2)
+    kill_params: dict | None = None        # mu0, breakeven, sigma, cusum_h of the accepted trial (S9)
     indices: tuple = ("NIFTY", "SENSEX")
     sessions: list = field(default_factory=list)
     processed: set = field(default_factory=set)
     prealerted: set = field(default_factory=set)
     _ctx: dict = field(default_factory=dict)
-    _open: dict = field(default_factory=dict)  # paper id -> (OpenTrade, alert id, index)
+    _open: dict = field(default_factory=dict)  # paper id -> (OpenTrade, alert id, index, mode)
+    _frames: dict = field(default_factory=dict)  # index -> chart rows for the dashboard
+
+    def snapshot(self) -> dict:
+        """What the dashboard shows: a plain-words day card and the latest minute frames."""
+        cards = {}
+        for index, ctx in self._ctx.items():
+            parts = ", ".join(f"{k} +{v:.2f}" for k, v in (ctx.delta_parts or {}).items() if v)
+            cards[index] = (f"open {ctx.open:.1f} vs prev close {ctx.prev_close:.1f}; HAR day move "
+                            f"{100 * ctx.sigma_day:.2f}% (pct {ctx.har_pct if ctx.har_pct is not None else '-'}); "
+                            f"expiry {ctx.expiry_1}{' (today)' if ctx.is_expiry_day else ''}; "
+                            f"events {', '.join(e.title for e in ctx.events) or 'none'}; hurdle {parts or 'none'}")
+        return {"day_card": cards, "frames": self._frames}
 
     def step(self, now: datetime) -> list:
         source = self.make_source(now)
@@ -58,6 +71,8 @@ class LiveEngine:
                 continue
             frame = source.frame(ctx)
             frame = frame[frame["ts"] <= now - timedelta(minutes=1)]
+            cols = [c for c in ("ts", "close", "vwap", "upper", "lower") if c in frame]
+            self._frames[index] = frame[cols].assign(ts=frame["ts"].astype(str)).to_dict("records")
             decisions += self._checks(now, ctx, frame, source)
             self._prealert(now, ctx, frame)
         self._manage(now, source)
@@ -83,8 +98,10 @@ class LiveEngine:
         return out
 
     def _alert(self, d, ctx, frame, helpers, now):
-        held = locks(self.journal, self.today, self.sessions or [self.today], self.h)
-        mode = "shadow" if self.mode != "live" else ("suppressed" if held else "live")
+        mode = effective_mode(self.journal, self.today, self.mode)
+        held = locks(self.journal, self.today, self.sessions or [self.today], self.h) if mode == "live" else []
+        if held:
+            mode = "suppressed"
         a, c = d.alert, d.alert.choice
         row = {"at": d.at, "index": ctx.index, "side": a.side, "mode": mode, "expiry": c.expiry, "strike": c.strike,
                "kind": c.kind, "lot": c.lot, "entry_limit": a.entry_limit, "index_stop": a.index_stop,
@@ -105,7 +122,7 @@ class LiveEngine:
         self._open[paper_id] = (trade, alert_id, ctx.index, mode)
 
     def _prealert(self, now, ctx, frame):
-        if self.mode != "live" or frame.empty:
+        if effective_mode(self.journal, self.today, self.mode) != "live" or frame.empty:
             return
         for at in check_times(self.today, ctx.is_expiry_day, self.h):
             key = (ctx.index, at)
@@ -154,3 +171,15 @@ class LiveEngine:
             if mode == "live" and self.journal.get_state(f"exit_sent_{paper_id}") is None:
                 self.notifier.send(fmt.format_exit(index, reason, decided))
             del self._open[paper_id]
+            self._check_kill(now)
+
+    def _check_kill(self, now):
+        """S9: after each closed trade. A firing turns new alerts to shadow until the owner lifts it."""
+        if not self.kill_params or self.journal.get_state("kill_switch"):
+            return
+        fired = kill_switches(self.journal, self.kill_params, self.h)
+        if fired:
+            reasons = ", ".join(fired)
+            self.journal.set_state("kill_switch", reasons)
+            self.journal.log_event("kill_switch", reasons, at=now)
+            self.notifier.send(fmt.format_kill(reasons, now))

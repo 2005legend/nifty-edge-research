@@ -63,3 +63,18 @@ def test_kill_switches_include_the_capital_floor(tmp_path):
         trade(j, SESSIONS[i], -400.0)
     reasons = kill_switches(j, {"mu0": 0.25, "breakeven": 0.0, "sigma": 1.0, "cusum_h": 5.0}, H)
     assert "capital_floor" in reasons
+
+
+def test_effective_mode_follows_verdict_kill_switch_and_pause(tmp_path):
+    from quantdesk.live.monitor import effective_mode
+
+    j = Journal(tmp_path / "m.sqlite")
+    day = date(2026, 10, 22)
+    assert effective_mode(j, day, "shadow") == "shadow"
+    assert effective_mode(j, day, "live") == "live"
+    j.set_state("kill_switch", "cusum")
+    assert effective_mode(j, day, "live") == "shadow"
+    j.set_state("kill_switch", "")
+    j.set_state("shadow_pause_until", "2026-10-25")
+    assert effective_mode(j, day, "live") == "shadow"
+    assert effective_mode(j, date(2026, 10, 26), "live") == "live"

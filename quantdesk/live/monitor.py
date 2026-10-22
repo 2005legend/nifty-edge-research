@@ -83,6 +83,14 @@ def locks(journal, day: date, sessions: list[date], h: dict) -> list[str]:
     return found
 
 
+def effective_mode(journal, day: date, verdict_mode: str) -> str:
+    """Live only when the verdict is alert-on, no kill-switch is standing and no shadow pause covers `day`."""
+    if verdict_mode != "live" or journal.get_state("kill_switch"):
+        return "shadow"
+    pause = journal.get_state("shadow_pause_until")
+    return "shadow" if pause and day.isoformat() <= pause else "live"
+
+
 def sprt(r, mu0: float, mu1: float, sigma: float, alpha: float, beta: float) -> str:
     """Wald's SPRT between H0: mean R = mu0 (the validated, in-control level) and H1: mean R = mu1 (no edge)."""
     upper, lower = math.log((1 - beta) / alpha), math.log(beta / (1 - alpha))
