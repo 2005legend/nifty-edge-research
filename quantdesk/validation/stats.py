@@ -40,3 +40,69 @@ def t_stat(x) -> float:
     if len(x) < 2 or x.std(ddof=1) == 0:
         return float("nan")
     return float(x.mean() / x.std(ddof=1) * math.sqrt(len(x)))
+
+
+def pbo(matrix, S: int = 10) -> float | None:
+    """Probability of backtest overfitting by CSCV: how often the in-sample best trial ranks in the out-of-sample
+    bottom half. `matrix` is periods x trials of returns. None with fewer than two trials."""
+    from itertools import combinations
+
+    m = np.asarray(matrix, dtype=float)
+    if m.ndim != 2 or m.shape[1] < 2:
+        return None
+    blocks = np.array_split(np.arange(m.shape[0]), S)
+    n = m.shape[1]
+
+    def sharpe(rows):
+        x = m[rows]
+        sd = x.std(axis=0, ddof=1)
+        return np.where(sd > 0, x.mean(axis=0) / np.where(sd > 0, sd, 1), 0.0)
+
+    lambdas = []
+    for chosen in combinations(range(S), S // 2):
+        is_rows = np.concatenate([blocks[i] for i in chosen])
+        oos_rows = np.concatenate([blocks[i] for i in range(S) if i not in chosen])
+        best = int(np.argmax(sharpe(is_rows)))
+        oos = sharpe(oos_rows)
+        rank = 1 + int(np.sum(oos < oos[best]))              # 1 = worst ... n = best
+        w = rank / (n + 1.0)
+        lambdas.append(math.log(w / (1 - w)))
+    return float(np.mean(np.asarray(lambdas) <= 0))
+
+
+def permutation_p(actual, mirror, buckets, rounds: int, seed: int) -> float:
+    """Flip each trade to its mirror (the opposite side, same moment and moneyness) at random within buckets;
+    p is the share of rounds whose mean R is at least the actual mean."""
+    actual, mirror, buckets = np.asarray(actual, float), np.asarray(mirror, float), np.asarray(buckets)
+    rng = np.random.default_rng(seed)
+    target = actual.mean()
+    hits = 0
+    groups = [np.flatnonzero(buckets == b) for b in np.unique(buckets)]
+    for _ in range(rounds):
+        flip = np.zeros(len(actual), dtype=bool)
+        for idx in groups:
+            chosen = rng.permutation(idx)[: len(idx) // 2 + (rng.random() < 0.5 if len(idx) % 2 else 0)]
+            flip[chosen] = True
+        hits += np.where(flip, mirror, actual).mean() >= target
+    return (1 + hits) / (rounds + 1)
+
+
+def post_publication_ratio(before_mean: float, after_mean: float) -> float:
+    return float(after_mean / before_mean) if before_mean > 0 else float("nan")
+
+
+def addon_gate(new: "pd.DataFrame", old: "pd.DataFrame", days, years) -> dict:
+    """A regime add-on against its predecessor on identical setups (spec §6.3)."""
+    import pandas as pd
+
+    n_days = max(len(days), 1)
+    per_day_new, per_day_old = new["r"].sum() / n_days, old["r"].sum() / n_days
+    paired = new.merge(old, on="signal_id", suffixes=("_new", "_old"))
+    diff = (paired["r_new"] - paired["r_old"]).to_numpy()
+    paired_t = t_stat(diff) if len(diff) > 1 else float("nan")
+    year_of = paired["day_new"].map(lambda d: d.year)
+    by_year = paired.assign(year=year_of).groupby("year")[["r_new", "r_old"]].mean()
+    better_years = int(sum(1 for y in years if y in by_year.index and by_year.loc[y, "r_new"] > by_year.loc[y, "r_old"]))
+    passed = bool(per_day_new >= per_day_old and paired_t >= 1.0 and better_years >= 4)
+    return {"per_day_new": float(per_day_new), "per_day_old": float(per_day_old), "paired_t": float(paired_t),
+            "better_years": better_years, "passed": passed}
