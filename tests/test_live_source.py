@@ -72,3 +72,17 @@ def test_quotes_are_the_recorded_bid_and_ask(live):
     assert (q.bid, q.ask) == (80.0, 80.5)
     model = quotes.quote("NIFTY", expiry, 22200.0, "CE", datetime.combine(today, time(9, 45), tzinfo=IST))
     assert model.ask > model.bid > 0                     # no recorded token: the model fills in
+
+
+def test_no_day_card_before_the_index_has_a_recorded_bar(live):
+    source, today, _ = live
+    early = LiveDaySource(source.loader, today, source.bars[source.bars["token"] != "99926000"], source.snapshots,
+                          source.meta, source.token_symbol, source.membership, H)
+    with pytest.raises(KeyError):
+        early.context("NIFTY", today)
+
+
+def test_the_frame_is_built_once_per_source(live):
+    source, today, _ = live
+    ctx = source.context("NIFTY", today)
+    assert source.frame(ctx) is source.frame(ctx)

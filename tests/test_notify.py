@@ -46,3 +46,18 @@ def test_messages_carry_what_the_owner_needs():
 def test_find_chat_id_reads_the_latest_message():
     body = b'{"ok": true, "result": [{"message": {"chat": {"id": 7}}}, {"message": {"chat": {"id": 99}}}]}'
     assert find_chat_id("T", lambda url, timeout: FakeResponse(200, body)) == "99"
+
+
+def test_a_failed_send_never_logs_the_token(caplog):
+    import requests as rq
+
+    from quantdesk.live.notify import Telegram
+
+    token = "123456:SECRET-token-value"
+
+    def post(url, json, timeout):
+        raise rq.ConnectionError(f"Max retries exceeded with url: {url}")
+
+    with caplog.at_level("WARNING"):
+        assert Telegram(token, "42", http_post=post, sleep=lambda s: None).send("hi") is False
+    assert caplog.records and token not in caplog.text and "SECRET" not in caplog.text

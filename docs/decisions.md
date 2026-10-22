@@ -530,3 +530,19 @@ The distance to VWAP and the room to the nearest level are measured in stop-dist
 - **Why.** Free, reliable push to any phone, and a private chat with the owner's own bot.
 - **Owner step.** Create the bot with @BotFather, then put `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env`. Never commit them.
 - **Privacy.** Messages carry only public market levels and the system's own suggestions. No credentials, account data or positions held at the broker.
+
+## 2026-10-22: SP3 build rulings (live engine, dashboard, replay)
+
+The SP3 design's rulings S1-S12 are in `docs/superpowers/specs/2026-10-22-sp3-live-engine-dashboard-design.md`. These are the calls made while building it.
+
+- **No dataset, no live run.** `live` refuses to start without the signal dataset and logs `not_started`. Shadow setups from an unfitted model would go into the clean forward holdout (D4) and spoil it. *Cost if wrong:* no shadow log on days before the dataset first exists.
+- **Effective mode.** Live only when all three hold: the verdict is alert-on, no kill-switch is standing, and no shadow pause covers the day. A kill-switch firing sets journal state `kill_switch`, and the owner's typed unlock clears it. Pauses are journalled. The dashboard reads the same state, so the phone and the screen always agree.
+- **Kill-switch levels.** They come from the accepted trial's median-path trades:
+  - mu0 = mean net R; sigma = sd; breakeven = 0 net R
+  - CUSUM threshold bootstrapped from those trades for a mean run length of 250 in control
+  - In shadow mode there are no levels and no switches, because there is no validated edge to monitor.
+- **The monthly cap uses the whole calendar year's NSE sessions,** not the sessions so far. Counting only sessions so far gives early months too small a share.
+- **When the source is rebuilt.** The live source is rebuilt only when the recorder writes a new file (bars, snapshots or meta), not on a timer. A check then runs within about 5 seconds of its bar landing, and the frame is built once per write rather than on every 5-second poll.
+- **No day card before the first index bar.** Without a recorded open there is no gap, no HAR forecast and no band, so the engine waits rather than caching a card built without today's open.
+- **Telegram failures are logged with the token masked.** requests puts the URL, which carries the bot token, into its error messages, so the token is masked before logging. Test: `test_a_failed_send_never_logs_the_token`.
+- **Shadow mode logs every setup, not only the capped ones.** The caps (1 a day, 3 a week, monthly share) are applied when the holdout is analysed, as R31 does in the backtest. Locks apply only to live alerts.

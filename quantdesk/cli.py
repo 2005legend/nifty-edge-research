@@ -430,6 +430,139 @@ def cmd_verdict(app, args) -> int:
     return 0
 
 
+def _journal(app):
+    from quantdesk.live.journal import Journal
+
+    return Journal(app.store.root / "journal.sqlite")
+
+
+def _serve(app_, port: int):
+    import uvicorn
+
+    return uvicorn.Server(uvicorn.Config(app_, host="127.0.0.1", port=port, log_level="warning"))
+
+
+def cmd_live(app, args) -> int:
+    """S1: the decision loop, paper trades, Telegram and the dashboard, 09:10 to 15:35."""
+    import threading
+
+    from quantdesk.live.dashboard import create_app
+    from quantdesk.live.notify import format_summary, notifier_from_env
+    from quantdesk.live.run import build_engine, run_loop
+
+    now = app.clock.now()
+    today = now.date()
+    if not app.is_trading_day(today):
+        print(f"{today} is not a trading day")
+        return 0
+    journal, notifier, research = _journal(app), notifier_from_env(), project_root() / "research"
+    try:
+        engine, mode, trial = build_engine(app, today, journal, notifier, _all_events(app), frozen_dir(), research)
+    except RuntimeError as exc:
+        journal.log_event("not_started", str(exc), at=now)
+        print(f"not started: {exc}")
+        return 1
+    journal.set_state("verdict_mode", mode)
+    journal.log_event("start", f"mode {mode}, configuration {trial}", at=now)
+    server = _serve(create_app(journal, research, engine.h, today=lambda: today, sessions=engine.sessions,
+                               snapshot=engine.snapshot), args.port)
+    threading.Thread(target=server.run, daemon=True).start()
+    print(f"live: mode {mode}, configuration {trial}; dashboard http://127.0.0.1:{args.port}")
+    start = datetime.combine(today, time(9, 10), tzinfo=now.tzinfo)
+    end = datetime.combine(today, time(15, 35), tzinfo=now.tzinfo)
+
+    def on_error(at, exc):
+        journal.log_event("error", f"{type(exc).__name__}: {exc}"[:300], at=at)
+
+    with keep_awake():
+        steps = run_loop(engine.step, app.clock.now, app.sleep, start, end, every=5, on_error=on_error)
+    alerts = journal.alerts(today.isoformat())
+    closed = journal.closed_trades("paper")
+    day_r = float(closed.loc[closed["entry_at"].str[:10] == today.isoformat(), "r"].sum()) if len(closed) else 0.0
+    notifier.send(format_summary(today, len(alerts), day_r, mode))
+    server.should_exit = True
+    print(f"live done: {steps} steps, {len(alerts)} alert(s), paper {day_r:+.2f}R")
+    return 0
+
+
+def cmd_dashboard(app, args) -> int:
+    """The journal and research views outside market hours (the live process serves them during the day)."""
+    from quantdesk.live.dashboard import create_app
+    from quantdesk.live.run import year_sessions
+
+    today = app.clock.now().date()
+    server = _serve(create_app(_journal(app), project_root() / "research", load_hypotheses(),
+                               today=lambda: app.clock.now().date(), sessions=year_sessions(today, app.events)),
+                    args.port)
+    print(f"dashboard: http://127.0.0.1:{args.port} (Ctrl+C to stop)")
+    server.run()
+    return 0
+
+
+def cmd_replay(app, args) -> int:
+    """S12: a recorded day through the live engine on a simulated clock, checked against decide()."""
+    from quantdesk.live.journal import Journal
+    from quantdesk.live.replay import backtest_day, replay_day, summary
+    from quantdesk.live.run import strategy_for
+    from quantdesk.live.source import LiveDaySource
+    from quantdesk.market.membership import load_membership
+    from quantdesk.validation.pilots.run import make_loader
+
+    day = date.fromisoformat(args.day)
+    derived, h = DerivedStore(app.store.root / "derived"), load_hypotheses()
+    bars = app.store.read("bars", day)
+    if bars.empty:
+        print(f"no recorded bars for {day}")
+        return 1
+    try:
+        trial, cfg, model, _, _ = strategy_for(derived, project_root() / "research", h, day)
+    except RuntimeError as exc:
+        print(f"not run: {exc}")
+        return 1
+    loader = make_loader(derived, h, _all_events(app), frozen_dir())
+    token_symbol = {token: symbol for symbol, token in app.constituents(day).items()}
+    source = LiveDaySource(loader, day, bars, app.store.read("option_snapshots", day),
+                           app.store.read("option_meta", day), token_symbol, load_membership(), h)
+    path = app.store.root / "replay" / f"journal-{day.isoformat()}.sqlite"
+    path.unlink(missing_ok=True)                   # this command's own scratch journal, rebuilt each run
+    live = replay_day(source, day, cfg, model, h, Journal(path))
+    back = backtest_day(source, day, cfg, model, h)
+    seen = {(d.index, d.at) for d in live}
+    same = summary(live) == summary([d for d in back if (d.index, d.at) in seen])
+    alerts = [d for d in live if d.alert is not None]
+    print(f"replay {day} ({trial}): {len(live)} checks, {len(alerts)} alert(s); parity with decide(): {same}")
+    for d in alerts:
+        print(f"  {d.at:%H:%M} {d.index} {d.alert.side} {d.alert.choice.strike:.0f} {d.alert.choice.kind} "
+              f"p {d.alert.p:.2f}")
+    print(f"journal: {path}")
+    return 0 if same else 1
+
+
+def cmd_telegram_setup(app, args) -> int:
+    """Find the owner's chat with the bot, save TELEGRAM_CHAT_ID in .env and send a test message.
+    Neither the token nor the chat id is printed."""
+    from quantdesk.live.notify import Telegram, find_chat_id
+    from quantdesk.live.run import set_env_value
+
+    try:
+        token = get_secret("TELEGRAM_BOT_TOKEN")
+    except MissingSecretError as exc:
+        print(exc)
+        return 2
+    try:
+        chat = find_chat_id(token)
+    except Exception as exc:  # noqa: BLE001 - the message may carry the URL, so the token is masked
+        print(f"could not reach Telegram: {type(exc).__name__}: {str(exc).replace(token, '<token>')}"[:300])
+        return 1
+    if chat is None:
+        print('No message found. Open your bot in Telegram, send it any message (say "hi"), then run this again.')
+        return 1
+    set_env_value(project_root() / ".env", "TELEGRAM_CHAT_ID", chat)
+    ok = Telegram(token, chat).send("quantdesk is connected. Alerts, stop moves and exits will arrive here.")
+    print(f"chat id saved to .env; test message {'sent' if ok else 'NOT sent - check the bot'}")
+    return 0 if ok else 1
+
+
 def cmd_eod(app, args) -> int:
     day = _day(args.day, app)
     if not app.is_trading_day(day):
@@ -548,6 +681,17 @@ def build_parser() -> argparse.ArgumentParser:
     trial.add_argument("id")
     trial.set_defaults(func=cmd_trial)
     sub.add_parser("verdict", help="alert-on or alert-off from the trials run").set_defaults(func=cmd_verdict)
+    live = sub.add_parser("live", help="the live engine, Telegram and the dashboard, 09:10-15:35")
+    live.add_argument("--port", type=int, default=8000)
+    live.set_defaults(func=cmd_live)
+    dash = sub.add_parser("dashboard", help="the journal and research views outside market hours")
+    dash.add_argument("--port", type=int, default=8000)
+    dash.set_defaults(func=cmd_dashboard)
+    replay = sub.add_parser("replay", help="a recorded day through the live engine, checked against decide()")
+    replay.add_argument("--day", required=True)
+    replay.set_defaults(func=cmd_replay)
+    sub.add_parser("telegram-setup", help="save the chat id after you message the bot").set_defaults(
+        func=cmd_telegram_setup)
     pilot = sub.add_parser("pilot", help="run a zero-trial pilot (P1, P2, P4, P9, P10, D2)")
     pilot.add_argument("id", choices=["P1", "P2", "P4", "P9", "P10", "D2"])
     pilot.set_defaults(func=cmd_pilot)

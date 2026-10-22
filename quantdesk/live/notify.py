@@ -38,7 +38,7 @@ class Telegram:
                     return True
                 log.warning("telegram send failed: HTTP %s", response.status_code)
             except (requests.RequestException, ConnectionError, TimeoutError, OSError) as exc:
-                log.warning("telegram send failed: %s", exc)
+                log.warning("telegram send failed: %s", str(exc).replace(self.token, "<token>"))
             self.sleep(2 ** attempt)
         return False
 

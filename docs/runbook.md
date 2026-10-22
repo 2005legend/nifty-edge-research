@@ -1,4 +1,4 @@
-# quantdesk runbook (SP1 data foundation)
+# quantdesk runbook (SP1 data foundation, SP3 live alerts)
 
 How to run the data foundation every day, and what to do when something goes wrong.
 
@@ -26,25 +26,26 @@ How to run the data foundation every day, and what to do when something goes wro
 | 07:30 | `python -m quantdesk macro` | Global and macro daily pull: yields, USD/INR, Brent, US/Asian indices, India CPI/GDP/rates, economic calendar |
 | 08:55 | `python -m quantdesk record` | Live recorder 09:15–15:30. Writes 1-minute data and the health report. Exits by itself on holidays. |
 | 08:58 | `python -m quantdesk macro --intraday` | 5-minute global prices during 09:00–15:30 |
+| 09:10 | `python -m quantdesk live` | Alerts, paper trades, Telegram and the dashboard at http://127.0.0.1:8000, until 15:35 (see "Live alerts and the dashboard") |
 | 18:35 | `python -m quantdesk eod` | NSE/BSE bhavcopy, participant OI, FII/DII, VIX daily, Nifty 50 list. Retries hourly until 23:00. |
 | 18:35 | `python -m quantdesk macro` | Evening macro pull |
 | any time | `python -m quantdesk status [--day YYYY-MM-DD]` | Health summary for a day |
 
 ## Windows Task Scheduler
 
-One script registers all six jobs for your Windows user:
+One script registers all the daily jobs for your Windows user:
 
 ```
 powershell -ExecutionPolicy Bypass -File scripts\schedule_tasks.ps1
 ```
 
-Run it again after changing a time; it updates the jobs in place. `-Remove` deletes them all. The jobs are named `quantdesk-news`, `-macro-morning`, `-record`, `-macro-intraday`, `-eod` and `-macro-evening`. Each one:
+Run it again after changing a time; it updates the jobs in place. `-Remove` deletes them all. The jobs are named `quantdesk-news`, `-macro-morning`, `-record`, `-macro-intraday`, `-live`, `-eod`, `-macro-evening`, `-backfill-history` and `-desk-pilot`. Each one:
 - runs hidden while you are logged in, so there is no window to close by accident
 - appends its output to `logs\tasks\<job>.log`
 - is never started twice while it is still running
 - starts later if the PC was off at its time, and keeps running on battery
 
-`record` and `eod` may also wake the PC from sleep. The news poller runs continuously, so its job has no time limit. Don't also run `python -m quantdesk news` in a terminal, or every headline is stored twice.
+`record`, `live` and `eod` may also wake the PC from sleep. The news poller runs continuously, so its job has no time limit. Don't also run `python -m quantdesk news` in a terminal, or every headline is stored twice.
 
 The recorder asks Windows to stay awake while it runs, as a video player does, so neither the plugged-in nor the battery sleep setting stops it. The screen may still turn off. On 21 Oct 2026 a power cut put the laptop on battery, which sleeps after 15 idle minutes, and 73 minutes were lost. The laptop must still be on, with internet: if the router loses power in a cut, the feed stops anyway.
 
@@ -59,6 +60,47 @@ powershell -ExecutionPolicy Bypass -File scripts\run_detached.ps1 -Name backfill
 ```
 
 Each job is hidden, logs to `logs\tasks\<Name>.log` and resumes where it stopped if run again. Check on it in Task Scheduler (`quantdesk-oneoff-*`) or in its log.
+
+## Live alerts and the dashboard (SP3)
+
+**Telegram, once.** Open your bot in Telegram and send it any message ("hi"). Then run:
+
+```
+.venv\Scripts\python -m quantdesk telegram-setup
+```
+
+It saves `TELEGRAM_CHAT_ID` in `.env` and sends a test message. It prints neither the token nor the chat id. Until it has run, the live process works but sends nothing to the phone.
+
+**Every trading day.** The `quantdesk-live` job starts `python -m quantdesk live` at 09:10 and stops at 15:35. It needs the signal dataset (`python -m quantdesk dataset`). Without it, the job logs `not_started` and exits, so it never logs shadow setups from an unfitted model.
+
+The dashboard runs at http://127.0.0.1:8000 while the job is running. Outside market hours, run `python -m quantdesk dashboard` to see it.
+
+**Mode.** The mode comes from `research/VERDICT.md`:
+- **alert-on (live):** alerts go to the phone and the dashboard.
+- **alert-off, or no verdict yet (shadow):** the same decisions are journalled and shown marked *shadow*, and nothing is pushed. These shadow setups are the clean forward holdout, so don't trade them.
+
+**Messages** (the same text on the phone and the dashboard):
+- **ALERT:** buy the named option with a limit order, up to the stated price. It lapses after 5 minutes. Place the SL-limit backstop at the stated trigger and limit as soon as you are filled.
+- **MOVE STOP:** move your stop to the new level. At most one every 10 minutes.
+- **EXIT NOW:** sell at market. This replaces your old 12:00–12:30 hold-or-exit decision. If you override it, log the override on the dashboard.
+- **KILL SWITCH:** new alerts are shadow only from now on. Open trades still get their exit messages.
+
+**After an alert,** press *took it* or *skipped* on the Today tab. If you took it, type your fill price. When you exit, log the exit. The Journal tab compares your results with the paper trade.
+
+**Locks.** The system stops alerting after any of these:
+- the trade caps: 1 a day, 3 a week, or the month's share of 100 a year
+- a ₹400 loss in a day, or ₹1,000 in a week
+- a kill-switch firing: SPRT or CUSUM on mean net R, capital at or below ₹7,000, or costs more than 30% above the model
+
+A lock lifts only with a typed reason of at least 10 characters, which is journalled. *Shadow pause* switches alerts to shadow for the rest of the week.
+
+**Replay a recorded day:**
+
+```
+.venv\Scripts\python -m quantdesk replay --day 2026-10-22
+```
+
+This runs that day through the live engine and checks every decision against the backtest's `decide()`. The scratch journal goes to `data\replay\`.
 
 ## Reading the health report
 

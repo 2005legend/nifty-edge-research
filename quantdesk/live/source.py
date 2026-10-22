@@ -66,6 +66,7 @@ class LiveDaySource:
         self.loader, self.day, self.h = loader, day, h
         self.bars, self.snapshots, self.meta = bars, snapshots, meta
         self.token_symbol, self.membership = token_symbol, membership
+        self._frames: dict[str, pd.DataFrame] = {}
         if day not in loader.days:
             insort(loader.days, day)
         loader.kind[day] = "regular"
@@ -103,9 +104,10 @@ class LiveDaySource:
         self.loader.expiries.sort_index(inplace=True)
 
     def context(self, index: str, day: date):
-        ctx = self.loader.day_context(index, day)
         today = recorder_bars(self.bars, INDEX_TOKENS[index])
-        return replace(ctx, open=float(today["open"].iloc[0])) if len(today) else ctx
+        if today.empty:
+            raise KeyError(f"{index}: no recorded bar yet today, so no open and no day card")
+        return replace(self.loader.day_context(index, day), open=float(today["open"].iloc[0]))
 
     def _members(self) -> pd.DataFrame:
         stocks = self.bars[self.bars["token"].isin(self.token_symbol)].copy()
@@ -120,9 +122,13 @@ class LiveDaySource:
         return member_breadth(stocks, members, value.to_dict(), param(self.h, "gate.breadth_top_n"))
 
     def frame(self, ctx) -> pd.DataFrame:
-        vix = recorder_bars(self.bars, VIX_TOKEN)[["ts", "close"]]
-        return build_minute_frame(recorder_bars(self.bars, INDEX_TOKENS[ctx.index]), self._members(), vix, ctx, self.h,
-                                  self.loader.atm_premium_fn(ctx))
+        """Built once per source: the live process makes a new source whenever the recorder writes."""
+        if ctx.index not in self._frames:
+            vix = recorder_bars(self.bars, VIX_TOKEN)[["ts", "close"]]
+            self._frames[ctx.index] = build_minute_frame(recorder_bars(self.bars, INDEX_TOKENS[ctx.index]),
+                                                         self._members(), vix, ctx, self.h,
+                                                         self.loader.atm_premium_fn(ctx))
+        return self._frames[ctx.index]
 
     def helpers(self, ctx, frame) -> Helpers:
         quotes = RecordedQuotes({ctx.index: frame}, self.loader.surface, self.loader.clock, self.h,
