@@ -265,6 +265,63 @@ def cmd_fit(app, args) -> int:
     return 0
 
 
+def _all_events(app) -> list:
+    """The live calendar plus the 2019-2026 history the backtest and pilots need (R9)."""
+    from quantdesk.calendar.events import load_events
+
+    history = project_root() / "config" / "events_history.yaml"
+    return list(app.events) + (load_events(history) if history.exists() else [])
+
+
+def cmd_pilot(app, args) -> int:
+    """Zero-trial pilots (spec §6.3): they count, measure or simulate, and never rank profit."""
+    import pandas as pd
+
+    from quantdesk.validation.pilots import run
+    from quantdesk.validation.pilots.p1_pass_rates import pass_rates
+    from quantdesk.validation.pilots.p10_power import d2_report
+    from quantdesk.validation.pilots.report import frame_to_markdown, write_report
+
+    derived = DerivedStore(app.store.root / "derived")
+    h = load_hypotheses()
+    out = pilots_dir()
+    out.mkdir(parents=True, exist_ok=True)
+    data_hash = derived.data_hash()
+    today = app.clock.now().date()
+    pid = args.id
+    if pid in ("P2", "P10", "D2"):
+        records = pd.read_parquet(out / "p1_records.parquet")
+        moves = pd.read_parquet(out / "p2_excursions.parquet")
+        if pid == "P2":
+            write_report("P2", run.p2_summary(moves), out / "P2.md", data_hash)
+        elif pid == "P10":
+            write_report("P10", run.run_p10(records, h), out / "P10.md", data_hash)
+        else:
+            text = d2_report(pass_rates(records), run.p2_summary(moves), run.run_p10(records, h), h)
+            text += f"\nEligible days a year (one trade a day, both indices): {run.eligible_days_per_year(records):.0f}\n"
+            (out / "D2.md").write_text(text, encoding="utf-8")
+        print(f"wrote {out / (pid + '.md')}")
+        return 0
+    loader = run.make_loader(derived, h, _all_events(app), frozen_dir())
+    if pid == "P4":
+        write_report("P4", run.run_p4(loader), out / "P4.md", data_hash)
+    elif pid == "P9":
+        write_report("P9", run.run_p9(loader, h), out / "P9.md", data_hash,
+                     notes="If `passed` is False, every VWAP rule switches to the open-anchored average price (spec §6.0).")
+    else:
+        records, moves = run.run_p1(loader, h, today, progress=lambda d: print(d) if d.day == 1 else None)
+        records.to_parquet(out / "p1_records.parquet")
+        moves.to_parquet(out / "p2_excursions.parquet")
+        table = pass_rates(records)
+        summary = {"signals": int(len(records)), "eligible_signals": int(records["failed"].isna().sum()),
+                   "eligible_days_per_year": run.eligible_days_per_year(records)}
+        for reason, count in records["failed"].fillna("eligible").value_counts().items():
+            summary[f"outcome {reason}"] = int(count)
+        write_report("P1", summary, out / "P1.md", data_hash, notes="## Pass rates\n\n" + frame_to_markdown(table))
+    print(f"wrote {out / (pid + '.md')}")
+    return 0
+
+
 def cmd_eod(app, args) -> int:
     day = _day(args.day, app)
     if not app.is_trading_day(day):
@@ -375,6 +432,9 @@ def build_parser() -> argparse.ArgumentParser:
     backfill.add_argument("--start")
     backfill.add_argument("--end", help="last day to fetch (fundamentals only; default today)")
     backfill.set_defaults(func=cmd_backfill)
+    pilot = sub.add_parser("pilot", help="run a zero-trial pilot (P1, P2, P4, P9, P10, D2)")
+    pilot.add_argument("id", choices=["P1", "P2", "P4", "P9", "P10", "D2"])
+    pilot.set_defaults(func=cmd_pilot)
     fit = sub.add_parser("fit", help="fit a frozen file on 2019-2022 (clock, surface, shock)")
     fit.add_argument("what", choices=["clock", "surface", "shock"])
     fit.add_argument("--force", action="store_true", help="overwrite an existing frozen file (log it in decisions.md)")

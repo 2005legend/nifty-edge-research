@@ -237,7 +237,7 @@ class DayLoader:
         return refs
 
     # --- the day card ---------------------------------------------------------------------------------
-    def day_context(self, index: str, day: date, with_refs: bool = True) -> DayContext:
+    def day_context(self, index: str, day: date, with_refs: bool = True, z_refs: bool = True) -> DayContext:
         h = self.h
         prev = self.previous(day)
         daily = self.daily[index]
@@ -284,7 +284,7 @@ class DayLoader:
             options_raw=self.options_inputs(index, day),
             macro_raw=macro_raw(holiday_before, r_on, fii, param(h, "macro.fii_flip_window")),
             vol_rich_threshold=self.vol_rich_threshold(index, day) if with_refs else None,
-            z_refs=self.z_refs(index, day) if with_refs else {},
+            z_refs=self.z_refs(index, day) if with_refs and z_refs else {},
             hard_exit=hard_exit(day, is_expiry, events, h),
             spike_ref=self.spike_ref(index, day) if with_refs else None)
 
@@ -335,6 +335,7 @@ class DayLoader:
 
         return premium
 
-    def minute_frame(self, ctx: DayContext) -> pd.DataFrame:
+    def minute_frame(self, ctx: DayContext, with_atm: bool = True) -> pd.DataFrame:
         return build_minute_frame(self.bars(ctx.index, ctx.day), self.members(ctx.day),
-                                  self.bars("INDIAVIX", ctx.day)[["ts", "close"]], ctx, self.h, self.atm_premium_fn(ctx))
+                                  self.bars("INDIAVIX", ctx.day)[["ts", "close"]], ctx, self.h,
+                                  self.atm_premium_fn(ctx) if with_atm else None)
