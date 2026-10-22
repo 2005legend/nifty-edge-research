@@ -73,10 +73,16 @@ def test_a_live_alert_is_journalled_pushed_and_paper_traded(tmp_path):
     assert paper.iloc[0]["entry_at"].startswith(str(expected.at)[:16].replace(" ", "T"))
 
 
-def test_shadow_mode_logs_but_never_pushes(tmp_path):
+def test_shadow_setups_reach_the_phone_marked_do_not_trade(tmp_path):
     e, j, notes = engine(tmp_path, mode="shadow")
-    e.step(AT + timedelta(seconds=5))
-    assert j.alerts().loc[0, "mode"] == "shadow" and notes.sent == []
+    now = AT + timedelta(seconds=5)
+    while now < AT + timedelta(minutes=90):
+        e.step(now)
+        now += timedelta(minutes=1)
+    assert j.alerts().loc[0, "mode"] == "shadow"
+    assert notes.sent[0].startswith("ALERT (SHADOW - do not trade)")
+    assert any(t.startswith("SHADOW EXIT") for t in notes.sent)
+    assert not any(t.startswith("MOVE STOP") for t in notes.sent)        # stop moves stay on the dashboard
 
 
 def test_a_lock_holds_the_alert_back(tmp_path):
@@ -117,7 +123,7 @@ def test_a_fired_kill_switch_keeps_new_alerts_in_shadow(tmp_path):
     e, j, notes = engine(tmp_path)
     j.set_state("kill_switch", "sprt")
     e.step(AT + timedelta(seconds=5))
-    assert j.alerts().loc[0, "mode"] == "shadow" and notes.sent == []
+    assert j.alerts().loc[0, "mode"] == "shadow" and notes.sent[0].startswith("ALERT (SHADOW")
 
 
 def test_a_second_index_alert_at_the_same_check_is_held_by_the_pending_first(tmp_path):

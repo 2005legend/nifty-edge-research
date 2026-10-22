@@ -58,6 +58,20 @@ def vix_terciles(loader: DayLoader, start: date, end: date) -> dict[date, int]:
     return {d: (1 if v <= lo else 2 if v <= hi else 3) for d, v in window.items()}
 
 
+D2_SCENARIO = {"account.capital": 15000, "account.risk_rupees": 600,
+               "account.premium_budget": 14500}   # same ₹500 margin under capital as 9,500 at ₹10k (ruling)
+
+
+def d2_scenario(h: dict) -> dict:
+    """D2 option 1 (₹15k, ₹600 stop) for the zero-trial pilots only; the registered values are untouched."""
+    import copy
+
+    out = copy.deepcopy(h)
+    for key, value in D2_SCENARIO.items():
+        out["parameters"][key]["value"] = value
+    return out
+
+
 def run_p1(loader: DayLoader, h: dict, today: date, end: date = P1_END, progress=None) -> tuple[pd.DataFrame, pd.DataFrame]:
     starts = {"NIFTY": date.fromisoformat(param(h, "backtest.nifty_from")),
               "SENSEX": date.fromisoformat(param(h, "backtest.sensex_from"))}

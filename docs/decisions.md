@@ -598,3 +598,15 @@ The SP3 design's rulings S1-S12 are in `docs/superpowers/specs/2026-10-22-sp3-li
 - **Restart.** Today's open paper trades are rebuilt from the journal by re-running the decision at their alert time, which is deterministic on the same bars. Their stop-move and exit messages then carry on. Ratchets already sent are counted from the journal and not sent again.
   - *Not covered:* an alert whose fill was still pending at the moment of the crash. It stays journalled, but no paper trade opens.
 - **Tests.** `test_a_late_start_never_alerts_on_old_checks`, `test_a_restart_resumes_the_open_paper_trade_and_its_exit_messages`.
+
+## 2026-10-22: owner's choice B (shadow alerts on the phone, early pricing pre-check), and what D2 found
+
+- **Shadow alerts on Telegram (owner).** Each shadow alert goes to the phone marked "ALERT (SHADOW - do not trade)", and each shadow exit as "SHADOW EXIT NOW". Stop moves stay on the dashboard to keep the phone quiet. This amends S2, which pushed nothing in shadow mode. Switch: `LiveEngine.push_shadow`.
+- **Early pricing pre-check.** `python -m quantdesk precheck` uses R17's own metric on Angel's 1-minute candles of listed contracts. It costs no trial and gates nothing. It has no expiry days, and its prices are last trades rather than quotes.
+  - **First read (29 Sep to 21 Oct; 132 contracts, 15 sessions, 28,958 moves):** median error 0.22 against R17's pass mark of 0.15.
+  - **By horizon:** 0.26 at 15 minutes and 0.20 at 60 minutes.
+  - **What it means:** an early warning that the model may fail R17. The recorded check (quotes, expiry days) decides.
+- **D2 is triggered, and not by a bug.** P1 found 4 eligible signals in 7 years (0.67 a year) against a threshold of about 60. Of the 546 dataset signals that pass every gate, only 4 have a strike reaching gain/loss ≥ 1.5. The best strike per signal has a median G/L of 0.74.
+  - **Why:** the median structural stop on those signals is 6 index points, so the planning target is about 14 points. A 14-point move doesn't pay for the spread, about ₹57 of charges and an hour of theta at ₹400 risk. This is the convexity problem flagged at the clock fit, now measured.
+- **D2 scenario measured before the owner chooses.** P1, P2, P10 and D2 were re-run with D2 option 1 (₹15k capital, ₹600 stop) as `pilot ... --scenario d2_600`, writing `*-600.md`. They count setups and never look at profit.
+  - *Ruling:* at ₹15k the premium budget is ₹14,500, the same ₹500 margin under capital as ₹9,500 at ₹10k. The spec gives no figure.

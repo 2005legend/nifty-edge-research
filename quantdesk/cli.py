@@ -12,6 +12,7 @@ import yaml
 
 from quantdesk.app import build_app
 from quantdesk.calendar.events import trading_days
+from quantdesk.clock import IST
 from quantdesk.config import MissingSecretError, get_secret, project_root
 from quantdesk.derived.daily import build_daily
 from quantdesk.derived.macro import build_macro
@@ -286,23 +287,26 @@ def cmd_pilot(app, args) -> int:
 
     derived = DerivedStore(app.store.root / "derived")
     h = load_hypotheses()
+    sfx = ""
+    if getattr(args, "scenario", "base") == "d2_600":     # D2 option 1, measured before the owner chooses
+        h, sfx = run.d2_scenario(h), "-600"
     out = pilots_dir()
     out.mkdir(parents=True, exist_ok=True)
     data_hash = derived.data_hash()
     today = app.clock.now().date()
     pid = args.id
     if pid in ("P2", "P10", "D2"):
-        records = pd.read_parquet(out / "p1_records.parquet")
-        moves = pd.read_parquet(out / "p2_excursions.parquet")
+        records = pd.read_parquet(out / f"p1_records{sfx}.parquet")
+        moves = pd.read_parquet(out / f"p2_excursions{sfx}.parquet")
         if pid == "P2":
-            write_report("P2", run.p2_summary(moves), out / "P2.md", data_hash)
+            write_report("P2", run.p2_summary(moves), out / f"P2{sfx}.md", data_hash)
         elif pid == "P10":
-            write_report("P10", run.run_p10(records, h), out / "P10.md", data_hash)
+            write_report("P10", run.run_p10(records, h), out / f"P10{sfx}.md", data_hash)
         else:
             text = d2_report(pass_rates(records), run.p2_summary(moves), run.run_p10(records, h), h)
             text += f"\nEligible days a year (one trade a day, both indices): {run.eligible_days_per_year(records):.0f}\n"
-            (out / "D2.md").write_text(text, encoding="utf-8")
-        print(f"wrote {out / (pid + '.md')}")
+            (out / f"D2{sfx}.md").write_text(text, encoding="utf-8")
+        print(f"wrote {out / (pid + sfx + '.md')}")
         return 0
     loader = run.make_loader(derived, h, _all_events(app), frozen_dir())
     if pid == "P4":
@@ -312,15 +316,15 @@ def cmd_pilot(app, args) -> int:
                      notes="If `passed` is False, every VWAP rule switches to the open-anchored average price (spec §6.0).")
     else:
         records, moves = run.run_p1(loader, h, today, progress=lambda d: print(d) if d.day == 1 else None)
-        records.to_parquet(out / "p1_records.parquet")
-        moves.to_parquet(out / "p2_excursions.parquet")
+        records.to_parquet(out / f"p1_records{sfx}.parquet")
+        moves.to_parquet(out / f"p2_excursions{sfx}.parquet")
         table = pass_rates(records)
         summary = {"signals": int(len(records)), "eligible_signals": int(records["failed"].isna().sum()),
                    "eligible_days_per_year": run.eligible_days_per_year(records)}
         for reason, count in records["failed"].fillna("eligible").value_counts().items():
             summary[f"outcome {reason}"] = int(count)
-        write_report("P1", summary, out / "P1.md", data_hash, notes="## Pass rates\n\n" + frame_to_markdown(table))
-    print(f"wrote {out / (pid + '.md')}")
+        write_report("P1", summary, out / f"P1{sfx}.md", data_hash, notes="## Pass rates\n\n" + frame_to_markdown(table))
+    print(f"wrote {out / (pid + sfx + '.md')}")
     return 0
 
 
@@ -369,6 +373,43 @@ def cmd_pricecheck(app, args) -> int:
     path.write_text(_json.dumps({**result, "rows": int(len(errors))}, indent=2, default=str), encoding="utf-8")
     print(f"pricing check: median error {result['median_error']:.3f}, enough data {result['enough_data']}, "
           f"passed {result['passed']} ({result['sessions']} full sessions, {result['expiry_days']} expiry days)")
+    return 0
+
+
+def cmd_precheck(app, args) -> int:
+    """Early pricing pre-check on listed contracts' 1-minute candles (owner's choice B). Not R17; gates nothing."""
+    from quantdesk.pricing.clock import load_clock
+    from quantdesk.pricing.precheck import fetch_candles, index_frames, pick_contracts, report_text, run_precheck
+    from quantdesk.pricing.surface import load_surface
+
+    if not _require(ANGEL_SECRETS):
+        return 2
+    derived, h, _, _ = _sp2(app)
+    holidays = {e.date for e in _all_events(app) if e.type == "holiday_nse"}
+    clock = load_clock(frozen_dir() / "clock_v1.yaml", clock_sessions(derived, holidays))
+    surface = load_surface(frozen_dir() / "surface_v1.yaml")
+    sessions = sorted(derived.read("sessions", where="kind = 'regular'", columns="day")["day"])
+    days = sessions[-args.days:]
+    today = app.clock.now().date()
+    master = app.master(today)
+    contracts = []
+    for index in ("NIFTY", "SENSEX"):
+        close = derived.read("daily", where=f"target = '{index}'", columns="day, close").sort_values("day")
+        contracts += pick_contracts(master, index, today, float(close["close"].iloc[-1]), args.width, args.expiries)
+    start = datetime.combine(days[0], time(9, 15), tzinfo=IST)
+    end = datetime.combine(days[-1], time(15, 30), tzinfo=IST)
+    print(f"fetching 1-minute candles for {len(contracts)} listed contracts, {days[0]} to {days[-1]}")
+    candles = fetch_candles(app.client(), contracts, start, end)
+    if candles.empty:
+        print("Angel returned no option candles; nothing to measure")
+        return 1
+    app.store.append_parquet("option_candles", today, candles)
+    _, summary = run_precheck(candles, contracts, index_frames(derived, days), clock, surface, h)
+    path = pilots_dir() / "PRICE-PRECHECK.md"
+    path.write_text(report_text(summary, days[0], days[-1], derived.data_hash(), param(h, "pricing.check_max_error")),
+                    encoding="utf-8")
+    print(f"pre-check: median error {summary['median_error']:.3f} over {summary['rows']} moves "
+          f"({summary['contracts']} contracts, {summary['days']} sessions); {path}")
     return 0
 
 
@@ -677,6 +718,11 @@ def build_parser() -> argparse.ArgumentParser:
     backfill.set_defaults(func=cmd_backfill)
     sub.add_parser("dataset", help="stage A: the signal dataset (no P&L)").set_defaults(func=cmd_dataset)
     sub.add_parser("pricecheck", help="the recorded-chain pricing check (R17)").set_defaults(func=cmd_pricecheck)
+    precheck = sub.add_parser("precheck", help="early pricing pre-check on listed option candles (not R17)")
+    precheck.add_argument("--days", type=int, default=20, help="recent regular sessions to measure")
+    precheck.add_argument("--width", type=int, default=5, help="strikes each side of the money")
+    precheck.add_argument("--expiries", type=int, default=3)
+    precheck.set_defaults(func=cmd_precheck)
     sub.add_parser("freeze", help="freeze the pre-registration (prereg-v1)").set_defaults(func=cmd_freeze)
     sub.add_parser("preflight", help="the checklist before trial B0 (R36)").set_defaults(func=cmd_preflight)
     trial = sub.add_parser("trial", help="run one registry trial, with a ticket")
@@ -696,6 +742,8 @@ def build_parser() -> argparse.ArgumentParser:
         func=cmd_telegram_setup)
     pilot = sub.add_parser("pilot", help="run a zero-trial pilot (P1, P2, P4, P9, P10, D2)")
     pilot.add_argument("id", choices=["P1", "P2", "P4", "P9", "P10", "D2"])
+    pilot.add_argument("--scenario", choices=["base", "d2_600"], default="base",
+                       help="d2_600: D2 option 1 (Rs 15k capital, Rs 600 stop); writes *-600 reports")
     pilot.set_defaults(func=cmd_pilot)
     fit = sub.add_parser("fit", help="fit a frozen file on 2019-2022 (clock, surface, shock)")
     fit.add_argument("what", choices=["clock", "surface", "shock"])

@@ -49,6 +49,7 @@ class LiveEngine:
     today: date
     mode: str = "shadow"                   # the verdict's mode, "live" or "shadow" (S2)
     kill_params: dict | None = None        # mu0, breakeven, sigma, cusum_h of the accepted trial (S9)
+    push_shadow: bool = True               # shadow alerts and exits to the phone, marked (owner, 22 Oct 2026)
     indices: tuple = ("NIFTY", "SENSEX")
     sessions: list = field(default_factory=list)
     processed: set = field(default_factory=set)
@@ -161,8 +162,8 @@ class LiveEngine:
         alert_id = self.journal.add_alert(row)
         if mode == "suppressed":
             self.journal.log_event("lock", f"alert {alert_id} held back: {', '.join(held)}", at=now)
-        if mode == "live":
-            self.notifier.send(fmt.format_alert(row))
+        if mode == "live" or (mode == "shadow" and self.push_shadow):
+            self.notifier.send(fmt.format_alert(row))      # a shadow alert says "SHADOW - do not trade"
         self._pending[alert_id] = (d, ctx.index, mode)
 
     def _fill_pending(self, now, source):
@@ -227,19 +228,26 @@ class LiveEngine:
                 if mode == "live":
                     self.notifier.send(fmt.format_ratchet(index, index_stop, trigger, effective - timedelta(minutes=2)))
             if reason == "end_of_data" or exit_at > now:
-                if reason != "end_of_data" and decided <= now and mode == "live" and \
-                        self.journal.get_state(f"exit_sent_{paper_id}") is None:
-                    self.notifier.send(fmt.format_exit(index, reason, decided))
-                    self.journal.set_state(f"exit_sent_{paper_id}", "1")
+                if reason != "end_of_data" and decided <= now:
+                    self._send_exit(paper_id, mode, index, reason, decided)
                 continue
             bid = max(TICK, helpers.quotes.quote(c.index, c.expiry, c.strike, c.kind, exit_at).bid)
             costs = round_trip(trade.fill_premium, bid, c.lot, exchange=EXCHANGE[c.index], day=self.today).total
             pnl = (bid - trade.fill_premium) * c.lot - costs
             self.journal.close_paper(paper_id, exit_at, bid, reason, pnl)
-            if mode == "live" and self.journal.get_state(f"exit_sent_{paper_id}") is None:
-                self.notifier.send(fmt.format_exit(index, reason, decided))
+            self._send_exit(paper_id, mode, index, reason, decided)
             del self._open[paper_id]
             self._check_kill(now)
+
+    def _send_exit(self, paper_id, mode, index, reason, decided):
+        """Once per trade. Shadow exits go out marked SHADOW, so the owner can follow every call (choice B)."""
+        if self.journal.get_state(f"exit_sent_{paper_id}") is not None:
+            return
+        if mode == "live":
+            self.notifier.send(fmt.format_exit(index, reason, decided))
+        elif mode == "shadow" and self.push_shadow:
+            self.notifier.send("SHADOW " + fmt.format_exit(index, reason, decided))
+        self.journal.set_state(f"exit_sent_{paper_id}", "1")
 
     def _check_kill(self, now):
         """S9: after each closed trade. A firing turns new alerts to shadow until the owner lifts it."""
