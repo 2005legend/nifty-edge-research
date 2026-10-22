@@ -11,3 +11,4 @@ env.txt
 logs/
 *.egg-info/
 .venv-desk/
+research/pilots/*.parquet
