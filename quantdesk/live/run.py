@@ -150,6 +150,7 @@ def build_engine(app, today: date, journal, notifier, events: list, frozen: Path
     if not derived_is_current(last, today, events):
         raise RuntimeError(f"the derived tables end on {last}: run `python -m quantdesk derive` after the evening "
                            "downloads (the nightly derive job does this)")
+    warm_signal_refs(loader, h, today)
     membership = load_membership()
     token_symbol = {token: symbol for symbol, token in app.constituents(today).items()}
     raw = app.store.root / "raw"
@@ -163,16 +164,49 @@ def build_engine(app, today: date, journal, notifier, events: list, frozen: Path
                      for kind in ("bars", "option_snapshots", "option_meta"))
 
     from quantdesk.live.brief import brief_extras, morning_brief
-    from quantdesk.validation.pilots.run import IDEAS_SCENARIO, with_values
+    from quantdesk.validation.pilots.run import IDEAS_RELAXED, with_values
 
     def brief(now, ctxs, frames):
         return morning_brief(now, ctxs, frames, brief_extras(app.store, derived, today), h)
 
     idea = mode != "live"            # alert-off: the owner's idea feed, sized by the owner (22 Oct 2026)
     engine = LiveEngine(rebuild_on_change(key, build), journal, notifier, cfg, model,
-                        with_values(h, IDEAS_SCENARIO) if idea else h, today, mode=mode, kill_params=kill,
+                        with_values(h, IDEAS_RELAXED) if idea else h, today, mode=mode, kill_params=kill,
                         sessions=year_sessions(today, events), idea=idea, brief=brief)
     return engine, "idea" if idea else mode, trial
+
+
+def warm_signal_refs(loader, h: dict, before: date, sessions: int = 90) -> int:
+    """The signal-only z references (R40) come from earlier signals, which the dataset builder records as it walks
+    history. A fresh live process has none, so every decision would stop at "warmup". This walks the last
+    `sessions` regular sessions the way `build_dataset` does (same days, indices and order) and records them. The
+    references keep the last 250 signals, about 45 sessions, so 90 sessions give the backtest's own values."""
+    from quantdesk.strategy.pipeline import _warm, family_scores
+    from quantdesk.strategy.timeline import check_times, timeline_block
+    from quantdesk.strategy.trigger import h1
+
+    days = [d for d in loader.days if d < before and loader.kind.get(d) == "regular"][-sessions:]
+    recorded = 0
+    for day in days:
+        for index in ("NIFTY", "SENSEX"):
+            try:
+                ctx = loader.day_context(index, day, z_refs=False)
+            except (KeyError, ValueError):
+                continue
+            if ctx.expiry_1 is None or ctx.session_kind != "regular" or not _warm(ctx):
+                continue
+            frame = loader.minute_frame(ctx)
+            for at in check_times(day, ctx.is_expiry_day, h):
+                if timeline_block(ctx, at, h):
+                    continue
+                past = frame[frame["ts"] <= at - timedelta(minutes=1)]
+                if past.empty:
+                    continue
+                sig = h1(past, at, ctx, h)
+                if sig is not None:
+                    loader.record_signal(day, family_scores(ctx, past, sig, h)["raw"])
+                    recorded += 1
+    return recorded
 
 
 def derived_is_current(last_session: date, today: date, events: list) -> bool:

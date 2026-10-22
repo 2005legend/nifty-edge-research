@@ -646,3 +646,15 @@ The SP3 design's rulings S1-S12 are in `docs/superpowers/specs/2026-10-22-sp3-li
   - **Friday scorecard:** the week's ideas (count, filled, targets hit, net ₹ per lot) and how often the lean was right.
 - **Honest wording, in every message.** "Paper-tracked; your call, not advice". The lean is "experimental". Research puts intraday direction close to a coin flip, which is why everything is scored.
 - **Unchanged.** The pre-registered verdict, the trial slots and the registry. The feed is not a validated strategy, and its scorecard is not a backtest.
+- **The feed's settings were measured before going live** (P1 counts only, no profit seen):
+  - **Rupee caps removed only:** 38 setups in 2019-2025, about 4 a year. Too few for a daily feed.
+  - **Relaxed (the live default):** rupee caps removed, the two "room" gates skipped, and gain/loss ≥ 1.0 instead of 1.5. That gives 2,795 setups, on about 82 trading days a year (roughly 1 day in 3).
+  - **Gates kept:** event/shock days, stop size against the day's move, rich volatility, breadth confirmation and the spike guard.
+  - **Cost if wrong:** more ideas of lower quality. The Friday scorecard will show it, and the setting is one constant (`IDEAS_RELAXED` in `validation/pilots/run.py`).
+
+## 2026-10-22: the live process warms its signal references (bug fix)
+
+- **The bug.** The technical score's signal-only features (R40) are z-scored against earlier signals. Only `build_dataset` records those, as it walks history. A freshly started live process (and `replay`) had none, so with a model every decision stopped at `warmup`, and the live engine could never alert, strict or idea. The 22 Oct replay showed parity only because both sides shared the gap. Found by replaying a past setup day in idea mode.
+- **The fix.** `warm_signal_refs` walks the last 90 regular sessions exactly as the dataset builder does (same days, indices and order) and records their signals. The references keep the last 250 signals (about 45 sessions), so live and backtest use the same values.
+  - Test: `test_a_fresh_process_rebuilds_the_signal_references_from_recent_sessions`.
+  - Check: replaying 31 Dec 2025 in idea mode now gives 4 ideas with their exits.

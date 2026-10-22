@@ -81,6 +81,35 @@ def test_env_values_are_replaced_or_appended_without_touching_other_lines(tmp_pa
     assert env.read_text(encoding="utf-8").endswith("B=2\nNEW=x\n")
 
 
+def test_a_fresh_process_rebuilds_the_signal_references_from_recent_sessions():
+    from datetime import date
+
+    from quantdesk.live.run import warm_signal_refs
+    from quantdesk.validation.hypotheses import load_hypotheses
+    from tests.test_pipeline import DAY, setup
+
+    ctx, frame, _ = setup()
+
+    class Loader:
+        days, kind, recorded = [DAY], {DAY: "regular"}, []
+
+        def day_context(self, index, day, z_refs=True):
+            if index != "NIFTY":
+                raise KeyError(index)
+            return ctx
+
+        def minute_frame(self, c, with_atm=True):
+            return frame
+
+        def record_signal(self, day, raw):
+            self.recorded.append((day, raw))
+
+    loader = Loader()
+    n = warm_signal_refs(loader, load_hypotheses(), before=date(2024, 3, 6))
+    assert n >= 1 and loader.recorded[0][0] == DAY and "loc_vwap" in loader.recorded[0][1]
+    assert warm_signal_refs(Loader(), load_hypotheses(), before=DAY) == 0          # only sessions before today
+
+
 def test_the_cap_calendar_is_the_whole_year():
     from datetime import date
 

@@ -570,7 +570,10 @@ def cmd_replay(app, args) -> int:
     except RuntimeError as exc:
         print(f"not run: {exc}")
         return 1
+    from quantdesk.live.run import warm_signal_refs
+
     loader = make_loader(derived, h, _all_events(app), frozen_dir())
+    warm_signal_refs(loader, h, day)
     token_symbol = {token: symbol for symbol, token in app.constituents(day).items()}
     source = LiveDaySource(loader, day, bars, app.store.read("option_snapshots", day),
                            app.store.read("option_meta", day), token_symbol, load_membership(), h)
