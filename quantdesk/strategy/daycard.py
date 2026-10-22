@@ -13,6 +13,7 @@ against earlier days, key (feature, "day"). Ruling R40, docs/decisions.md.
 """
 
 import math
+import warnings
 from bisect import bisect_left
 from datetime import date, datetime, time, timedelta
 
@@ -65,6 +66,7 @@ class DayLoader:
         self._options: dict[tuple, dict | None] = {}
         self._breadth: dict[date, dict] = {}
         self._signals: list[tuple[date, str, float]] = []
+        self._atm_changes: dict[tuple, np.ndarray] = {}
 
     # --- raw data, cached a year at a time -------------------------------------------------------------
     def _year(self, year: int) -> dict:
@@ -283,7 +285,31 @@ class DayLoader:
             macro_raw=macro_raw(holiday_before, r_on, fii, param(h, "macro.fii_flip_window")),
             vol_rich_threshold=self.vol_rich_threshold(index, day) if with_refs else None,
             z_refs=self.z_refs(index, day) if with_refs else {},
-            hard_exit=hard_exit(day, is_expiry, events, h))
+            hard_exit=hard_exit(day, is_expiry, events, h),
+            spike_ref=self.spike_ref(index, day) if with_refs else None)
+
+    def atm_changes(self, index: str, day: date) -> np.ndarray:
+        """|1-minute change| of the modelled ATM premium per slot on `day` (the spike guard's raw input)."""
+        key = (index, day)
+        if key not in self._atm_changes:
+            frame = self.minute_frame(self.day_context(index, day, with_refs=False))
+            out = np.full(MINUTES, np.nan)
+            stamp = pd.to_datetime(frame["ts"]).dt.tz_convert(IST)
+            slots = (stamp.dt.hour * 60 + stamp.dt.minute - (9 * 60 + 15)).to_numpy()
+            changes = frame["atm_premium"].diff().abs().to_numpy()
+            keep = (slots >= 0) & (slots < MINUTES)
+            out[slots[keep]] = changes[keep]
+            self._atm_changes[key] = out
+        return self._atm_changes[key]
+
+    def spike_ref(self, index: str, day: date) -> np.ndarray | None:
+        lookback = param(self.h, "gate.spike_lookback_days")
+        earlier = [d for d in self.days[:bisect_left(self.days, day)] if self.kind[d] == "regular"][-lookback:]
+        if len(earlier) < lookback:
+            return None
+        with warnings.catch_warnings():             # slot 0 has no previous minute: an all-NaN column is expected
+            warnings.simplefilter("ignore", RuntimeWarning)
+            return np.nanmedian(np.vstack([self.atm_changes(index, d) for d in earlier]), axis=0)
 
     @staticmethod
     def _shock_on(shock: pd.Series, day: date) -> bool:

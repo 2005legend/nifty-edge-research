@@ -60,3 +60,10 @@ def test_z_refs_use_earlier_sessions_only(loader):
     dl.record_signal(days[-1], {"loc_vwap": 1.0, "loc_level": 2.0})
     assert ("loc_vwap", "*") not in dl.z_refs("NIFTY", days[-1])         # a same-day signal is not a reference
     assert dl.z_refs("NIFTY", days[-1] + timedelta(days=1)).get(("loc_vwap", "*")).n == 1
+
+
+def test_the_spike_reference_needs_fourteen_earlier_sessions(loader):
+    dl, days = loader
+    assert dl.day_context("NIFTY", days[10]).spike_ref is None
+    ref = dl.day_context("NIFTY", days[-1]).spike_ref
+    assert ref is not None and np.nanmedian(ref[1:]) > 0

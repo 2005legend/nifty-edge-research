@@ -42,6 +42,7 @@ class DayContext:
     vol_rich_threshold: float | None
     z_refs: dict             # (feature, "HH:MM") -> ZRef
     hard_exit: time
+    spike_ref: np.ndarray | None = None   # per-slot median |1-min ATM premium change| over the previous 14 sessions
 
 
 @dataclass(frozen=True)
