@@ -84,6 +84,15 @@ The dashboard runs at http://127.0.0.1:8000 while the job is running. Outside ma
 - **MOVE STOP:** move your stop to the new level. At most one every 10 minutes.
 - **EXIT NOW:** sell at market. This replaces your old 12:00–12:30 hold-or-exit decision. If you override it, log the override on the dashboard.
 - **KILL SWITCH:** new alerts are shadow only from now on. Open trades still get their exit messages.
+- **ALERT (SHADOW - do not trade)** and **SHADOW EXIT NOW:** the system's own calls while it is in shadow mode, sent so you can follow it and compare with your own trading (owner's choice, 22 Oct 2026). Their stop moves stay on the dashboard.
+
+**Early pricing pre-check** (any time after the close):
+
+```
+.venv\Scripts\python.exe -m quantdesk precheck
+```
+
+This tests the option-pricing model against Angel's 1-minute candles of listed contracts over the last 20 sessions, and writes `research\pilots\PRICE-PRECHECK.md`. It's an early warning only. The real check is `python -m quantdesk pricecheck` on the recorder's quotes, once there are 15+ sessions with 4 expiry days per index.
 
 **After an alert,** press *took it* or *skipped* on the Today tab. If you took it, type your fill price. When you exit, log the exit. The Journal tab compares your results with the paper trade.
 
