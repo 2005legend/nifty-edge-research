@@ -148,3 +148,16 @@ def test_participant_oi_backfill_skips_existing_and_records_status(tmp_path):
     status = backfill_participant_oi(http, store, [day1, day2, day3], urls)
     assert status == {day1: "skipped_existing", day2: "ok", day3: "failed: ConnectionError"}
     assert store.raw_exists("participant_oi", day2, "fao_participant_oi_02012019.csv")
+
+
+def test_participant_numbers_with_indian_thousands_separators(tmp_path):
+    """Some 2019-2020 files quote FII figures as "10,02,064.00"; derive stopped on one (22 Oct 2026)."""
+    path = tmp_path / "fao_participant_oi_12122019.csv"
+    path.write_text(
+        "Participant wise Open Interest (no. of contracts) in Equity Derivatives as on Dec 12 2019,,,\n"
+        "Client Type,Future Index Long,Future Index Short,Future Stock Long\n"
+        "Client,132884,121478,852086\n"
+        'FII,"80,776.00","85,065.00","10,02,064.00"\n')
+    frame = parse_participant_oi(path)
+    assert fii_index_futures_long_ratio(frame) == round(80776 / (80776 + 85065), 6)
+    assert frame.loc[frame.client_type == "FII", "future_stock_long"].iloc[0] == 1002064.0

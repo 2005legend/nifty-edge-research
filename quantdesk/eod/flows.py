@@ -52,6 +52,9 @@ def parse_participant_oi(path: Path) -> pd.DataFrame:
     frame = pd.read_csv(io.StringIO("\n".join(lines[1:])))
     frame.columns = [_snake(c) for c in frame.columns]
     frame["client_type"] = frame["client_type"].astype(str).str.strip()
+    for column in frame.columns.drop("client_type"):   # some files write "10,02,064.00" (Indian grouping)
+        frame[column] = pd.to_numeric(frame[column].astype(str).str.replace(",", "", regex=False).str.strip(),
+                                      errors="coerce")
     return frame
 
 
