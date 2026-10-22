@@ -133,3 +133,24 @@ def test_a_second_index_alert_at_the_same_check_is_held_by_the_pending_first(tmp
     e.step(AT + timedelta(seconds=5))
     modes = j.alerts()["mode"].tolist()
     assert modes == ["live", "suppressed"] and len(notes.sent) == 1
+
+
+def test_a_late_start_never_alerts_on_old_checks(tmp_path):
+    e, j, notes = engine(tmp_path)
+    e.step(AT + timedelta(minutes=10))
+    assert j.alerts().empty and notes.sent == []
+    assert (j.events()["kind"] == "missed").any()
+
+
+def test_a_restart_resumes_the_open_paper_trade_and_its_exit_messages(tmp_path):
+    e, j, notes = engine(tmp_path)
+    e.step(AT + timedelta(seconds=5))
+    e.step(AT + timedelta(minutes=1, seconds=5))
+    assert len(j.open_papers()) == 1
+    again, _, notes2 = engine(tmp_path, journal=j)          # the process restarted, e.g. after a power cut
+    now = AT + timedelta(minutes=3, seconds=5)
+    while now < AT + timedelta(minutes=90):
+        again.step(now)
+        now += timedelta(minutes=1)
+    assert len(j.alerts()) == 1 and len(j.closed_trades("paper")) == 1
+    assert any(t.startswith("EXIT NOW") for t in notes2.sent) and not any(t.startswith("ALERT") for t in notes2.sent)

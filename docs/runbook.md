@@ -122,6 +122,10 @@ This runs that day through the live engine and checks every decision against the
 | `feed stale periods: N` | The live feed stopped for 30+ seconds N times | The recorder reconnects by itself. Check your internet if N is large. |
 | `NIFTY: N minutes missing` | Recording started late, or the PC or internet was off | Check `logs\tasks\record.log` for when it started and stopped |
 | `record already running (pid N) - nothing to do` | A recorder is already running (often the scheduled one) | Nothing. Leave that one running |
+| `live` `not started: no signal dataset yet` | The model has nothing to train on | Run `python -m quantdesk dataset` (long: start it with `run_detached.ps1`) |
+| `live` `not started: the derived tables end on …` | Last night's derive didn't run or failed | Check `logs\tasks\derive.log`, run `python -m quantdesk derive`, then start `quantdesk-live` again in Task Scheduler |
+| The laptop restarted during market hours | The live process stopped with it | Start `quantdesk-live` again in Task Scheduler. It skips the checks it missed (journalled as `missed`) and picks up open paper trades, so stop-move and exit messages carry on. |
+| `paper_unfilled` in the journal | The paper fill lapsed (the index ran past the chase cap) or its bar never arrived | Nothing. The alert stays journalled. |
 
 ## Notes
 

@@ -591,3 +591,10 @@ The SP3 design's rulings S1-S12 are in `docs/superpowers/specs/2026-10-22-sp3-li
 - **The cap while a fill is pending.** The backtest counts the cap on filled trades, NIFTY first at equal times. Live can't know at T whether the first alert will fill, so a pending live alert holds a place under every cap until it fills or lapses.
   - *The one divergence:* both indices signal in the same minute and the first one lapses. The backtest would then trade the second, but live has already held it back. This is rare, and the error is on the safe side (one alert too few, never one too many).
   - Test: `test_a_second_index_alert_at_the_same_check_is_held_by_the_pending_first`.
+
+## 2026-10-22: late starts and restarts of the live process
+
+- **Late start.** A check more than 60 seconds old is never run, even when its bar exists, so no stale alert reaches the phone (S4's "give up 60 seconds after T"). Such checks are journalled as `missed`. The forward holdout loses nothing, because the `dataset` command rebuilds those decisions from the recorded day.
+- **Restart.** Today's open paper trades are rebuilt from the journal by re-running the decision at their alert time, which is deterministic on the same bars. Their stop-move and exit messages then carry on. Ratchets already sent are counted from the journal and not sent again.
+  - *Not covered:* an alert whose fill was still pending at the moment of the crash. It stays journalled, but no paper trade opens.
+- **Tests.** `test_a_late_start_never_alerts_on_old_checks`, `test_a_restart_resumes_the_open_paper_trade_and_its_exit_messages`.

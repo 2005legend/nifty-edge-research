@@ -10,6 +10,11 @@
   into stop-move messages and exits into exit messages
 
 A lock suppresses new alerts, never exit messages. Nothing here places an order.
+
+**Late start or restart** (a power cut, a crash). A check more than 60 seconds old is never run, so no stale
+alert is pushed; it is journalled as `missed` (S4). Today's open paper trades are rebuilt from the journal by
+re-running their decision, so their stop moves and exit messages carry on; ratchets already sent are not
+sent again.
 """
 
 from dataclasses import dataclass, field
@@ -52,6 +57,7 @@ class LiveEngine:
     _open: dict = field(default_factory=dict)  # paper id -> (OpenTrade, alert id, index, mode)
     _frames: dict = field(default_factory=dict)  # index -> chart rows for the dashboard
     _pending: dict = field(default_factory=dict)  # alert id -> (Decision, index, mode), waiting for its fill bar
+    _resumed: bool = False
 
     def snapshot(self) -> dict:
         """What the dashboard shows: a plain-words day card and the latest minute frames."""
@@ -66,7 +72,7 @@ class LiveEngine:
 
     def step(self, now: datetime) -> list:
         source = self.make_source(now)
-        decisions = []
+        ready = {}
         for index in self.indices:
             try:
                 ctx = self._ctx.get(index) or self._ctx.setdefault(index, source.context(index, self.today))
@@ -76,19 +82,57 @@ class LiveEngine:
             frame = frame[frame["ts"] <= now - timedelta(minutes=1)]
             cols = [c for c in ("ts", "close", "vwap", "upper", "lower") if c in frame]
             self._frames[index] = frame[cols].assign(ts=frame["ts"].astype(str)).to_dict("records")
-            decisions += self._checks(now, ctx, frame, source)
+            ready[index] = (ctx, frame)
+        if not self._resumed and ready:
+            self._resume(now, source, ready)
+        decisions, missed = [], []
+        for index, (ctx, frame) in ready.items():
+            decisions += self._checks(now, ctx, frame, source, missed)
             self._prealert(now, ctx, frame)
+        if missed:
+            self.journal.log_event("missed", "checks more than 60 s old, not run: " + ", ".join(missed), at=now)
         self._fill_pending(now, source)
         self._manage(now, source)
         return decisions
 
-    def _checks(self, now, ctx, frame, source):
+    def _resume(self, now, source, ready):
+        self._resumed = True
+        papers = self.journal.open_papers()
+        resumed = 0
+        for p in papers.itertuples(index=False):
+            if str(p.entry_at)[:10] != self.today.isoformat():
+                continue
+            at = datetime.fromisoformat(p.at)
+            if p.idx not in ready:
+                self.journal.log_event("resume_failed", f"paper {p.paper_id}: no {p.idx} data yet", at=now)
+                continue
+            ctx, frame = ready[p.idx]
+            d = decide(ctx, frame, at, self.cfg, self.model, source.helpers(ctx, frame), self.h, self.today)
+            if d.alert is None:
+                self.journal.log_event("resume_failed", f"paper {p.paper_id}: its decision did not recur", at=now)
+                continue
+            c, premium = d.alert.choice, float(p.entry_premium)
+            trigger = premium - param(self.h, "account.risk_rupees") / c.lot
+            trade = OpenTrade(d.signal, c, datetime.fromisoformat(p.entry_at), premium, trigger,
+                              trigger - max(0.10 * trigger, 5 * TICK))
+            self._open[int(p.paper_id)] = (trade, int(p.alert_id), p.idx, p.mode)
+            self.processed.add((p.idx, at))
+            resumed += 1
+        if resumed:
+            self.journal.log_event("resume", f"{resumed} open paper trade(s) resumed", at=now)
+
+    def _checks(self, now, ctx, frame, source, missed):
         out = []
         for at in check_times(self.today, ctx.is_expiry_day, self.h):
             key = (ctx.index, at)
             if at > now or key in self.processed:
                 continue
-            if not (frame["ts"] == at - timedelta(minutes=1)).any():
+            has_bar = (frame["ts"] == at - timedelta(minutes=1)).any()
+            if has_bar and now - at > timedelta(seconds=60):
+                self.processed.add(key)
+                missed.append(f"{ctx.index} {at:%H:%M}")
+                continue
+            if not has_bar:
                 if now - at > timedelta(seconds=60):
                     self.processed.add(key)
                     self.journal.log_event("data_late", f"{ctx.index} {at:%H:%M}: bar never recorded", at=now)
