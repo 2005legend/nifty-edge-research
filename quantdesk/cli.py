@@ -259,12 +259,8 @@ def cmd_fit(app, args) -> int:
                                           "data_hash": derived.data_hash(), "n_returns": int(len(returns))},
                                          sort_keys=False), encoding="utf-8")
         with open(report, "a", encoding="utf-8") as f:
-            f.write(f"
-## Shock CUSUM
-
-- h = {threshold:.4f} (seed {seed}, {len(returns)} daily returns, "
-                    f"target 1 alarm per 250 sessions)
-")
+            f.write(f"\n## Shock CUSUM\n\n- h = {threshold:.4f} (seed {seed}, {len(returns)} daily returns, "
+                    f"target 1 alarm per 250 sessions)\n")
     print(f"wrote {target}; report {report}. If this is a refit, log it in docs/decisions.md.")
     return 0
 
