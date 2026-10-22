@@ -88,6 +88,13 @@ def decide(runs: list[dict]) -> dict:
     """Spec §7A.3: Path A if >= 90% of runs complete, no single request exceeds Groq's per-minute limit,
     and no model uses more than 150K tokens in a day (one run per day). Otherwise Path B."""
     if len(runs) < MIN_RUNS:
+        # A request over the per-minute limit, or a 413, is a reason no later run can undo: Path B is already certain.
+        largest = max((r.get("largest_request_tokens", 0) for r in runs), default=0)
+        too_large = sum(r.get("errors", {}).get("413", 0) for r in runs)
+        if largest > GROQ_TPM or too_large:
+            return {"path": "B", "runs": len(runs), "largest_request_tokens": largest,
+                    "reasons": [f"decided early after {len(runs)} runs: {too_large} request(s) rejected as too large "
+                                f"(HTTP 413), largest {largest} tokens against the per-minute limit of {GROQ_TPM}"]}
         return {"path": "undecided", "reasons": [f"{len(runs)} of {MIN_RUNS} runs so far"], "runs": len(runs)}
     reasons = []
     completed = sum(1 for r in runs if r.get("completed"))

@@ -40,8 +40,8 @@ $jobs = @(
     @{ Name = 'backfill-history'; At = '20:30'; Args = 'backfill --what history'; Hours = 10 },
     # Rebuilds the derived tables from the day's downloads; the 09:10 live job refuses to start on stale tables.
     @{ Name = 'derive';         At = '23:30'; Args = 'derive';           Hours = 5 },
-    # SP4 phase 0: one TradingAgents run on Groq per evening; it stops itself after 10 runs.
-    @{ Name = 'desk-pilot';     At = '19:30'; Exe = $deskPython; Run = 'desk\run_pilot.py'; Hours = 2 }
+    # SP4 Path B (the pilot chose it on 22 Oct 2026): the compact AI desk brief to Telegram before the open.
+    @{ Name = 'desk';           At = '08:30'; Args = 'desk';             Hours = 1 }
 )
 
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited

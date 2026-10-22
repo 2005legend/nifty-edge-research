@@ -592,6 +592,44 @@ def cmd_replay(app, args) -> int:
     return 0 if same else 1
 
 
+def cmd_desk(app, args) -> int:
+    """SP4 Path B: the compact analyst desk on Groq, 08:30 on trading days. Explanation only (D7)."""
+    from quantdesk.desk.compact import GroqLLM, build_bundle, format_desk, run_desk
+    from quantdesk.live.notify import notifier_from_env
+
+    day = date.fromisoformat(args.day) if args.day else app.clock.now().date()
+    if not app.is_trading_day(day):
+        print(f"{day} is not a trading day")
+        return 0
+    derived = DerivedStore(app.store.root / "derived")
+    bundle = build_bundle(app.store, derived, day, _all_events(app))
+    if args.dry_run:
+        sizes = {k: len(json.dumps(v, default=str)) for k, v in bundle.items()}
+        print(f"bundle for {day}: characters per section {sizes}; {len(bundle['news']['headlines'])} headlines")
+        return 0
+    try:
+        key = get_secret("GROQ_API_KEY")
+    except MissingSecretError as exc:
+        print(exc)
+        return 2
+    out = run_desk(bundle, GroqLLM(key), day)
+    folder = app.store.root / "desk"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / f"{day}.json").write_text(json.dumps({**out, "bundle": bundle}, indent=2, default=str), encoding="utf-8")
+    with open(folder / "desk_calls.jsonl", "a", encoding="utf-8") as f:
+        f.write(json.dumps({k: out[k] for k in ("date", "run", "path", "models", "verified", "input_hash", "tokens",
+                                                "failed_roles")} | {"bias": (out["judge"] or {}).get("bias"),
+                                                                    "confidence": (out["judge"] or {}).get("confidence")},
+                           default=str) + "\n")
+    if out["judge"] and out["verified"]:                  # only verified briefs are scored (spec §7A.5)
+        _journal(app).set_state(f"desk_bias_{day}", out["judge"]["bias"])
+    text = format_desk(out)
+    if not args.no_send:
+        notifier_from_env().send(text)
+    print(text)
+    return 0
+
+
 def cmd_telegram_setup(app, args) -> int:
     """Find the owner's chat with the bot, save TELEGRAM_CHAT_ID in .env and send a test message.
     Neither the token nor the chat id is printed."""
@@ -751,6 +789,11 @@ def build_parser() -> argparse.ArgumentParser:
     replay.set_defaults(func=cmd_replay)
     sub.add_parser("telegram-setup", help="save the chat id after you message the bot").set_defaults(
         func=cmd_telegram_setup)
+    desk = sub.add_parser("desk", help="the AI analyst desk brief on Groq (explanation only)")
+    desk.add_argument("--day", help="the session the brief is for (default today)")
+    desk.add_argument("--dry-run", action="store_true", help="build the inputs only; no Groq call")
+    desk.add_argument("--no-send", action="store_true", help="print the brief instead of sending it")
+    desk.set_defaults(func=cmd_desk)
     pilot = sub.add_parser("pilot", help="run a zero-trial pilot (P1, P2, P4, P9, P10, D2)")
     pilot.add_argument("id", choices=["P1", "P2", "P4", "P9", "P10", "D2"])
     pilot.add_argument("--scenario", choices=["base", "d2_600", "ideas", "ideas_relaxed"], default="base",

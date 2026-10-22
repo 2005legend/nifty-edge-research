@@ -59,6 +59,15 @@ def test_the_friday_scorecard_counts_the_week_in_rupees_per_lot(tmp_path):
     assert "2 ideas" in text and "1 hit target" in text and "Rs +300" in text and "1 of 1" in text
 
 
+def test_the_desk_bias_is_scored_daily_and_counted_on_friday(tmp_path):
+    j = Journal(tmp_path / "j.sqlite")
+    ctx, _, _ = setup()
+    j.set_state("desk_bias_2026-10-22", "down")
+    text = day_summary(date(2026, 10, 22), {"NIFTY": ctx}, {"NIFTY": (ctx.open, ctx.open * 0.99)}, j, {})
+    assert "Desk bias DOWN: right" in text and j.get_state("desk_result_2026-10-22") == "right"
+    assert "Desk bias right: 1 of 1" in scorecard(j, date(2026, 10, 23))
+
+
 def test_the_day_summary_compares_the_move_with_the_forecast(tmp_path):
     j = Journal(tmp_path / "j.sqlite")
     _idea_trade(j, datetime(2026, 10, 23, 10, 0, tzinfo=IST), 650.0)

@@ -132,6 +132,12 @@ def day_summary(day: date, ctxs: dict, closes: dict, journal, leans: dict) -> st
         elif call:
             text += "; lean FLAT (not scored)"
         lines.append(text)
+    desk = journal.get_state(f"desk_bias_{day}")
+    if desk in ("up", "down") and "NIFTY" in closes:
+        opened, closed = closes["NIFTY"]
+        right = (desk == "up") == (closed > opened)
+        journal.set_state(f"desk_result_{day}", "right" if right else "wrong")
+        lines.append(f"Desk bias {desk.upper()}: {'right' if right else 'wrong'} (Nifty open to close)")
     ideas = _ideas(journal, day, day)
     done = ideas.dropna(subset=["exit_at"])
     still = ideas[ideas["entry_at"].notna() & ideas["exit_at"].isna()]
@@ -163,6 +169,10 @@ def scorecard(journal, day: date) -> str:
                 right += result == "right"
         d += timedelta(days=1)
     lines.append(f"Morning lean right: {right} of {scored} scored days" if scored else "Morning lean: no days scored")
+    desk = [journal.get_state(f"desk_result_{start + timedelta(days=k)}") for k in range((day - start).days + 1)]
+    desk = [r for r in desk if r]
+    if desk:
+        lines.append(f"Desk bias right: {desk.count('right')} of {len(desk)}")
     lines.append("Paper only: each idea is one lot at the alert's plan, after charges.")
     return "\n".join(lines)
 

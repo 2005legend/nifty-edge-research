@@ -65,6 +65,14 @@ def test_decision_waits_for_five_runs():
     assert decide([run() for _ in range(4)])["path"] == "undecided"
 
 
+def test_a_reason_more_runs_cannot_undo_decides_path_b_early():
+    """22 Oct 2026: 3 of 3 measured runs failed, with requests up to 20,515 tokens against a 7,000 limit."""
+    too_big = dict(run(completed=False, largest=20_515), errors={"413": 2, "429": 0, "other": 0})
+    result = decide([too_big] * 3)
+    assert result["path"] == "B" and any("early" in r for r in result["reasons"])
+    assert decide([run(completed=False)] * 2)["path"] == "undecided"      # failures alone may still recover
+
+
 def test_a_rejected_413_request_counts_toward_the_largest_request():
     """Live 21 Oct 2026: Groq rejected an 8810-token request (ITPM limit 7000); the meter must see its size."""
     meter = PilotMeter()

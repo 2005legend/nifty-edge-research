@@ -658,3 +658,21 @@ The SP3 design's rulings S1-S12 are in `docs/superpowers/specs/2026-10-22-sp3-li
 - **The fix.** `warm_signal_refs` walks the last 90 regular sessions exactly as the dataset builder does (same days, indices and order) and records their signals. The references keep the last 250 signals (about 45 sessions), so live and backtest use the same values.
   - Test: `test_a_fresh_process_rebuilds_the_signal_references_from_recent_sessions`.
   - Check: replaying 31 Dec 2025 in idea mode now gives 4 ideas with their exits.
+
+## 2026-10-22: SP4, the pilot's rule picks Path B, and the compact desk is built
+
+- **Pilot result.** All 3 measured TradingAgents runs (and the earlier run with default settings) failed. Groq rejected requests as too large (HTTP 413; the largest was 20,515 tokens against the 7,000-a-minute limit), and one run had a connection error.
+  - Path A needs ≥ 90% of runs complete and no request over the per-minute limit.
+  - A 413 can't be undone by later runs, so `decide()` now returns Path B as soon as one is seen ("decided early").
+  - Test: `test_a_reason_more_runs_cannot_undo_decides_path_b_early`. The nightly pilot job is removed.
+- **Path B: the compact desk** (`quantdesk/desk/compact.py`, `python -m quantdesk desk`), as spec §7A.3-7A.6 specifies:
+  - **Calls:** four analysts (technical, macro, options flow, news) and bull/bear on `qwen/qwen3.8-27b`; the risk manager and judge on `openai/gpt-oss-120b`. 8 calls a day.
+  - **Prompts:** our numbers and timestamped headlines only, each ≤ 5K tokens, with the pilot's token bucket per model.
+  - **Replies:** Pydantic JSON, retried once if invalid. A 413 shrinks the prompt once, then the role is skipped.
+  - **Number-faithfulness check:** every number in the text must match an input within 0.5%, otherwise the brief is UNVERIFIED and not scored.
+  - **Output:** `data/desk/<day>.json` and `desk_calls.jsonl`.
+  - **Scoring:** a verified bias is scored against Nifty open to close in the day summary, and counted in the Friday scorecard.
+  - **Delivery:** the brief goes to Telegram.
+- **Schedule ruling.** The spec had an evening full run plus an 08:40 update. Instead there is **one full run at 08:30**, after the nightly derive (fresh chain, daily and FII tables) and the 07:30 macro pull (overnight US and Asia). Everything is current in one pass, and it lands before the 09:20 brief. *Cost if wrong:* no evening read; the morning one is the one that matters for the day.
+- **Not built.** The Ollama fallback, which the spec marks optional. A Groq outage means no desk brief that day, logged as a failed role.
+- **First live call (22 Oct, for 23 Oct, not sent):** bias DOWN 65%, range ±0.91%, numbers verified.
