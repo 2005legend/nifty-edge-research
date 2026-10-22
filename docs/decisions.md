@@ -569,3 +569,14 @@ The SP3 design's rulings S1-S12 are in `docs/superpowers/specs/2026-10-22-sp3-li
 - **Bug found in self-review.** Shadow and suppressed setups also open paper trades. Before this fix, their P&L counted toward the day and week loss locks and the ₹7,000 capital floor, and their R values fed the SPRT and CUSUM. Shadow P&L is not money, so a run of shadow losses could have locked live alerting or fired the capital floor.
 - **Fix.** `book()` and the cap counter now read only trades from alerts whose mode is `live`.
 - **Test.** `test_shadow_paper_trades_are_not_money`.
+
+## 2026-10-22: actual expiries, the nightly derive, and the stale-table guard
+
+- **What crashed.** P1 and the signal dataset both crashed on 2023-06-29. That day was the listed expiry of the June 2023 Nifty contracts, but it became a holiday at short notice (Bakri Id), so the contracts expired on 2023-06-28. The old bhavcopy layout carries only the listed date. Six expiries are affected:
+  - NIFTY 2023-03-30, 2023-06-29, 2026-03-26, 2026-03-31
+  - SENSEX 2024-11-01, 2026-01-15
+- **Ruling: actual expiry.** `options_eod.expiry` is now the last session on or before the listed date (the exchanges' rule). Past dates are checked against recorded sessions, future ones against the published holiday calendar. The printed date is kept as `expiry_listed`. Every reader (the expiries table, the options score, strike candidates, the live source) now sees the date the contract really expired.
+  - *Small look-ahead, accepted:* a chain dated before a late holiday announcement is treated as already knowing the new date. That shifts time to expiry by one session on contracts many sessions out.
+  - Test: `test_an_expiry_on_a_holiday_moves_to_the_session_before`.
+- **Nightly derive at 23:30.** It runs after the evening downloads: eod at 18:35 and the history backfill at 20:30. Without it, the 09:10 live run would start on stale tables and take an older close as yesterday's, which makes every band and gap wrong.
+- **Stale-table guard.** `live` refuses to start, and logs `not_started`, when the derived tables don't reach the previous trading day. Test: `test_the_live_engine_needs_last_nights_derived_tables`.

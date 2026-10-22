@@ -342,13 +342,15 @@ def test_derive_takes_its_windows_from_the_pre_registration(app, monkeypatch):
     _stub_builders(monkeypatch, [])
     monkeypatch.setattr(cli, "load_membership", lambda: "MEMBERSHIP")
     monkeypatch.setattr(cli, "build_options_eod",
-                        lambda store, derived, urls, nifty_from, sensex_from:
-                        seen.update(urls=urls, nifty=nifty_from, sensex=sensex_from) or {})
+                        lambda store, derived, urls, nifty_from, sensex_from, holidays:
+                        seen.update(urls=urls, nifty=nifty_from, sensex=sensex_from,
+                                    holidays=isinstance(holidays, (set, frozenset))) or {})
     monkeypatch.setattr(cli, "build_members_minute",
                         lambda derived, membership, top_n: seen.update(membership=membership, top_n=top_n) or {})
     assert cli.main(["derive"]) == 0
     assert seen == {"urls": app.settings["urls"], "nifty": date.fromisoformat(param(h, "backtest.nifty_from")),
-                    "sensex": date.fromisoformat(param(h, "backtest.sensex_from")), "membership": "MEMBERSHIP",
+                    "sensex": date.fromisoformat(param(h, "backtest.sensex_from")), "holidays": True,
+                    "membership": "MEMBERSHIP",
                     "top_n": param(h, "gate.breadth_top_n")}
 
 

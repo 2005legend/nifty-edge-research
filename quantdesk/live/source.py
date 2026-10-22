@@ -22,6 +22,7 @@ import pandas as pd
 from quantdesk.analysis.frame import build_minute_frame
 from quantdesk.clock import IST
 from quantdesk.derived.members import member_breadth
+from quantdesk.derived.options import actual_expiry
 from quantdesk.pricing.quotes import ModelQuotes, Quote
 from quantdesk.strategy.gates import Helpers
 from quantdesk.validation.hypotheses import param
@@ -92,6 +93,7 @@ class LiveDaySource:
             if (symbol, self.day) in self.loader.expiries.index:
                 continue
             latest = rows[rows["day"] == rows["day"].max()]
+            latest = latest.assign(expiry=latest["expiry"].map(lambda e: actual_expiry(e, self.loader.clock.sessions)))
             lots = latest.groupby("expiry")["lot"].agg(lambda s: int(s.mode().iloc[0]))
             ahead = sorted((e, l) for e, l in lots.items() if e >= self.day)
             if not ahead:

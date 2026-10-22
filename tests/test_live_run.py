@@ -89,3 +89,15 @@ def test_the_cap_calendar_is_the_whole_year():
 
     days = year_sessions(date(2026, 3, 10), [Event(date(2026, 12, 25), None, "holiday_nse", "none", "Christmas", "")])
     assert days[0] == date(2026, 1, 1) and days[-1] == date(2026, 12, 31) and date(2026, 12, 25) not in days
+
+
+def test_the_live_engine_needs_last_nights_derived_tables():
+    from datetime import date
+
+    from quantdesk.calendar.events import Event
+    from quantdesk.live.run import derived_is_current
+
+    holiday = [Event(date(2026, 10, 21), None, "holiday_nse", "none", "Diwali", "")]
+    assert derived_is_current(date(2026, 10, 20), date(2026, 10, 22), holiday)       # 21st was a holiday
+    assert not derived_is_current(date(2026, 10, 19), date(2026, 10, 22), holiday)
+    assert derived_is_current(date(2026, 10, 23), date(2026, 10, 26), [])             # Friday before a Monday

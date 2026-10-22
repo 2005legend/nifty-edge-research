@@ -146,6 +146,10 @@ def build_engine(app, today: date, journal, notifier, events: list, frozen: Path
     if mode == "live" and result["config"]:
         kill = kill_params(_trades(registry, result["config"])["r"].to_numpy(dtype=float))
     loader = make_loader(derived, h, events, frozen)
+    last = max(d for d in loader.days if d < today)
+    if not derived_is_current(last, today, events):
+        raise RuntimeError(f"the derived tables end on {last}: run `python -m quantdesk derive` after the evening "
+                           "downloads (the nightly derive job does this)")
     membership = load_membership()
     token_symbol = {token: symbol for symbol, token in app.constituents(today).items()}
     raw = app.store.root / "raw"
@@ -161,6 +165,17 @@ def build_engine(app, today: date, journal, notifier, events: list, frozen: Path
     engine = LiveEngine(rebuild_on_change(key, build), journal, notifier, cfg, model, h, today, mode=mode,
                         kill_params=kill, sessions=year_sessions(today, events))
     return engine, mode, trial
+
+
+def derived_is_current(last_session: date, today: date, events: list) -> bool:
+    """True when the derived tables reach the session before `today`. Without it the day card would take an
+    older close as yesterday's, and every band and gap would be wrong."""
+    from quantdesk.calendar.events import is_trading_day
+
+    previous = today - timedelta(days=1)
+    while not is_trading_day(previous, events):
+        previous -= timedelta(days=1)
+    return last_session >= previous
 
 
 def year_sessions(day: date, events: list) -> list[date]:

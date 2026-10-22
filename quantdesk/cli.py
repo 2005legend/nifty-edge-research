@@ -193,6 +193,7 @@ def _derive(app, args) -> int:
     minutes, expiries reads options_eod, members_minute reads minutes and sessions."""
     derived = DerivedStore(app.store.root / "derived")
     h = load_hypotheses()
+    holidays = {e.date for e in _all_events(app) if e.type == "holiday_nse"}
     builders = {
         "minutes": lambda: build_minutes(app.store, derived),
         "sessions": lambda: build_sessions(derived, app.settings["session"]),
@@ -200,7 +201,8 @@ def _derive(app, args) -> int:
         "macro": lambda: build_macro(app.store, derived),
         "options_eod": lambda: build_options_eod(app.store, derived, app.settings["urls"],
                                                  date.fromisoformat(param(h, "backtest.nifty_from")),
-                                                 date.fromisoformat(param(h, "backtest.sensex_from"))),
+                                                 date.fromisoformat(param(h, "backtest.sensex_from")),
+                                                 holidays),
         "expiries": lambda: build_expiries(derived),
         "fii_ratio": lambda: build_fii_ratio(app.store, derived),
         "members_minute": lambda: build_members_minute(derived, load_membership(), param(h, "gate.breadth_top_n")),

@@ -7,6 +7,7 @@ from quantdesk.clock import IST
 from quantdesk.config import load_settings
 from quantdesk.derived.options import (
     _frame_from_contracts,
+    actual_expiry,
     build_expiries,
     build_fii_ratio,
     build_options_eod,
@@ -103,3 +104,18 @@ def test_fii_ratio_is_available_the_next_morning(tmp_path):
     rows = derived.read("fii_ratio")
     assert rows["day"].tolist() == [DAY] and rows["ratio"].tolist() == [0.6]
     assert rows["available_at"].tolist() == [MORNING]
+
+
+def test_an_expiry_on_a_holiday_moves_to_the_session_before():
+    sessions_ = [date(2023, 6, 26), date(2023, 6, 27), date(2023, 6, 28), date(2023, 6, 30)]
+    assert actual_expiry(date(2023, 6, 29), sessions_) == date(2023, 6, 28)     # Bakri Id, moved at short notice
+    assert actual_expiry(date(2023, 6, 27), sessions_) == date(2023, 6, 27)
+    assert actual_expiry(date(2023, 7, 6), sessions_) == date(2023, 7, 6)      # past the calendar: unchanged
+
+
+def test_the_chain_carries_the_actual_expiry_and_keeps_the_listed_one(tmp_path):
+    store, derived = chains(tmp_path, [DAY], files=[DAY])
+    build(store, derived, holidays={NEXT})                    # the weekly listed for NEXT expires on DAY
+    rows = derived.read("options_eod")
+    nifty = rows[(rows["symbol"] == "NIFTY") & (rows["expiry_listed"] == NEXT)]
+    assert len(nifty) and set(nifty["expiry"]) == {DAY}
