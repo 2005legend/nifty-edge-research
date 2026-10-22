@@ -26,9 +26,14 @@ from quantdesk.validation.hypotheses import param
 MODEL_COSTS = 57.0     # ₹ per round trip at today's charges (costs.py, decisions.md 21 Oct 2026)
 
 
+LIVE_PAPER = ("select p.* from paper_trades p join alerts a on a.id = p.alert_id "
+              "where a.mode = 'live' and p.exit_at is not null order by p.exit_at")
+
+
 def book(journal) -> pd.DataFrame:
-    """One row per closed trade: the real result where the owner logged one, else the paper result."""
-    paper = journal.closed_trades("paper")
+    """One row per closed trade from a live alert: the real result where the owner logged one, else the paper
+    result. Shadow and suppressed setups are paper only, never money, so no lock or kill-switch counts them."""
+    paper = journal._query(LIVE_PAPER)
     if paper.empty:
         return pd.DataFrame(columns=["alert_id", "day", "pnl", "r", "paper_pnl"])
     paper = paper.assign(day=paper["entry_at"].str[:10], paper_pnl=paper["pnl"])
@@ -45,7 +50,8 @@ def param_risk() -> float:
 
 
 def _entries(journal) -> pd.DataFrame:
-    trades = journal._query("select entry_at from paper_trades")
+    trades = journal._query("select p.entry_at from paper_trades p join alerts a on a.id = p.alert_id "
+                            "where a.mode = 'live'")
     return trades.assign(day=trades["entry_at"].str[:10])
 
 

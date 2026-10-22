@@ -13,9 +13,9 @@ H = load_hypotheses()
 SESSIONS = [date(2026, 10, d) for d in (19, 21, 22, 23, 26, 27, 28, 29, 30)]
 
 
-def trade(j, day, pnl, hour=10):
+def trade(j, day, pnl, hour=10, mode="live"):
     at = datetime(day.year, day.month, day.day, hour, 0, tzinfo=IST)
-    a = j.add_alert(alert(at=at))
+    a = j.add_alert(alert(at=at, mode=mode))
     p = j.open_paper(a, at, 60.0)
     j.close_paper(p, at.replace(hour=hour + 1), 60.0 + pnl / 65, "stop", pnl)
 
@@ -78,3 +78,13 @@ def test_effective_mode_follows_verdict_kill_switch_and_pause(tmp_path):
     j.set_state("shadow_pause_until", "2026-10-25")
     assert effective_mode(j, day, "live") == "shadow"
     assert effective_mode(j, date(2026, 10, 26), "live") == "live"
+
+
+def test_shadow_paper_trades_are_not_money(tmp_path):
+    j = Journal(tmp_path / "j.sqlite")
+    day = date(2026, 10, 22)
+    for i in range(8):
+        trade(j, SESSIONS[i], -400.0, mode="shadow")
+    trade(j, day, -420.0, hour=11, mode="shadow")
+    assert locks(j, day, SESSIONS, H) == []
+    assert kill_switches(j, {"mu0": 0.25, "breakeven": 0.0, "sigma": 1.0, "cusum_h": 5.0}, H) == []

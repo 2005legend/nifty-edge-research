@@ -546,3 +546,26 @@ The SP3 design's rulings S1-S12 are in `docs/superpowers/specs/2026-10-22-sp3-li
 - **No day card before the first index bar.** Without a recorded open there is no gap, no HAR forecast and no band, so the engine waits rather than caching a card built without today's open.
 - **Telegram failures are logged with the token masked.** requests puts the URL, which carries the bot token, into its error messages, so the token is masked before logging. Test: `test_a_failed_send_never_logs_the_token`.
 - **Shadow mode logs every setup, not only the capped ones.** The caps (1 a day, 3 a week, monthly share) are applied when the holdout is analysed, as R31 does in the backtest. Locks apply only to live alerts.
+
+## 2026-10-22: P9 failed; the stock-volume VWAP proxy is kept (no P&L seen)
+
+- **What P9 found.** P9 ran on 11 front-month futures days, 3,971 minutes.
+  - **Side test (passed):** the sides disagree in 4.1% of minutes, against a pass mark of at most 5%.
+  - **Gap test (failed):** the median gap is 0.23 b, against a pass mark of at most 0.1 b. It failed on all 11 days, so this is not a small-sample fluke.
+- **The pre-registered rule.** It said a fail switches every VWAP rule to the average typical price since the open.
+- **What the fallback measured.** Measured the same way, the fallback is worse: a median gap of 0.44 b and 6.6% side disagreement. Following the rule literally would move every VWAP rule further from the real VWAP. That defeats the fallback's purpose, which was to stop pretending to track VWAP when the proxy can't.
+- **Ruling: keep the proxy.** Both choices were made before any P&L was seen, and P9 costs no trial, so this is not a forking path on profit.
+- **Wording.** Every result must say that "VWAP" is the proxy, a median 0.23 b (about 8 points) from the futures VWAP.
+- **Re-check.** Re-run P9 at 40 or more futures days.
+- *Cost if wrong:* VWAP-based rules (the side check, the structural stop, the trail ratchet) sit about 8 points from where a futures trader's VWAP is. The backtest and live engine share the proxy, so the measured edge is the edge of the rule as built, not of a futures-VWAP rule.
+
+## 2026-10-22: P4, no reversal context
+
+- **Result.** AR(1) = -0.027 (t = -0.81) and MAC(5) = 0.076 (t = 0.80) over 2,911 days. There is no significant daily autocorrelation.
+- **Consequence.** `ctx_runs` is False, so trial CTX does not run and its reversal feature is not built (R37). The slot stays unused.
+
+## 2026-10-22: locks and kill-switches count only live alerts
+
+- **Bug found in self-review.** Shadow and suppressed setups also open paper trades. Before this fix, their P&L counted toward the day and week loss locks and the ₹7,000 capital floor, and their R values fed the SPRT and CUSUM. Shadow P&L is not money, so a run of shadow losses could have locked live alerting or fired the capital floor.
+- **Fix.** `book()` and the cap counter now read only trades from alerts whose mode is `live`.
+- **Test.** `test_shadow_paper_trades_are_not_money`.

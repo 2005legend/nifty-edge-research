@@ -46,6 +46,7 @@ parameters:
   h1.gap_adjust: {value: "upper = max(open, prev_close) * (1 + V*sigma); lower = min(open, prev_close) * (1 - V*sigma)", source: "ITR:534-537", provenance: research_value}
   h1.expiry_bands_separate: {value: true, source: "spec §6.1 step 3; ITR:546", provenance: spec}
   h1.vwap_side_required: {value: true, source: "spec §6.1 step 3", provenance: spec}
+  vwap.anchor: {value: "stock_volume_proxy", source: "P9 2026-10-22: the proxy failed the 0.1 b gap test (0.23 b, 11 of 11 days) but the pre-registered open-anchored fallback was further off (0.44 b; side disagreement 6.6% against 4.1%), so the proxy is kept; decisions.md 2026-10-22", provenance: design_ruling}
   h1.delay_sign_flip_minutes: {value: 3, source: "spec §6.2 (a signal whose sign flips at 3 minutes is rejected)", provenance: spec}
 
   # --- stop fit and targets (spec §6.1 step 4.2) ---
