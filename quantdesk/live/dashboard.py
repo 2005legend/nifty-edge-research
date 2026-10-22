@@ -22,9 +22,11 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from quantdesk.live.monitor import effective_mode, locks
+from quantdesk.costs import round_trip
+from quantdesk.live.monitor import effective_mode, lock_period, locks
 
 STATIC = Path(__file__).parent / "static"
+EXCHANGE = {"NIFTY": "NSE", "SENSEX": "BSE"}
 TURNOVER_BUDGET = 1_000_000
 
 
@@ -38,7 +40,7 @@ class FillIn(BaseModel):
 
 class ExitIn(BaseModel):
     premium: float = Field(gt=0)
-    pnl: float
+    pnl: float | None = None            # left out: the server costs it at today's charges
     notes: str = ""
 
 
@@ -87,7 +89,10 @@ def create_app(journal, research_dir: Path, h: dict, today, sessions: list[date]
         mode = effective_mode(journal, day, journal.get_state("verdict_mode", "shadow"))
         return {"day": day.isoformat(), "mode": mode, "kill_switch": journal.get_state("kill_switch") or None,
                 "locks": locks(journal, day, sessions, h),
+                "lock_periods": {k: lock_period(k, day) for k in locks(journal, day, sessions, h)},
                 "alerts": _records(journal.alerts(day.isoformat())),
+                "real": _records(journal._query("select r.* from real_trades r join alerts a on a.id = r.alert_id "
+                                                "where a.at like ?", (f"{day.isoformat()}%",))),
                 "open_papers": _records(journal.open_papers()),
                 "day_card": snap.get("day_card", {}), "frames": snap.get("frames", {}),
                 "shadow_pause": journal.get_state("shadow_pause_until")}
@@ -103,8 +108,17 @@ def create_app(journal, research_dir: Path, h: dict, today, sessions: list[date]
 
     @app.post("/api/real/{real_id}/exit")
     def real_exit(real_id: int, body: ExitIn):
-        journal.close_real(real_id, body.premium, pd.Timestamp.now(tz="Asia/Kolkata"), body.pnl, body.notes)
-        return {"ok": True}
+        pnl = body.pnl
+        if pnl is None:
+            rows = journal._query("select r.fill_premium, a.lot, a.idx from real_trades r join alerts a "
+                                  "on a.id = r.alert_id where r.id = ?", (real_id,))
+            if rows.empty:
+                raise HTTPException(404, "no such real trade")
+            fill, lot, index = float(rows.loc[0, "fill_premium"]), int(rows.loc[0, "lot"]), rows.loc[0, "idx"]
+            costs = round_trip(fill, body.premium, lot, exchange=EXCHANGE[index], day=today()).total
+            pnl = (body.premium - fill) * lot - costs
+        journal.close_real(real_id, body.premium, pd.Timestamp.now(tz="Asia/Kolkata"), pnl, body.notes)
+        return {"ok": True, "pnl": pnl}
 
     @app.post("/api/unlock")
     def unlock(body: UnlockIn):

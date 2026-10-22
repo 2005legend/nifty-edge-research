@@ -63,6 +63,13 @@ def _unlocked(journal, kind: str, period: str) -> bool:
     return bool(((events["kind"] == "unlock") & events["detail"].str.startswith(wanted)).any())
 
 
+def lock_period(kind: str, day: date) -> str:
+    """The period an unlock of `kind` names ("lock|period|reason"), as `locks` checks it."""
+    if kind in ("per_week", "week_loss"):
+        return (day - timedelta(days=day.weekday())).isoformat()
+    return f"{day:%Y-%m}" if kind == "per_month" else day.isoformat()
+
+
 def locks(journal, day: date, sessions: list[date], h: dict, pending: int = 0) -> list[str]:
     """`pending`: live alerts whose paper fill is not known yet. Each holds a place under every cap until it
     fills or lapses, so two indices signalling in the same minute cannot both alert."""

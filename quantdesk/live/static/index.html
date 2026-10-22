@@ -24,6 +24,7 @@
   .chart { height:280px; }
   button.act { margin-right:6px; padding:4px 10px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--fg); cursor:pointer; }
   input { padding:4px; border:1px solid var(--line); border-radius:4px; background:var(--bg); color:var(--fg); }
+  .purpose { color:var(--muted); margin:0 0 12px; max-width:900px; }
 </style>
 </head>
 <body>
@@ -35,6 +36,11 @@
 </header>
 <main>
   <section id="today" class="tab on">
+    <p class="purpose">Your desk for the trading day. Alerts arrive here and on Telegram. After each one, press
+      <b>took it</b> or <b>skipped</b>, type your fill, and log your exit. The Journal tab then compares what you did
+      with what the system did. Locks and kill-switches are lifted here, with a typed reason. Nothing on this page
+      places an order.</p>
+    <div id="lockbox" class="card" style="margin-bottom:12px; display:none"></div>
     <div class="grid">
       <div class="card"><h3>Day card</h3><div id="daycard" class="muted">No day card yet.</div></div>
       <div class="card"><h3>Open paper trades</h3><div id="open"></div></div>
@@ -80,6 +86,14 @@ async function post(url, body) {
   const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   if (!r.ok) alert("Not saved: " + (await r.text())); refresh();
 }
+function you(a, real) {
+  if (!real) return `<input size="6" placeholder="your fill" onchange="post('/api/alerts/${a.id}/fill',{premium:parseFloat(this.value)})">`;
+  if (real.exit_at) return `filled ${real.fill_premium.toFixed(2)}, out ${real.exit_premium.toFixed(2)}: Rs ${real.pnl.toFixed(0)}`;
+  return `filled ${real.fill_premium.toFixed(2)} <input size="6" placeholder="exit price" id="x-${real.id}">
+    <input size="18" placeholder="note (e.g. overrode the exit)" id="n-${real.id}">
+    <button class="act" onclick="post('/api/real/${real.id}/exit',{premium:parseFloat($('x-${real.id}').value),notes:$('n-${real.id}').value})">log exit</button>`;
+}
+function unlock(lock, period) { post("/api/unlock", { lock, period, reason: $("r-" + lock).value }); }
 let seen = new Set();
 async function today() {
   const d = await (await fetch("/api/today")).json();
@@ -91,7 +105,16 @@ async function today() {
       <td>${a.index_stop.toFixed(1)} / ${a.index_target.toFixed(1)}</td><td>${a.backstop_trigger.toFixed(2)} / ${a.backstop_limit.toFixed(2)}</td>
       <td>${a.p.toFixed(2)} / ${a.ev.toFixed(0)}</td><td class="${a.mode}">${a.mode}</td>
       <td>${a.status === "new" ? `<button class="act" onclick="post('/api/alerts/${a.id}/status',{status:'took'})">took it</button><button class="act" onclick="post('/api/alerts/${a.id}/status',{status:'skipped'})">skipped</button>` : a.status}
-      ${a.status === "took" ? `<input size="6" placeholder="fill" onchange="post('/api/alerts/${a.id}/fill',{premium:parseFloat(this.value)})">` : ""}</td></tr>`).join("") + "</table>" : "None yet.";
+      ${a.status === "took" ? you(a, (d.real || []).find(r => r.alert_id === a.id)) : ""}</td></tr>`).join("") + "</table>" : "None yet.";
+  const kill = d.kill_switch ? [["kill_switch", d.day, "kill-switch: " + d.kill_switch]] : [];
+  const held = d.locks.map(k => [k, d.lock_periods[k], k]).concat(kill);
+  $("lockbox").style.display = "block";
+  $("lockbox").innerHTML = (held.length ? "<h3>Locked</h3>" + held.map(([k, p, label]) =>
+      `<div><b>${label}</b> (${p}) <input id="r-${k}" size="40" placeholder="why lift it? (10+ characters, kept in the journal)">
+       <button class="act" onclick="unlock('${k}','${p}')">lift</button></div>`).join("") : "") +
+    `<div style="margin-top:6px">${d.shadow_pause && d.shadow_pause >= d.day ? `Alerts paused (shadow only) until ${d.shadow_pause}.` :
+      `<input id="pause-reason" size="40" placeholder="reason to pause alerts for the rest of the week">
+       <button class="act" onclick="post('/api/shadow-pause',{reason:$('pause-reason').value})">pause alerts</button>`}</div>`;
   d.alerts.forEach(a => { if (!seen.has(a.id) && a.mode === "live") { seen.add(a.id); try { new Notification("quantdesk alert", { body: `${a.idx} ${a.strike} ${a.kind} up to ${a.entry_limit}` }); new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=").play(); } catch (e) {} } });
   $("open").innerHTML = d.open_papers.length ? d.open_papers.map(p => `${p.idx} ${p.strike} ${p.kind} from ${p.entry_premium.toFixed(2)} at ${p.entry_at.slice(11, 16)}`).join("<br>") : "None.";
   for (const [idx, f] of Object.entries(d.frames || {})) {

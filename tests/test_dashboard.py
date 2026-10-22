@@ -67,6 +67,28 @@ def test_research_lists_pilots_and_the_verdict(client):
     assert "P1" in res["pilots"] and "alert-off" in res["verdict"]
 
 
+def test_an_exit_without_a_pnl_is_costed_by_the_server(client):
+    from quantdesk.costs import round_trip
+
+    c, j = client
+    a = j.add_alert(alert(at=AT))
+    real = c.post(f"/api/alerts/{a}/fill", json={"premium": 60.0}).json()["real_trade_id"]
+    assert c.get("/api/today").json()["real"][0]["id"] == real
+    assert c.post(f"/api/real/{real}/exit", json={"premium": 70.0, "notes": "took the exit message"}).status_code == 200
+    expected = 10.0 * 65 - round_trip(60.0, 70.0, 65, exchange="NSE", day=DAY).total
+    assert j.real_trades().loc[0, "pnl"] == pytest.approx(expected)
+
+
+def test_each_lock_comes_with_the_period_an_unlock_needs(client):
+    c, j = client
+    a = j.add_alert(alert(at=AT))
+    p = j.open_paper(a, AT, 60.0)
+    j.close_paper(p, AT.replace(hour=11), 54.0, "stop", -420.0)
+    today = c.get("/api/today").json()
+    assert set(today["locks"]) == {"per_day", "day_loss"}
+    assert today["lock_periods"] == {"per_day": "2026-10-22", "day_loss": "2026-10-22"}
+
+
 def test_mode_shows_the_kill_switch_and_unlock_lifts_it(client):
     c, j = client
     j.set_state("verdict_mode", "live")
