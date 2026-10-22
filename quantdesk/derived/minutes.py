@@ -27,9 +27,9 @@ def build_minutes(store, derived: DerivedStore) -> dict:
     queries = {}
     for year in years:  # one year at a time: the whole table does not fit in memory
         queries[f"year={year}"] = f"""
-            with raw as (
-                select target, ts, open, high, low, close, volume, filename,
-                       timezone('Asia/Kolkata', ts) as local
+            with raw as (   -- some 2019-2021 candles carry the last trade's second: put each on its minute
+                select target, date_trunc('minute', ts) as ts, open, high, low, close, volume, filename,
+                       timezone('Asia/Kolkata', date_trunc('minute', ts)) as local
                 from read_parquet('{source}', filename=true, hive_partitioning=false, union_by_name=true)
                 where ts >= timestamptz '{year}-01-01 00:00:00+05:30' and ts < timestamptz '{year + 1}-01-01 00:00:00+05:30'
             ), ranked as (

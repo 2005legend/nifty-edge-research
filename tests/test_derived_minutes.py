@@ -52,3 +52,17 @@ def test_sessions_mark_special_and_short_days_irregular(tmp_path):
     assert sessions.loc[short, "kind"] == "irregular"
     assert sessions.loc[weekend, "kind"] == "irregular"
     assert sessions.loc[late, "kind"] == "irregular"
+
+
+def test_candles_stamped_mid_minute_are_put_on_their_minute(tmp_path):
+    """UPL's 2019-2021 candles carry the last trade's second (09:15:58): each is still that minute's bar."""
+    raw = Store(tmp_path / "raw")
+    day = date(2019, 1, 1)
+    t0 = datetime(2019, 1, 1, 9, 15, 58, tzinfo=IST)
+    bars_ = pd.DataFrame({"ts": [t0, t0 + timedelta(minutes=1)], "open": 1.0, "high": 1.0, "low": 1.0, "close": 1.0,
+                          "volume": 10, "target": "UPL"})
+    raw.append_parquet("history_one_minute", day, bars_)
+    derived = DerivedStore(tmp_path / "derived")
+    build_minutes(raw, derived)
+    stamps = sorted(derived.read("minutes")["ts"])
+    assert stamps == [pd.Timestamp(datetime(2019, 1, 1, 9, 15, tzinfo=IST)), pd.Timestamp(datetime(2019, 1, 1, 9, 16, tzinfo=IST))]
