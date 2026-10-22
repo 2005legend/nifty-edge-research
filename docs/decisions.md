@@ -523,3 +523,10 @@ The distance to VWAP and the room to the nearest level are measured in stop-dist
 - **Unchanged.** Breadth keeps its per-check-time reference, and the option inputs a per-day reference.
 - **Causal.** Every reference uses sessions before the day being scored (`DayLoader.z_refs`).
 - *Cost if wrong:* early-2019 signals have no technical score until 60 earlier signals exist, so they don't count (R12).
+
+## 2026-10-22: SP3 phone alerts via a Telegram bot (owner)
+
+- **Decision.** Alerts, stop-move instructions and exits reach the owner's phone through a private Telegram bot, alongside the laptop dashboard and its sound alert.
+- **Why.** Free, reliable push to any phone, and a private chat with the owner's own bot.
+- **Owner step.** Create the bot with @BotFather, then put `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env`. Never commit them.
+- **Privacy.** Messages carry only public market levels and the system's own suggestions. No credentials, account data or positions held at the broker.
