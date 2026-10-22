@@ -515,3 +515,11 @@ The plan was approved on 21 Oct 2026. The rulings are in spec §6.4, and every v
 - **Only 10.6% of 2019 bhavcopy option rows dealt** (81,539 of 770,822). The `traded` filter is what makes the
   ATM choice meaningful: an untraded row carries a close but no price, and at the money that close is often a
   stale settle far from anything tradable.
+
+## 2026-10-22: R40, z references for signal-only features
+
+The distance to VWAP and the room to the nearest level are measured in stop-distances, which exist only when a signal fires. Scoring them against "the same check time in earlier sessions" (R10) would need years of signals per check time before any score is defined.
+- **Ruling.** These two features are z-scored against earlier signals, pooled across check times (key `(feature, "*")`), with the same window of 250 and minimum of 60.
+- **Unchanged.** Breadth keeps its per-check-time reference, and the option inputs a per-day reference.
+- **Causal.** Every reference uses sessions before the day being scored (`DayLoader.z_refs`).
+- *Cost if wrong:* early-2019 signals have no technical score until 60 earlier signals exist, so they don't count (R12).

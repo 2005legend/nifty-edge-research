@@ -31,7 +31,9 @@ def technical_raw(row: pd.Series, signal: Signal, nearest_dist: float) -> dict[s
 
 def technical_score(raw: dict, z_refs: dict, check: str, h: dict) -> float | None:
     min_n, winsor = param(h, "meta.zscore_min_sessions"), param(h, "meta.winsor")
-    z = {name: causal_z(raw[name], z_refs.get((name, check)), min_n, winsor) for name in LOCATION + CONFIRMATION}
+    # breadth is referenced at its own check time; signal-only features against earlier signals pooled (R40)
+    z = {name: causal_z(raw[name], z_refs.get((name, check)) or z_refs.get((name, "*")), min_n, winsor)
+         for name in LOCATION + CONFIRMATION}
     if any(v is None for v in z.values()):
         return None
     location = sum(z[n] for n in LOCATION) / len(LOCATION)
