@@ -6,6 +6,7 @@ from dataclasses import asdict
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
+import numpy as np
 import requests
 import yaml
 
@@ -244,7 +245,26 @@ def cmd_fit(app, args) -> int:
         with open(report, "a", encoding="utf-8") as f:
             f.write(text)
     else:
-        raise NotImplementedError("fit shock arrives with the shock hurdle (plan 2, task 8)")
+        from quantdesk.analysis.hurdles import calibrate_cusum_h
+
+        start, end = param(h, "clock.fit_start"), param(h, "clock.fit_end")
+        daily = derived.read("daily", where=f"target = 'NIFTY' and day >= DATE '{start}' and day <= DATE '{end}'")
+        returns = np.log(daily.sort_values("day")["close"]).diff().dropna()
+        seed = 20261021
+        threshold = calibrate_cusum_h(returns, param(h, "shock.cusum_sigma_window"), param(h, "shock.cusum_block"),
+                                      param(h, "shock.cusum_resamples"),
+                                      param(h, "hurdle.shock_cusum_false_alarms_per_year") / 250.0, seed)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(yaml.safe_dump({"h": float(threshold), "seed": seed, "fit_window": f"{start}..{end}",
+                                          "data_hash": derived.data_hash(), "n_returns": int(len(returns))},
+                                         sort_keys=False), encoding="utf-8")
+        with open(report, "a", encoding="utf-8") as f:
+            f.write(f"
+## Shock CUSUM
+
+- h = {threshold:.4f} (seed {seed}, {len(returns)} daily returns, "
+                    f"target 1 alarm per 250 sessions)
+")
     print(f"wrote {target}; report {report}. If this is a refit, log it in docs/decisions.md.")
     return 0
 
