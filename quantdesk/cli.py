@@ -292,6 +292,8 @@ def cmd_pilot(app, args) -> int:
         h, sfx = run.d2_scenario(h), "-600"
     elif getattr(args, "scenario", "base") == "ideas":    # the owner's idea feed: no rupee caps
         h, sfx = run.with_values(h, run.IDEAS_SCENARIO), "-ideas"
+    elif getattr(args, "scenario", "base") == "ideas_relaxed":
+        h, sfx = run.with_values(h, run.IDEAS_RELAXED), "-ideas-relaxed"
     out = pilots_dir()
     out.mkdir(parents=True, exist_ok=True)
     data_hash = derived.data_hash()
@@ -748,7 +750,7 @@ def build_parser() -> argparse.ArgumentParser:
         func=cmd_telegram_setup)
     pilot = sub.add_parser("pilot", help="run a zero-trial pilot (P1, P2, P4, P9, P10, D2)")
     pilot.add_argument("id", choices=["P1", "P2", "P4", "P9", "P10", "D2"])
-    pilot.add_argument("--scenario", choices=["base", "d2_600", "ideas"], default="base",
+    pilot.add_argument("--scenario", choices=["base", "d2_600", "ideas", "ideas_relaxed"], default="base",
                        help="d2_600: D2 option 1 (Rs 15k capital, Rs 600 stop); writes *-600 reports")
     pilot.set_defaults(func=cmd_pilot)
     fit = sub.add_parser("fit", help="fit a frozen file on 2019-2022 (clock, surface, shock)")

@@ -113,7 +113,11 @@ GATES = (("event_shock", gate_event_shock), ("stop_fit", gate_stop_fit), ("room_
 
 
 def first_failed_gate(signal: Signal, ctx: DayContext, frame: pd.DataFrame, helpers: Helpers, h: dict) -> str | None:
+    """`gate.skip` exists only in the owner's relaxed idea settings, never in the pre-registration."""
+    skip = set(((h.get("parameters") or {}).get("gate.skip") or {}).get("value") or [])
     for name, gate in GATES:
+        if name in skip:
+            continue
         if not gate(signal, ctx, frame, helpers, h):
             return name
     return None

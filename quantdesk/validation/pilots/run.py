@@ -64,15 +64,18 @@ D2_SCENARIO = {"account.capital": 15000, "account.risk_rupees": 600,
 
 # The owner's idea feed (22 Oct 2026): no rupee cap on the stop or the premium; the owner sizes each idea.
 IDEAS_SCENARIO = {"account.risk_rupees": 1e9, "account.premium_budget": 1e9}
+# Relaxed: also skip the two "room" gates and ask for G/L >= 1.0 (the plan pays at least what it risks, after costs).
+# The safety gates stay: event/shock days, stop size against the day's move, rich vol, breadth, the spike guard.
+IDEAS_RELAXED = {**IDEAS_SCENARIO, "gate.skip": ["room_in_time", "room_to_run"], "strike.gain_loss_min": 1.0}
 
 
 def with_values(h: dict, values: dict) -> dict:
-    """A copy of the pre-registration with some values replaced; the registered file is untouched."""
+    """A copy of the pre-registration with some values replaced or added; the registered file is untouched."""
     import copy
 
     out = copy.deepcopy(h)
     for key, value in values.items():
-        out["parameters"][key]["value"] = value
+        out["parameters"].setdefault(key, {"source": "owner's idea feed", "provenance": "owner"})["value"] = value
     return out
 
 
