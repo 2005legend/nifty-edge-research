@@ -88,3 +88,14 @@ def test_shadow_paper_trades_are_not_money(tmp_path):
     trade(j, day, -420.0, hour=11, mode="shadow")
     assert locks(j, day, SESSIONS, H) == []
     assert kill_switches(j, {"mu0": 0.25, "breakeven": 0.0, "sigma": 1.0, "cusum_h": 5.0}, H) == []
+
+
+def test_a_pending_live_alert_holds_the_day_cap():
+    from quantdesk.live.journal import Journal as J
+    import tempfile
+    from pathlib import Path
+
+    j = J(Path(tempfile.mkdtemp()) / "j.sqlite")
+    day = date(2026, 10, 22)
+    assert locks(j, day, SESSIONS, H) == []
+    assert "per_day" in locks(j, day, SESSIONS, H, pending=1)

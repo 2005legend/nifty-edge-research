@@ -63,13 +63,15 @@ def _unlocked(journal, kind: str, period: str) -> bool:
     return bool(((events["kind"] == "unlock") & events["detail"].str.startswith(wanted)).any())
 
 
-def locks(journal, day: date, sessions: list[date], h: dict) -> list[str]:
+def locks(journal, day: date, sessions: list[date], h: dict, pending: int = 0) -> list[str]:
+    """`pending`: live alerts whose paper fill is not known yet. Each holds a place under every cap until it
+    fills or lapses, so two indices signalling in the same minute cannot both alert."""
     entries = _entries(journal)
     week_start = day - timedelta(days=day.weekday())
     days = pd.to_datetime(entries["day"]).dt.date if len(entries) else pd.Series(dtype=object)
-    today = int((days == day).sum()) if len(entries) else 0
-    week = int(((days >= week_start) & (days <= day)).sum()) if len(entries) else 0
-    month = int(days.map(lambda d: (d.year, d.month) == (day.year, day.month)).sum()) if len(entries) else 0
+    today = (int((days == day).sum()) if len(entries) else 0) + pending
+    week = (int(((days >= week_start) & (days <= day)).sum()) if len(entries) else 0) + pending
+    month = (int(days.map(lambda d: (d.year, d.month) == (day.year, day.month)).sum()) if len(entries) else 0) + pending
     in_month = sum(1 for d in sessions if (d.year, d.month) == (day.year, day.month))
     in_year = sum(1 for d in sessions if d.year == day.year) or 1
     quota = math.ceil(param(h, "caps.per_year") * in_month / in_year)

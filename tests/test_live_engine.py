@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta
 import pandas as pd
 import pytest
 
+from quantdesk.backtest.fills import fill
 from quantdesk.clock import IST
 from quantdesk.live.engine import LiveEngine
 from quantdesk.live.journal import Journal
@@ -62,8 +63,14 @@ def test_a_live_alert_is_journalled_pushed_and_paper_traded(tmp_path):
     assert any(d.alert for d in decisions)
     alerts = j.alerts()
     assert len(alerts) == 1 and alerts.loc[0, "mode"] == "live" and notes.sent[0].startswith("ALERT")
+    assert j.open_papers().empty                            # the fill bar (T, with delay 1) is not recorded yet
+    e.step(AT + timedelta(minutes=1, seconds=5))
     paper = j.open_papers()
-    assert len(paper) == 1 and paper.iloc[0]["entry_premium"] == pytest.approx(alerts.loc[0, "entry_limit"] - 0.05)
+    src = FakeLiveSource()
+    d = next(d for d in decisions if d.alert)
+    expected = fill(d.signal, d.alert.choice, src.frame_, src.helpers_.quotes, 1, src.ctx, H)
+    assert len(paper) == 1 and paper.iloc[0]["entry_premium"] == pytest.approx(expected.premium)
+    assert paper.iloc[0]["entry_at"].startswith(str(expected.at)[:16].replace(" ", "T"))
 
 
 def test_shadow_mode_logs_but_never_pushes(tmp_path):
@@ -111,3 +118,18 @@ def test_a_fired_kill_switch_keeps_new_alerts_in_shadow(tmp_path):
     j.set_state("kill_switch", "sprt")
     e.step(AT + timedelta(seconds=5))
     assert j.alerts().loc[0, "mode"] == "shadow" and notes.sent == []
+
+
+def test_a_second_index_alert_at_the_same_check_is_held_by_the_pending_first(tmp_path):
+    class TwoIndex(FakeLiveSource):
+        def context(self, index, day):
+            from dataclasses import replace
+            return replace(self.ctx, index=index)
+
+    notes = Notes()
+    j = Journal(tmp_path / "j.sqlite")
+    e = LiveEngine(lambda now: TwoIndex(), j, notes, config_for("X1", {}), Consensus(0, 0), H, DAY, mode="live",
+                   sessions=[DAY])
+    e.step(AT + timedelta(seconds=5))
+    modes = j.alerts()["mode"].tolist()
+    assert modes == ["live", "suppressed"] and len(notes.sent) == 1

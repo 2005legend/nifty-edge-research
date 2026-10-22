@@ -3,7 +3,8 @@
 `step(now)` is called every few seconds. It does four things:
 - **checks:** runs each check time once its bar has been recorded
 - **alerts:** journals each alert and pushes it (live mode) or keeps it as a shadow setup (alert-off, or a
-  kill-switch has fired), and opens a paper trade either way
+  kill-switch has fired), and opens a paper trade either way, filled by the backtest's own rule (`fill`: ask
+  + 1 tick at the bar T + delay - 1, with the chase cap and the lapse), once that bar is recorded
 - **pre-alerts:** sends the "setup forming" pre-alert 5 minutes ahead
 - **paper trades:** walks each open one with the same exit rules as the backtest, turning new ratchets
   into stop-move messages and exits into exit messages
@@ -17,6 +18,7 @@ from datetime import date, datetime, timedelta
 import pandas as pd
 
 from quantdesk.analysis.bands import band_edges, slot
+from quantdesk.backtest.fills import fill
 from quantdesk.costs import round_trip
 from quantdesk.live import notify as fmt
 from quantdesk.live.monitor import effective_mode, kill_switches, locks
@@ -49,6 +51,7 @@ class LiveEngine:
     _ctx: dict = field(default_factory=dict)
     _open: dict = field(default_factory=dict)  # paper id -> (OpenTrade, alert id, index, mode)
     _frames: dict = field(default_factory=dict)  # index -> chart rows for the dashboard
+    _pending: dict = field(default_factory=dict)  # alert id -> (Decision, index, mode), waiting for its fill bar
 
     def snapshot(self) -> dict:
         """What the dashboard shows: a plain-words day card and the latest minute frames."""
@@ -75,6 +78,7 @@ class LiveEngine:
             self._frames[index] = frame[cols].assign(ts=frame["ts"].astype(str)).to_dict("records")
             decisions += self._checks(now, ctx, frame, source)
             self._prealert(now, ctx, frame)
+        self._fill_pending(now, source)
         self._manage(now, source)
         return decisions
 
@@ -94,12 +98,13 @@ class LiveEngine:
             d = decide(ctx, frame, at, self.cfg, self.model, helpers, self.h, self.today)
             out.append(d)
             if d.alert is not None:
-                self._alert(d, ctx, frame, helpers, now)
+                self._alert(d, ctx, now)
         return out
 
-    def _alert(self, d, ctx, frame, helpers, now):
+    def _alert(self, d, ctx, now):
         mode = effective_mode(self.journal, self.today, self.mode)
-        held = locks(self.journal, self.today, self.sessions or [self.today], self.h) if mode == "live" else []
+        pending = sum(1 for _, _, m in self._pending.values() if m == "live")
+        held = locks(self.journal, self.today, self.sessions or [self.today], self.h, pending) if mode == "live" else []
         if held:
             mode = "suppressed"
         a, c = d.alert, d.alert.choice
@@ -114,12 +119,31 @@ class LiveEngine:
             self.journal.log_event("lock", f"alert {alert_id} held back: {', '.join(held)}", at=now)
         if mode == "live":
             self.notifier.send(fmt.format_alert(row))
-        ask = helpers.quotes.quote(ctx.index, c.expiry, c.strike, c.kind, d.at).ask
-        premium = ask + param(self.h, "fill.entry_ticks_over_ask") * TICK
-        paper_id = self.journal.open_paper(alert_id, d.at, premium)
-        trigger = premium - param(self.h, "account.risk_rupees") / c.lot
-        trade = OpenTrade(d.signal, c, d.at, premium, trigger, trigger - max(0.10 * trigger, 5 * TICK))
-        self._open[paper_id] = (trade, alert_id, ctx.index, mode)
+        self._pending[alert_id] = (d, ctx.index, mode)
+
+    def _fill_pending(self, now, source):
+        """Paper fills by the backtest's rule, so paper and backtest results compare like for like."""
+        delay = int(param(self.h, "backtest.primary_delay_min"))
+        for alert_id, (d, index, mode) in list(self._pending.items()):
+            ctx = self._ctx[index]
+            bar = d.at + timedelta(minutes=delay - 1)
+            frame = source.frame(ctx)
+            frame = frame[frame["ts"] <= now - timedelta(minutes=1)]
+            if not (frame["ts"] == bar).any():
+                if now - bar > timedelta(minutes=2):
+                    del self._pending[alert_id]
+                    self.journal.log_event("paper_unfilled", f"alert {alert_id}: fill bar never recorded", at=now)
+                continue
+            del self._pending[alert_id]
+            c = d.alert.choice
+            res = fill(d.signal, c, frame, source.helpers(ctx, frame).quotes, delay, ctx, self.h)
+            if res.status != "filled":
+                self.journal.log_event("paper_unfilled", f"alert {alert_id}: {res.status}", at=now)
+                continue
+            paper_id = self.journal.open_paper(alert_id, res.at, res.premium)
+            trigger = res.premium - param(self.h, "account.risk_rupees") / c.lot
+            trade = OpenTrade(d.signal, c, res.at, res.premium, trigger, trigger - max(0.10 * trigger, 5 * TICK))
+            self._open[paper_id] = (trade, alert_id, index, mode)
 
     def _prealert(self, now, ctx, frame):
         if effective_mode(self.journal, self.today, self.mode) != "live" or frame.empty:

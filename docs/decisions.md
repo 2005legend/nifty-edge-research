@@ -580,3 +580,14 @@ The SP3 design's rulings S1-S12 are in `docs/superpowers/specs/2026-10-22-sp3-li
   - Test: `test_an_expiry_on_a_holiday_moves_to_the_session_before`.
 - **Nightly derive at 23:30.** It runs after the evening downloads: eod at 18:35 and the history backfill at 20:30. Without it, the 09:10 live run would start on stale tables and take an older close as yesterday's, which makes every band and gap wrong.
 - **Stale-table guard.** `live` refuses to start, and logs `not_started`, when the derived tables don't reach the previous trading day. Test: `test_the_live_engine_needs_last_nights_derived_tables`.
+
+## 2026-10-22: paper trades fill by the backtest's rule
+
+- **The mismatch.** Live paper trades opened at the moment of the alert, at the previous minute's ask. The backtest instead fills one minute later, at the bar T + delay − 1 (delay 1), at ask + 1 tick, with the chase cap and the 5-minute lapse. So the forward record and the backtest weren't comparable.
+- **Ruling.**
+  - The live engine waits for the fill bar, then calls the backtest's own `fill()`.
+  - An unfilled alert is journalled as `paper_unfilled` with its reason (`lapsed`, `rejected_flip`, or "fill bar never recorded").
+  - Test: `test_a_live_alert_is_journalled_pushed_and_paper_traded`, which compares against `fill()` directly.
+- **The cap while a fill is pending.** The backtest counts the cap on filled trades, NIFTY first at equal times. Live can't know at T whether the first alert will fill, so a pending live alert holds a place under every cap until it fills or lapses.
+  - *The one divergence:* both indices signal in the same minute and the first one lapses. The backtest would then trade the second, but live has already held it back. This is rare, and the error is on the safe side (one alert too few, never one too many).
+  - Test: `test_a_second_index_alert_at_the_same_check_is_held_by_the_pending_first`.
