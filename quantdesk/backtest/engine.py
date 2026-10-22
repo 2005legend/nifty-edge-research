@@ -21,7 +21,7 @@ from quantdesk.strategy.exits import OpenTrade, simulate_exit
 from quantdesk.strategy.meta import Consensus, columns
 from quantdesk.strategy.strikes import Candidate, candidates, pick
 from quantdesk.strategy.timeline import check_times, timeline_block
-from quantdesk.strategy.types import Signal, TrialConfig
+from quantdesk.strategy.types import Signal, StrikeChoice, TrialConfig
 from quantdesk.validation.hypotheses import param
 from quantdesk.validation.registry import TrialTicket
 
@@ -152,9 +152,13 @@ def placebo_run(source, days: list[date], h: dict, today: date, seed: int, side_
         sign = 1.0 if side == "long" else -1.0
         sig = Signal(index, at, side, close, close, close, close, close - sign * b, b, close + sign * 2.3 * b)
         helpers = source.helpers(ctx, frame)
-        choice = pick(candidates(sig, ctx, helpers, h, today), None, 0.0, h, evaluate_ev=False)
-        if choice is None:
+        cands = candidates(sig, ctx, helpers, h, today)
+        if not cands:
             continue
+        # controls test fills, exits and accounting, not the picker: take the strike nearest delta 0.40
+        c = min(cands, key=lambda x: abs(abs(x.delta) - 0.40))
+        choice = StrikeChoice(c.index, c.expiry, c.strike, c.kind, c.lot, c.ask, c.delta, c.gain, c.loss,
+                              float("nan"), float("nan"), float("nan"))
         cfg = TrialConfig("PLACEBO", "X1", "consensus")
         result = _trade(sig, choice, source, cfg, h, today, 0, day)
         if result["status"] == "filled":
