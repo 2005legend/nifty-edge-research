@@ -23,6 +23,8 @@ dependencies = [
     "websocket-client",
     "logzero",
     "tzdata",
+    "fastapi>=0.110",
+    "uvicorn>=0.30",
 ]
 
 [project.optional-dependencies]
@@ -36,7 +38,7 @@ macro = [
     "openbb-ecb",
     "openbb-mcp-server",
 ]
-dev = ["pytest"]
+dev = ["pytest", "httpx"]
 
 [tool.setuptools.packages.find]
 include = ["quantdesk*"]

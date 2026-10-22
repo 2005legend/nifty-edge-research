@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>quantdesk</title>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  :root { --bg:#ffffff; --fg:#1d2330; --muted:#6b7280; --line:#e5e7eb; --card:#f8fafc; --up:#0f7b4a; --down:#b42318; --accent:#2557d6; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f141c; --fg:#e6e9ef; --muted:#9aa3b2; --line:#263040; --card:#151c27; --up:#3fbf7f; --down:#f0645b; --accent:#7aa2ff; } }
+  body { margin:0; font:14px/1.45 system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+  header { display:flex; gap:16px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { font-size:16px; margin:0; }
+  nav button { background:none; border:1px solid var(--line); color:var(--fg); padding:6px 12px; border-radius:6px; cursor:pointer; }
+  nav button.on { border-color:var(--accent); color:var(--accent); }
+  main { padding:16px; max-width:1200px; margin:auto; }
+  .tab { display:none; } .tab.on { display:block; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:12px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid var(--line); font-size:12px; }
+  .live { color:var(--up); } .shadow { color:var(--muted); } .lock { color:var(--down); }
+  table { border-collapse:collapse; width:100%; } td, th { border-bottom:1px solid var(--line); padding:4px 6px; text-align:left; font-size:13px; }
+  pre { white-space:pre-wrap; font-size:12px; }
+  .chart { height:280px; }
+  button.act { margin-right:6px; padding:4px 10px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--fg); cursor:pointer; }
+  input { padding:4px; border:1px solid var(--line); border-radius:4px; background:var(--bg); color:var(--fg); }
+</style>
+</head>
+<body>
+<header>
+  <h1>quantdesk</h1>
+  <span id="status" class="pill">loading</span>
+  <span id="locks" class="pill"></span>
+  <nav><button data-tab="today" class="on">Today</button><button data-tab="journal">Journal</button><button data-tab="research">Research</button></nav>
+</header>
+<main>
+  <section id="today" class="tab on">
+    <div class="grid">
+      <div class="card"><h3>Day card</h3><div id="daycard" class="muted">No day card yet.</div></div>
+      <div class="card"><h3>Open paper trades</h3><div id="open"></div></div>
+    </div>
+    <div class="card" style="margin-top:12px"><h3>Alerts today</h3><div id="alerts">None yet.</div></div>
+    <div class="grid" style="margin-top:12px">
+      <div class="card"><h3>NIFTY</h3><div id="chart-NIFTY" class="chart"></div></div>
+      <div class="card"><h3>SENSEX</h3><div id="chart-SENSEX" class="chart"></div></div>
+    </div>
+  </section>
+  <section id="journal" class="tab">
+    <div class="grid" id="jstats"></div>
+    <div class="card" style="margin-top:12px"><h3>Equity (paper)</h3><div id="equity" class="chart"></div></div>
+    <div class="card" style="margin-top:12px"><h3>Calibration: predicted vs observed</h3><div id="calib"></div></div>
+  </section>
+  <section id="research" class="tab">
+    <div class="card"><h3>Verdict</h3><pre id="verdict"></pre></div>
+    <div class="card" style="margin-top:12px"><h3>Pre-flight</h3><pre id="preflight"></pre></div>
+    <div class="card" style="margin-top:12px"><h3>Pilots</h3><div id="pilots"></div></div>
+    <div class="card" style="margin-top:12px"><h3>Experiment registry</h3><div id="experiments"></div></div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.id === b.dataset.tab));
+  refresh();
+});
+const charts = {};
+function chartFor(id) {
+  if (!window.LightweightCharts) return null;
+  if (!charts[id]) {
+    const c = LightweightCharts.createChart($(id), { autoSize: true, layout: { background: { color: "transparent" },
+      textColor: getComputedStyle(document.body).color }, timeScale: { timeVisible: true } });
+    charts[id] = { c, price: c.addLineSeries({ lineWidth: 2 }), vwap: c.addLineSeries({ lineWidth: 1, lineStyle: 2 }),
+                   up: c.addLineSeries({ lineWidth: 1 }), dn: c.addLineSeries({ lineWidth: 1 }) };
+  }
+  return charts[id];
+}
+const t = (iso) => Math.floor(new Date(iso).getTime() / 1000) + 19800;  // shown in IST
+async function post(url, body) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!r.ok) alert("Not saved: " + (await r.text())); refresh();
+}
+let seen = new Set();
+async function today() {
+  const d = await (await fetch("/api/today")).json();
+  $("status").textContent = `${d.day} - mode: ${d.mode}`; $("status").className = "pill " + d.mode;
+  $("locks").textContent = d.locks.length ? "locked: " + d.locks.join(", ") : "no locks"; $("locks").className = "pill " + (d.locks.length ? "lock" : "");
+  $("daycard").innerHTML = Object.entries(d.day_card).map(([k, v]) => `<b>${k}</b>: ${v}`).join("<br>") || "No day card yet.";
+  $("alerts").innerHTML = d.alerts.length ? `<table><tr><th>time</th><th>trade</th><th>limit</th><th>stop / target</th><th>backstop</th><th>p / EV</th><th>mode</th><th>you</th></tr>` +
+    d.alerts.map(a => `<tr><td>${a.at.slice(11, 16)}</td><td>${a.idx} ${a.strike} ${a.kind} ${a.expiry} x${a.lot}</td><td>${a.entry_limit.toFixed(2)}</td>
+      <td>${a.index_stop.toFixed(1)} / ${a.index_target.toFixed(1)}</td><td>${a.backstop_trigger.toFixed(2)} / ${a.backstop_limit.toFixed(2)}</td>
+      <td>${a.p.toFixed(2)} / ${a.ev.toFixed(0)}</td><td class="${a.mode}">${a.mode}</td>
+      <td>${a.status === "new" ? `<button class="act" onclick="post('/api/alerts/${a.id}/status',{status:'took'})">took it</button><button class="act" onclick="post('/api/alerts/${a.id}/status',{status:'skipped'})">skipped</button>` : a.status}
+      ${a.status === "took" ? `<input size="6" placeholder="fill" onchange="post('/api/alerts/${a.id}/fill',{premium:parseFloat(this.value)})">` : ""}</td></tr>`).join("") + "</table>" : "None yet.";
+  d.alerts.forEach(a => { if (!seen.has(a.id) && a.mode === "live") { seen.add(a.id); try { new Notification("quantdesk alert", { body: `${a.idx} ${a.strike} ${a.kind} up to ${a.entry_limit}` }); new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=").play(); } catch (e) {} } });
+  $("open").innerHTML = d.open_papers.length ? d.open_papers.map(p => `${p.idx} ${p.strike} ${p.kind} from ${p.entry_premium.toFixed(2)} at ${p.entry_at.slice(11, 16)}`).join("<br>") : "None.";
+  for (const [idx, f] of Object.entries(d.frames || {})) {
+    const ch = chartFor("chart-" + idx); if (!ch || !f.length) continue;
+    ch.price.setData(f.map(r => ({ time: t(r.ts), value: r.close })));
+    ch.vwap.setData(f.map(r => ({ time: t(r.ts), value: r.vwap })));
+    ch.up.setData(f.filter(r => r.upper).map(r => ({ time: t(r.ts), value: r.upper })));
+    ch.dn.setData(f.filter(r => r.lower).map(r => ({ time: t(r.ts), value: r.lower })));
+  }
+}
+function statCard(name, s) {
+  if (!s.n) return `<div class="card"><h3>${name}</h3>No closed trades yet.</div>`;
+  return `<div class="card"><h3>${name}</h3>trades ${s.n}<br>mean net R <b>${s.mean_r.toFixed(2)}</b>${s.band ? ` (95%: ${s.band[0].toFixed(2)} to ${s.band[1].toFixed(2)})` : ""}
+    <br>avg win / avg loss ${s.avg_win_loss ? s.avg_win_loss.toFixed(2) : "-"}<br>win rate ${(100 * s.win_rate).toFixed(0)}% (shown, not targeted)</div>`;
+}
+async function journal() {
+  const j = await (await fetch("/api/journal")).json();
+  $("jstats").innerHTML = statCard("Paper", j.paper) + statCard("Real", j.real) +
+    `<div class="card"><h3>Discipline</h3>followed the system: ${j.followed_share == null ? "-" : (100 * j.followed_share).toFixed(0) + "%"}<br>
+     premium turnover Rs ${j.turnover.toFixed(0)} of Rs ${j.turnover_budget} a year</div>`;
+  const ch = chartFor("equity"); if (ch) ch.price.setData(j.paper.equity.map(e => ({ time: t(e.at), value: e.equity })));
+  $("calib").innerHTML = j.calibration.length ? "<table><tr><th>p bin</th><th>n</th><th>predicted</th><th>observed</th></tr>" +
+    j.calibration.map(c => `<tr><td>${c.bin}</td><td>${c.n}</td><td>${c.predicted.toFixed(2)}</td><td>${c.observed.toFixed(2)}</td></tr>`).join("") + "</table>" : "No labelled setups yet.";
+}
+async function research() {
+  const r = await (await fetch("/api/research")).json();
+  $("verdict").textContent = r.verdict || "No verdict yet."; $("preflight").textContent = r.preflight || "Pre-flight not run yet.";
+  $("pilots").innerHTML = Object.entries(r.pilots).map(([k, v]) => `<details><summary>${k}</summary><pre>${v.replace(/</g, "&lt;")}</pre></details>`).join("") || "No pilot reports yet.";
+  $("experiments").innerHTML = r.experiments.length ? "<table><tr>" + Object.keys(r.experiments[0]).map(k => `<th>${k}</th>`).join("") + "</tr>" +
+    r.experiments.map(e => "<tr>" + Object.values(e).map(v => `<td>${v ?? ""}</td>`).join("") + "</tr>").join("") + "</table>" : "No trials run yet.";
+}
+function refresh() {
+  const tab = document.querySelector(".tab.on").id;
+  (tab === "today" ? today : tab === "journal" ? journal : research)().catch(e => { $("status").textContent = "offline"; });
+}
+if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
+try { const ws = new WebSocket(`ws://${location.host}/ws`); ws.onmessage = refresh; } catch (e) {}
+refresh(); setInterval(refresh, 5000);
+</script>
+</body>
+</html>
