@@ -623,3 +623,26 @@ The SP3 design's rulings S1-S12 are in `docs/superpowers/specs/2026-10-22-sp3-li
   - No trial slot was spent. The live engine stays in shadow mode, with shadow calls on Telegram, and records a forward log.
   - The pricing check, freeze and trials for this hypothesis are no longer needed.
   - The recorder keeps collecting quotes, so any future, newly pre-registered idea can be priced and tested properly.
+
+## 2026-10-22: the owner's daily feed (morning brief, CALL/PUT ideas, day summary, Friday scorecard)
+
+- **What the owner asked for.** A daily market update with sentiment, and call or put ideas with entry, target and stop when the market moves. They size every trade themselves and test on paper before using real money.
+- **What runs while the verdict is alert-off.**
+  - **09:20 morning brief:**
+    - global cues, from the morning macro pull
+    - FII index-futures positioning
+    - a rough news tone (word counts on headlines since the previous close)
+    - for each index: the open and gap, the expected range (the HAR forecast), VIX, put/call ratio, levels, expiry and events
+    - an experimental direction lean (options score + flows score + overnight US futures, threshold ±1.0), scored at the close
+  - **Intraday CALL/PUT ideas:**
+    - **Same as the strategy:** the H1 breakout, all seven gates and the strike picker's G/L ≥ 1.5 and delta band.
+    - **Removed: the rupee caps** (₹400 stop, ₹9,500 premium budget). The owner sizes each idea.
+    - **Not enforced: the EV gate.** The system's odds and breakeven are shown instead.
+    - **The backstop** sits at the strike's planned loss at the index stop.
+    - **Message:** each idea is sent with its rupee risk and planned gain per lot.
+    - **Tracking:** each idea becomes a one-lot paper trade by the backtest's fill and exit rules. Stop moves and exits are sent, marked IDEA.
+    - **Limit:** one open idea per index at a time.
+  - **15:35 day summary:** the move against the forecast range, the lean scored, and the ideas in ₹ per lot.
+  - **Friday scorecard:** the week's ideas (count, filled, targets hit, net ₹ per lot) and how often the lean was right.
+- **Honest wording, in every message.** "Paper-tracked; your call, not advice". The lean is "experimental". Research puts intraday direction close to a coin flip, which is why everything is scored.
+- **Unchanged.** The pre-registered verdict, the trial slots and the registry. The feed is not a validated strategy, and its scorecard is not a backtest.

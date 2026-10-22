@@ -79,7 +79,13 @@ The dashboard runs at http://127.0.0.1:8000 while the job is running. Outside ma
 - **alert-on (live):** alerts go to the phone and the dashboard.
 - **alert-off, or no verdict yet (shadow):** the same decisions are journalled and shown marked *shadow*, and nothing is pushed. These shadow setups are the clean forward holdout, so don't trade them.
 
-**Messages** (the same text on the phone and the dashboard):
+**Your daily feed on Telegram** (while the verdict is alert-off):
+- **09:20 MORNING BRIEF:** global cues, FII positioning, news tone, and for each index the open, expected range, VIX, put/call ratio, levels, expiry, events, and an experimental up/down lean.
+- **IDEA:** a CALL or PUT trade plan with strike, entry, index stop and target, the option SL-limit, risk and planned gain per lot, and the system's odds. You decide whether to take it and how many lots. Each idea is paper-tracked, followed by IDEA MOVE STOP and IDEA EXIT NOW messages.
+- **15:35 DAY SUMMARY:** what each index did against the forecast range, whether the lean was right, and the day's ideas in ₹ per lot.
+- **Friday WEEKLY SCORECARD:** the week's ideas and the lean's hit rate. This is your evidence before real money.
+
+**Messages for live alerts** (alert-on only; the same text on the phone and the dashboard):
 - **ALERT:** buy the named option with a limit order, up to the stated price. It lapses after 5 minutes. Place the SL-limit backstop at the stated trigger and limit as soon as you are filled.
 - **MOVE STOP:** move your stop to the new level. At most one every 10 minutes.
 - **EXIT NOW:** sell at market. This replaces your old 12:00–12:30 hold-or-exit decision. If you override it, log the override on the dashboard.
