@@ -322,6 +322,114 @@ def cmd_pilot(app, args) -> int:
     return 0
 
 
+def _sp2(app):
+    """What the SP2 commands share: the derived store, the pre-registration, the registry, the day loader."""
+    from quantdesk.validation.pilots import run
+    from quantdesk.validation.registry import Registry
+
+    derived = DerivedStore(app.store.root / "derived")
+    h = load_hypotheses()
+    registry = Registry(project_root() / "research", project_root())
+    return derived, h, registry, run
+
+
+def cmd_dataset(app, args) -> int:
+    """Stage A: every H1 signal with its gates, scores, label and candidates. No P&L is computed or shown."""
+    from quantdesk.backtest.dataset import LoaderSource, build_dataset, save_dataset
+
+    derived, h, _, run = _sp2(app)
+    loader = run.make_loader(derived, h, _all_events(app), frozen_dir())
+    today = app.clock.now().date()
+    days = [d for d in loader.days if loader.kind.get(d) == "regular" and d < today]
+    starts = {"NIFTY": date.fromisoformat(param(h, "backtest.nifty_from")),
+              "SENSEX": date.fromisoformat(param(h, "backtest.sensex_from"))}
+    dataset = build_dataset(LoaderSource(loader, h), days, starts, h, today,
+                            progress=lambda d: print(d) if d.day == 1 else None)
+    save_dataset(dataset, derived)
+    counts = dataset.signals["failed"].fillna("passed every gate").value_counts().to_dict()
+    print(f"signals: {len(dataset.signals)}; outcomes: {counts}; data_hash {derived.data_hash()}")
+    return 0
+
+
+def cmd_pricecheck(app, args) -> int:
+    import json as _json
+
+    from quantdesk.pricing.clock import load_clock
+    from quantdesk.pricing.fitting import clock_sessions
+    from quantdesk.pricing.pricecheck_run import run_pricecheck
+    from quantdesk.pricing.surface import load_surface
+
+    derived, h, _, _ = _sp2(app)
+    holidays = {e.date for e in app.events if e.type == "holiday_nse"}
+    clock = load_clock(frozen_dir() / "clock_v1.yaml", clock_sessions(derived, holidays))
+    errors, result = run_pricecheck(app.store, clock, load_surface(frozen_dir() / "surface_v1.yaml"), h)
+    path = project_root() / "research" / "pricecheck.json"
+    path.write_text(_json.dumps({**result, "rows": int(len(errors))}, indent=2, default=str), encoding="utf-8")
+    print(f"pricing check: median error {result['median_error']:.3f}, enough data {result['enough_data']}, "
+          f"passed {result['passed']} ({result['sessions']} full sessions, {result['expiry_days']} expiry days)")
+    return 0
+
+
+def cmd_freeze(app, args) -> int:
+    """Mark the pre-registration frozen and record its hash (prereg-v1). Commit and tag afterwards."""
+    _, h, registry, _ = _sp2(app)
+    path = registry.dir / "hypotheses.yaml"
+    text = path.read_text(encoding="utf-8")
+    if "frozen: false" in text:
+        path.write_text(text.replace("frozen: false", "frozen: true", 1), encoding="utf-8")
+    record = registry.freeze()
+    print(f"frozen: hypotheses hash {record['hypotheses_hash']}. Now commit research/ and run: git tag prereg-v1")
+    return 0
+
+
+def cmd_preflight(app, args) -> int:
+    import subprocess
+
+    from quantdesk.validation.preflight import preflight
+
+    _, h, registry, _ = _sp2(app)
+    def run_tests(files):
+        return subprocess.run([str(project_root() / ".venv" / "Scripts" / "python.exe"), "-m", "pytest", "-q", *files],
+                              cwd=project_root(), capture_output=True).returncode
+    checks = preflight(project_root(), registry, h, run_tests)
+    lines = ["# Pre-flight (R36)", ""] + [f"- [{'x' if ok else ' '}] {name}" for name, ok in checks.items()]
+    (project_root() / "research" / "PREFLIGHT.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print("\n".join(lines))
+    return 0 if checks["ready_for_B0"] else 1
+
+
+def cmd_trial(app, args) -> int:
+    from quantdesk.backtest.dataset import LoaderSource, load_dataset
+    from quantdesk.validation.preflight import prerequisites
+    from quantdesk.validation.registry import RegistryRefusal
+    from quantdesk.validation.trial import run_trial
+    from quantdesk.validation.verdict import evaluate
+
+    derived, h, registry, run = _sp2(app)
+    accepted = evaluate(registry, h, pricing_passed=True)["accepted"]
+    pre = prerequisites(args.id, accepted, registry.trials_run(), registry.dir, h)
+    loader = run.make_loader(derived, h, _all_events(app), frozen_dir())
+    try:
+        metrics = run_trial(args.id, registry, load_dataset(derived), LoaderSource(loader, h), h,
+                            app.clock.now().date(), accepted, pre, derived.data_hash(), loader.days)
+    except RegistryRefusal as exc:
+        print(f"refused: {exc}")
+        return 1
+    print(f"{args.id}: {metrics['verdict']}; gates {metrics['gates']}")
+    return 0
+
+
+def cmd_verdict(app, args) -> int:
+    from quantdesk.validation.preflight import pricing_passed
+    from quantdesk.validation.verdict import evaluate, write_verdict
+
+    _, h, registry, _ = _sp2(app)
+    result = evaluate(registry, h, pricing_passed(registry.dir))
+    path = write_verdict(result, registry.dir / "VERDICT.md")
+    print(f"verdict: {result['status']} ({result.get('config')}); {path}")
+    return 0
+
+
 def cmd_eod(app, args) -> int:
     day = _day(args.day, app)
     if not app.is_trading_day(day):
@@ -432,6 +540,14 @@ def build_parser() -> argparse.ArgumentParser:
     backfill.add_argument("--start")
     backfill.add_argument("--end", help="last day to fetch (fundamentals only; default today)")
     backfill.set_defaults(func=cmd_backfill)
+    sub.add_parser("dataset", help="stage A: the signal dataset (no P&L)").set_defaults(func=cmd_dataset)
+    sub.add_parser("pricecheck", help="the recorded-chain pricing check (R17)").set_defaults(func=cmd_pricecheck)
+    sub.add_parser("freeze", help="freeze the pre-registration (prereg-v1)").set_defaults(func=cmd_freeze)
+    sub.add_parser("preflight", help="the checklist before trial B0 (R36)").set_defaults(func=cmd_preflight)
+    trial = sub.add_parser("trial", help="run one registry trial, with a ticket")
+    trial.add_argument("id")
+    trial.set_defaults(func=cmd_trial)
+    sub.add_parser("verdict", help="alert-on or alert-off from the trials run").set_defaults(func=cmd_verdict)
     pilot = sub.add_parser("pilot", help="run a zero-trial pilot (P1, P2, P4, P9, P10, D2)")
     pilot.add_argument("id", choices=["P1", "P2", "P4", "P9", "P10", "D2"])
     pilot.set_defaults(func=cmd_pilot)
