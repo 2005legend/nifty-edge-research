@@ -100,6 +100,8 @@ def locks(journal, day: date, sessions: list[date], h: dict, pending: int = 0) -
 
 def effective_mode(journal, day: date, verdict_mode: str) -> str:
     """Live only when the verdict is alert-on, no kill-switch is standing and no shadow pause covers `day`."""
+    if verdict_mode == "idea":                     # the owner's idea feed: never locked, never live alerts
+        return "idea"
     if verdict_mode != "live" or journal.get_state("kill_switch"):
         return "shadow"
     pause = journal.get_state("shadow_pause_until")

@@ -162,9 +162,17 @@ def build_engine(app, today: date, journal, notifier, events: list, frozen: Path
         return tuple(file_count(raw / kind / f"date={today.isoformat()}")
                      for kind in ("bars", "option_snapshots", "option_meta"))
 
-    engine = LiveEngine(rebuild_on_change(key, build), journal, notifier, cfg, model, h, today, mode=mode,
-                        kill_params=kill, sessions=year_sessions(today, events))
-    return engine, mode, trial
+    from quantdesk.live.brief import brief_extras, morning_brief
+    from quantdesk.validation.pilots.run import IDEAS_SCENARIO, with_values
+
+    def brief(now, ctxs, frames):
+        return morning_brief(now, ctxs, frames, brief_extras(app.store, derived, today), h)
+
+    idea = mode != "live"            # alert-off: the owner's idea feed, sized by the owner (22 Oct 2026)
+    engine = LiveEngine(rebuild_on_change(key, build), journal, notifier, cfg, model,
+                        with_values(h, IDEAS_SCENARIO) if idea else h, today, mode=mode, kill_params=kill,
+                        sessions=year_sessions(today, events), idea=idea, brief=brief)
+    return engine, "idea" if idea else mode, trial
 
 
 def derived_is_current(last_session: date, today: date, events: list) -> bool:

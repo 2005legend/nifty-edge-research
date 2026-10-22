@@ -290,6 +290,8 @@ def cmd_pilot(app, args) -> int:
     sfx = ""
     if getattr(args, "scenario", "base") == "d2_600":     # D2 option 1, measured before the owner chooses
         h, sfx = run.d2_scenario(h), "-600"
+    elif getattr(args, "scenario", "base") == "ideas":    # the owner's idea feed: no rupee caps
+        h, sfx = run.with_values(h, run.IDEAS_SCENARIO), "-ideas"
     out = pilots_dir()
     out.mkdir(parents=True, exist_ok=True)
     data_hash = derived.data_hash()
@@ -490,7 +492,8 @@ def cmd_live(app, args) -> int:
     import threading
 
     from quantdesk.live.dashboard import create_app
-    from quantdesk.live.notify import format_summary, notifier_from_env
+    from quantdesk.live.brief import day_summary, scorecard
+    from quantdesk.live.notify import notifier_from_env
     from quantdesk.live.run import build_engine, run_loop
 
     now = app.clock.now()
@@ -520,11 +523,14 @@ def cmd_live(app, args) -> int:
     with keep_awake():
         steps = run_loop(engine.step, app.clock.now, app.sleep, start, end, every=5, on_error=on_error)
     alerts = journal.alerts(today.isoformat())
-    closed = journal.closed_trades("paper")
-    day_r = float(closed.loc[closed["entry_at"].str[:10] == today.isoformat(), "r"].sum()) if len(closed) else 0.0
-    notifier.send(format_summary(today, len(alerts), day_r, mode))
+    closes = {i: (engine._ctx[i].open, float(rows[-1]["close"])) for i, rows in engine._frames.items()
+              if rows and i in engine._ctx}
+    if steps:
+        notifier.send(day_summary(today, engine._ctx, closes, journal, {}))
+        if today.weekday() == 4:                                   # Friday: the week's scorecard
+            notifier.send(scorecard(journal, today))
     server.should_exit = True
-    print(f"live done: {steps} steps, {len(alerts)} alert(s), paper {day_r:+.2f}R")
+    print(f"live done: {steps} steps, {len(alerts)} alert(s)")
     return 0
 
 
@@ -742,7 +748,7 @@ def build_parser() -> argparse.ArgumentParser:
         func=cmd_telegram_setup)
     pilot = sub.add_parser("pilot", help="run a zero-trial pilot (P1, P2, P4, P9, P10, D2)")
     pilot.add_argument("id", choices=["P1", "P2", "P4", "P9", "P10", "D2"])
-    pilot.add_argument("--scenario", choices=["base", "d2_600"], default="base",
+    pilot.add_argument("--scenario", choices=["base", "d2_600", "ideas"], default="base",
                        help="d2_600: D2 option 1 (Rs 15k capital, Rs 600 stop); writes *-600 reports")
     pilot.set_defaults(func=cmd_pilot)
     fit = sub.add_parser("fit", help="fit a frozen file on 2019-2022 (clock, surface, shock)")

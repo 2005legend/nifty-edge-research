@@ -141,6 +141,28 @@ def test_a_second_index_alert_at_the_same_check_is_held_by_the_pending_first(tmp
     assert modes == ["live", "suppressed"] and len(notes.sent) == 1
 
 
+def test_idea_mode_sends_the_brief_once_and_paper_tracks_each_idea(tmp_path):
+    notes = Notes()
+    j = Journal(tmp_path / "j.sqlite")
+    briefs = []
+
+    def brief(now, ctxs, frames):
+        briefs.append(now)
+        return "MORNING BRIEF test", {"NIFTY": "UP"}
+
+    e = LiveEngine(lambda now: FakeLiveSource(), j, notes, config_for("B0", {}), Consensus(-3.0, 0.0), H, DAY,
+                   mode="shadow", sessions=[DAY], idea=True, brief=brief)
+    now = AT + timedelta(seconds=5)
+    while now < AT + timedelta(minutes=90):
+        e.step(now)
+        now += timedelta(minutes=1)
+    assert len(briefs) == 1 and notes.sent[0] == "MORNING BRIEF test" and j.get_state(f"lean_{DAY}_NIFTY") == "UP"
+    ideas = [t for t in notes.sent if t.startswith("IDEA ")]
+    assert ideas and "Risk" in ideas[0] and "odds" in ideas[0]             # a low p is shown, not a reason to block
+    assert j.alerts().loc[0, "mode"] == "idea" and len(j.closed_trades("paper")) == 1
+    assert any(t.startswith("IDEA EXIT") for t in notes.sent)
+
+
 def test_a_late_start_never_alerts_on_old_checks(tmp_path):
     e, j, notes = engine(tmp_path)
     e.step(AT + timedelta(minutes=10))

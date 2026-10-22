@@ -69,6 +69,20 @@ def format_kill(reasons: str, at) -> str:
             "Open trades keep their exit messages. Lift it on the dashboard with a typed reason.")
 
 
+def format_idea(a: dict, gain: float, loss: float, p_be: float) -> str:
+    """The owner's idea feed: a full trade plan, its rupee risk per lot, and the system's odds shown, not enforced."""
+    kind = "CALL" if a["kind"] == "CE" else "PUT"
+    odds = f"System odds {100 * a['p']:.0f}% (breakeven {100 * p_be:.0f}%)" if a.get("p") is not None else ""
+    return (f"IDEA {_hhmm(a['at'])} - {kind} (paper-tracked; your call, not advice)\n"
+            f"BUY {a['index']} {a['strike']:.0f} {a['kind']} exp {a['expiry']}, lot {a['lot']}\n"
+            f"Entry up to Rs {a['entry_limit']:.2f} (lapses in 5 min)\n"
+            f"Index stop {a['index_stop']:.1f}, target {a['index_target']:.1f}\n"
+            f"Option SL-limit: trigger Rs {a['backstop_trigger']:.2f}, limit Rs {a['backstop_limit']:.2f}\n"
+            f"Risk ~Rs {loss:,.0f} per lot, plan gain ~Rs {gain:,.0f} per lot\n"
+            f"{odds}\n"
+            f"For: {a.get('reasons_for') or '-'}\nAgainst: {a.get('reasons_against') or '-'}")
+
+
 def format_alert(a: dict) -> str:
     shadow = " (SHADOW - do not trade)" if a.get("mode") == "shadow" else ""
     return (f"ALERT{shadow} {_hhmm(a['at'])}\n"

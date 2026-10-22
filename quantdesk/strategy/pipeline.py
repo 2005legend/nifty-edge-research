@@ -64,7 +64,9 @@ def _delta(ctx: DayContext, cfg: TrialConfig, h: dict) -> float:
 
 
 def decide(ctx: DayContext, frame: pd.DataFrame, at: datetime, cfg: TrialConfig, model, helpers, h: dict,
-           today) -> Decision:
+           today, idea: bool = False) -> Decision:
+    """`idea=True` is the owner's idea feed (22 Oct 2026): the probability is shown, not enforced (no EV gate),
+    and the backstop sits at the strike's planned loss at the index stop instead of a fixed rupee risk."""
     frame = frame[frame["ts"] <= at - timedelta(minutes=1)]          # nothing at or after `at` exists yet (R4)
     blocked = timeline_block(ctx, at, h)
     if blocked:
@@ -88,12 +90,13 @@ def decide(ctx: DayContext, frame: pd.DataFrame, at: datetime, cfg: TrialConfig,
             p = model.predict(sum(parts) / len(parts))
         else:
             p = model.predict(columns(scores, signal.side, ctx.har_pct, ctx.dte_1))
-    choice = pick(candidates(signal, ctx, helpers, h, today), p, delta, h, evaluate_ev=model is not None)
+    choice = pick(candidates(signal, ctx, helpers, h, today), p, delta, h, evaluate_ev=model is not None and not idea)
     decision = Decision(ctx.index, at, signal, None if choice else "no_strike", p=p, delta=delta, scores=scores,
                         choice=choice)
     if choice is None or model is None:
         return decision
-    trigger = choice.ask - param(h, "account.risk_rupees") / choice.lot
+    risk = choice.loss if idea else param(h, "account.risk_rupees")
+    trigger = choice.ask - risk / choice.lot
     limit = trigger - max(0.10 * trigger, 5 * TICK)
     names = ("technical", "options", "macro")
     reasons_for = tuple(f"{n} {scores[n]:+.2f}" for n in names if scores.get(n) is not None and scores[n] > 0)

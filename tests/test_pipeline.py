@@ -82,6 +82,16 @@ def test_hurdles_follow_the_trial_configuration():
     assert rv1.delta == pytest.approx(0.08)
 
 
+def test_idea_mode_shows_the_odds_instead_of_blocking_and_stops_at_the_planned_loss():
+    ctx, frame, helpers = setup()
+    gloomy = Consensus(-3.0, 0.0)                                  # p = 0.05: the EV gate would refuse
+    assert decide(ctx, frame, AT, config_for("B0", {}), gloomy, helpers, H, TODAY).alert is None
+    d = decide(ctx, frame, AT, config_for("B0", {}), gloomy, helpers, H, TODAY, idea=True)
+    a = d.alert
+    assert a is not None and a.p == pytest.approx(d.p) and d.p < 0.1
+    assert a.backstop_trigger == pytest.approx(a.choice.ask - a.choice.loss / a.choice.lot)
+
+
 def test_pass_rate_mode_needs_no_model():
     ctx, frame, helpers = setup()
     d = decide(ctx, frame, AT, config_for("B0", {}), None, helpers, H, TODAY)

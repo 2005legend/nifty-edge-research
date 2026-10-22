@@ -62,14 +62,23 @@ D2_SCENARIO = {"account.capital": 15000, "account.risk_rupees": 600,
                "account.premium_budget": 14500}   # same ₹500 margin under capital as 9,500 at ₹10k (ruling)
 
 
-def d2_scenario(h: dict) -> dict:
-    """D2 option 1 (₹15k, ₹600 stop) for the zero-trial pilots only; the registered values are untouched."""
+# The owner's idea feed (22 Oct 2026): no rupee cap on the stop or the premium; the owner sizes each idea.
+IDEAS_SCENARIO = {"account.risk_rupees": 1e9, "account.premium_budget": 1e9}
+
+
+def with_values(h: dict, values: dict) -> dict:
+    """A copy of the pre-registration with some values replaced; the registered file is untouched."""
     import copy
 
     out = copy.deepcopy(h)
-    for key, value in D2_SCENARIO.items():
+    for key, value in values.items():
         out["parameters"][key]["value"] = value
     return out
+
+
+def d2_scenario(h: dict) -> dict:
+    """D2 option 1 (₹15k, ₹600 stop) for the zero-trial pilots only; the registered values are untouched."""
+    return with_values(h, D2_SCENARIO)
 
 
 def run_p1(loader: DayLoader, h: dict, today: date, end: date = P1_END, progress=None) -> tuple[pd.DataFrame, pd.DataFrame]:

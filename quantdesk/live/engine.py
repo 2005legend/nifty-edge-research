@@ -18,7 +18,7 @@ sent again.
 """
 
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
 import pandas as pd
 
@@ -50,6 +50,8 @@ class LiveEngine:
     mode: str = "shadow"                   # the verdict's mode, "live" or "shadow" (S2)
     kill_params: dict | None = None        # mu0, breakeven, sigma, cusum_h of the accepted trial (S9)
     push_shadow: bool = True               # shadow alerts and exits to the phone, marked (owner, 22 Oct 2026)
+    idea: bool = False                     # the owner's idea feed: every setup as a paper-tracked CALL/PUT idea
+    brief: object | None = None            # callable(now, ctxs, frames) -> (text, leans): the 09:20 brief
     indices: tuple = ("NIFTY", "SENSEX")
     sessions: list = field(default_factory=list)
     processed: set = field(default_factory=set)
@@ -86,6 +88,7 @@ class LiveEngine:
             ready[index] = (ctx, frame)
         if not self._resumed and ready:
             self._resume(now, source, ready)
+        self._morning(now, ready)
         decisions, missed = [], []
         for index, (ctx, frame) in ready.items():
             decisions += self._checks(now, ctx, frame, source, missed)
@@ -108,12 +111,13 @@ class LiveEngine:
                 self.journal.log_event("resume_failed", f"paper {p.paper_id}: no {p.idx} data yet", at=now)
                 continue
             ctx, frame = ready[p.idx]
-            d = decide(ctx, frame, at, self.cfg, self.model, source.helpers(ctx, frame), self.h, self.today)
+            d = decide(ctx, frame, at, self.cfg, self.model, source.helpers(ctx, frame), self.h, self.today,
+                       idea=self.idea)
             if d.alert is None:
                 self.journal.log_event("resume_failed", f"paper {p.paper_id}: its decision did not recur", at=now)
                 continue
             c, premium = d.alert.choice, float(p.entry_premium)
-            trigger = premium - param(self.h, "account.risk_rupees") / c.lot
+            trigger = premium - self._risk(c) / c.lot
             trade = OpenTrade(d.signal, c, datetime.fromisoformat(p.entry_at), premium, trigger,
                               trigger - max(0.10 * trigger, 5 * TICK))
             self._open[int(p.paper_id)] = (trade, int(p.alert_id), p.idx, p.mode)
@@ -121,6 +125,24 @@ class LiveEngine:
             resumed += 1
         if resumed:
             self.journal.log_event("resume", f"{resumed} open paper trade(s) resumed", at=now)
+
+    def _risk(self, choice) -> float:
+        """Rupees between the fill and the backstop: the strike's planned loss for an idea, else the fixed risk."""
+        return choice.loss if self.idea else param(self.h, "account.risk_rupees")
+
+    def _morning(self, now, ready):
+        key = f"brief_{self.today}"
+        if self.brief is None or not ready or now.time() < time(9, 20) or self.journal.get_state(key):
+            return
+        self.journal.set_state(key, "1")                       # once, even if building it fails
+        try:
+            text, leans = self.brief(now, {i: c for i, (c, _) in ready.items()}, {i: f for i, (_, f) in ready.items()})
+        except Exception as exc:  # noqa: BLE001 - a missing input must not stop the trading day
+            self.journal.log_event("brief_failed", f"{type(exc).__name__}: {exc}"[:300], at=now)
+            return
+        for index, label in leans.items():
+            self.journal.set_state(f"lean_{self.today}_{index}", label)
+        self.notifier.send(text)
 
     def _checks(self, now, ctx, frame, source, missed):
         out = []
@@ -140,16 +162,25 @@ class LiveEngine:
                 continue
             self.processed.add(key)
             helpers = source.helpers(ctx, frame)
-            d = decide(ctx, frame, at, self.cfg, self.model, helpers, self.h, self.today)
+            d = decide(ctx, frame, at, self.cfg, self.model, helpers, self.h, self.today, idea=self.idea)
             out.append(d)
             if d.alert is not None:
                 self._alert(d, ctx, now)
         return out
 
     def _alert(self, d, ctx, now):
-        mode = effective_mode(self.journal, self.today, self.mode)
-        pending = sum(1 for _, _, m in self._pending.values() if m == "live")
-        held = locks(self.journal, self.today, self.sessions or [self.today], self.h, pending) if mode == "live" else []
+        if self.idea:
+            mode, held = "idea", []
+            busy = any(i == ctx.index for _, i, _ in self._pending.values()) or \
+                any(i == ctx.index for _, _, i, _ in self._open.values())
+            if busy:                                           # one idea per index at a time
+                self.journal.log_event("idea_skipped", f"{ctx.index} {d.at:%H:%M}: an idea is still open", at=now)
+                return
+        else:
+            mode = effective_mode(self.journal, self.today, self.mode)
+            pending = sum(1 for _, _, m in self._pending.values() if m == "live")
+            held = locks(self.journal, self.today, self.sessions or [self.today], self.h, pending) \
+                if mode == "live" else []
         if held:
             mode = "suppressed"
         a, c = d.alert, d.alert.choice
@@ -162,7 +193,9 @@ class LiveEngine:
         alert_id = self.journal.add_alert(row)
         if mode == "suppressed":
             self.journal.log_event("lock", f"alert {alert_id} held back: {', '.join(held)}", at=now)
-        if mode == "live" or (mode == "shadow" and self.push_shadow):
+        if mode == "idea":
+            self.notifier.send(fmt.format_idea(row, c.gain, c.loss, c.p_be))
+        elif mode == "live" or (mode == "shadow" and self.push_shadow):
             self.notifier.send(fmt.format_alert(row))      # a shadow alert says "SHADOW - do not trade"
         self._pending[alert_id] = (d, ctx.index, mode)
 
@@ -186,7 +219,7 @@ class LiveEngine:
                 self.journal.log_event("paper_unfilled", f"alert {alert_id}: {res.status}", at=now)
                 continue
             paper_id = self.journal.open_paper(alert_id, res.at, res.premium)
-            trigger = res.premium - param(self.h, "account.risk_rupees") / c.lot
+            trigger = res.premium - self._risk(c) / c.lot
             trade = OpenTrade(d.signal, c, res.at, res.premium, trigger, trigger - max(0.10 * trigger, 5 * TICK))
             self._open[paper_id] = (trade, alert_id, index, mode)
 
@@ -225,8 +258,9 @@ class LiveEngine:
             for effective, index_stop in schedule[known:]:
                 trigger = helpers.quotes.mid(c.index, c.expiry, c.strike, c.kind, min(effective, now), spot=index_stop)
                 self.journal.add_ratchet(alert_id, effective, index_stop, trigger)
-                if mode == "live":
-                    self.notifier.send(fmt.format_ratchet(index, index_stop, trigger, effective - timedelta(minutes=2)))
+                if mode in ("live", "idea"):
+                    text = fmt.format_ratchet(index, index_stop, trigger, effective - timedelta(minutes=2))
+                    self.notifier.send(text if mode == "live" else "IDEA " + text)
             if reason == "end_of_data" or exit_at > now:
                 if reason != "end_of_data" and decided <= now:
                     self._send_exit(paper_id, mode, index, reason, decided)
@@ -245,6 +279,8 @@ class LiveEngine:
             return
         if mode == "live":
             self.notifier.send(fmt.format_exit(index, reason, decided))
+        elif mode == "idea":
+            self.notifier.send("IDEA " + fmt.format_exit(index, reason, decided))
         elif mode == "shadow" and self.push_shadow:
             self.notifier.send("SHADOW " + fmt.format_exit(index, reason, decided))
         self.journal.set_state(f"exit_sent_{paper_id}", "1")
