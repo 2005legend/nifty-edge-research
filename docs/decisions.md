@@ -610,3 +610,16 @@ The SP3 design's rulings S1-S12 are in `docs/superpowers/specs/2026-10-22-sp3-li
   - **Why:** the median structural stop on those signals is 6 index points, so the planning target is about 14 points. A 14-point move doesn't pay for the spread, about ₹57 of charges and an hour of theta at ₹400 risk. This is the convexity problem flagged at the clock fit, now measured.
 - **D2 scenario measured before the owner chooses.** P1, P2, P10 and D2 were re-run with D2 option 1 (₹15k capital, ₹600 stop) as `pilot ... --scenario d2_600`, writing `*-600.md`. They count setups and never look at profit.
   - *Ruling:* at ₹15k the premium budget is ₹14,500, the same ₹500 margin under capital as ₹9,500 at ₹10k. The spec gives no figure.
+
+## 2026-10-22: D2, the owner chooses alert-off; no X2
+
+- **Evidence.** D2 was triggered at both stakes:
+  - ₹400: 0.67 eligible setups a year (4 in 2019-2025)
+  - ₹600: 1.7 a year (16)
+  - Needed: about 60 a year. P10 gives a 0% and a 2% chance that every gate could pass.
+  - The cause is a median 6-point structural stop against an option's fixed frictions. Breakeven needs about a 57% hit rate; the index target is reached about 38% of the time.
+- **Owner's decision.** Alert-off (`owner.d2_choice`), and no X2 (`owner.x2_opt_in: false`). `research/VERDICT.md` records the verdict.
+- **What this means.**
+  - No trial slot was spent. The live engine stays in shadow mode, with shadow calls on Telegram, and records a forward log.
+  - The pricing check, freeze and trials for this hypothesis are no longer needed.
+  - The recorder keeps collecting quotes, so any future, newly pre-registered idea can be priced and tested properly.

@@ -21,6 +21,8 @@ parameters:
   account.premium_budget: {value: 9500, source: "spec §6.1 step 7", provenance: spec}
   account.fixed_cost_buffer: {value: 60, source: "spec §6.1 step 7 (premium x lot + 60 <= 9500)", provenance: spec}
   account.capital_floor: {value: 7000, source: "spec §2", provenance: owner}
+  owner.d2_choice: {value: "alert-off", source: "owner, 22 Oct 2026, at the D2 checkpoint: 0.67 eligible setups a year at Rs 400 and 1.7 at Rs 600 against about 60 needed (research/pilots/D2.md, D2-600.md)", provenance: owner}
+  owner.x2_opt_in: {value: false, source: "owner, 22 Oct 2026 (R3)", provenance: owner}
   caps.per_day: {value: 1, source: "spec §2", provenance: owner}
   caps.per_week: {value: 3, source: "spec §2", provenance: owner}
   caps.per_year: {value: 100, source: "spec §2 (D3)", provenance: owner}

@@ -26,8 +26,12 @@ def test_ctx_follows_the_p4_report(tmp_path):
 
 
 def test_prerequisites_and_preflight_name_what_is_missing(tmp_path):
+    import copy
+
+    undecided = copy.deepcopy(H)
+    undecided["parameters"].pop("owner.d2_choice", None)        # as before the owner chose at D2
     res = research(tmp_path)
-    pre = prerequisites("B0", {}, [], res, H)
+    pre = prerequisites("B0", {}, [], res, undecided)
     assert pre["run_if"] and not pre["pilots"] and not pre["pricing_check"] and not pre["d2_decided"]
     for p in PILOTS:
         (res / "pilots").mkdir(exist_ok=True)
@@ -38,7 +42,7 @@ def test_prerequisites_and_preflight_name_what_is_missing(tmp_path):
         (tmp_path / "config" / "frozen" / f).write_text("x")
     registry = Registry(res, tmp_path, git=Git())
     registry.freeze()
-    checks = preflight(tmp_path, registry, H, run_tests=lambda files: 0)
+    checks = preflight(tmp_path, registry, undecided, run_tests=lambda files: 0)
     assert checks["frozen_files"] and checks["pilots_reported"] and checks["pricing_check_passed"]
     assert checks["preregistration_frozen"] and checks["tree_clean"] and checks["lookahead_and_controls_pass"]
     assert not checks["d2_decided"] and not checks["ready_for_B0"]

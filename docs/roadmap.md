@@ -1,10 +1,12 @@
 # Roadmap
 
-Status at the end of 21 Oct 2026:
-- **Phases 1 and 2 are done.** SP1 is verified live, all 14 backlog fixes are in, all daily jobs run from Task Scheduler (`scripts/schedule_tasks.ps1`), and the history, bhavcopy (2019–) and fundamentals (2015–) backfills are running.
-- **Phase 3 has started.** The TradingAgents pilot runs nightly at 19:30.
-- **Phase 4 building blocks are done:** the cost model with sourced 2019–2026 charges, Black-76 pricing, old-format NSE bhavcopy and NSE's daily index file.
-- **Next:** the SP2 design pass, which needs the owner's decisions, and the owner labelling `data/labels/pilot8_headlines.csv`.
+Status at the end of 22 Oct 2026:
+- **SP1, SP2 and SP3 are built.** SP2 covers the engines, pipeline, backtester, registry and validation. SP3 covers the live engine, Telegram, the journal, the dashboard and replay.
+- **The SP2 verdict is alert-off** (owner's choice at D2, 22 Oct). The pre-registered breakout gives 0.7 testable setups a year at ₹400 and 1.7 at ₹600, against about 60 needed. See `research/VERDICT.md`. No trial slot was spent.
+- **What runs every weekday:** recording, derive, and the live engine in shadow mode. Its calls reach Telegram marked SHADOW, and paper trades and the journal build a forward record.
+- **Next:** SP4 (the analyst desk) once its pilot finishes. Any new trading idea is a separate, newly pre-registered project.
+
+The table below is the 21 Oct snapshot, kept for history.
 
 The design is in [the spec](superpowers/specs/2026-10-06-nifty-sensex-options-signal-system-design.md). Daily operation is in [the runbook](runbook.md). Every decision and its reason is in [decisions.md](decisions.md).
 
