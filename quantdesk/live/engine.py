@@ -48,6 +48,7 @@ class LiveEngine:
     h: dict
     today: date
     mode: str = "shadow"                   # the verdict's mode, "live" or "shadow" (S2)
+    forced_live: bool = False               # explicit owner override while research verdict is alert-off
     kill_params: dict | None = None        # mu0, breakeven, sigma, cusum_h of the accepted trial (S9)
     push_shadow: bool = True               # shadow alerts and exits to the phone, marked (owner, 22 Oct 2026)
     idea: bool = False                     # the owner's idea feed: every setup as a paper-tracked CALL/PUT idea
@@ -189,7 +190,7 @@ class LiveEngine:
                "index_target": a.index_target, "backstop_trigger": a.backstop_trigger,
                "backstop_limit": a.backstop_limit, "p": a.p, "ev": c.ev, "delta": a.delta,
                "reasons_for": "; ".join(a.reasons_for), "reasons_against": "; ".join(a.reasons_against),
-               "signal_id": f"{ctx.index}-{d.at:%Y%m%d%H%M}"}
+               "signal_id": f"{ctx.index}-{d.at:%Y%m%d%H%M}", "forced_live": self.forced_live}
         alert_id = self.journal.add_alert(row)
         if mode == "suppressed":
             self.journal.log_event("lock", f"alert {alert_id} held back: {', '.join(held)}", at=now)

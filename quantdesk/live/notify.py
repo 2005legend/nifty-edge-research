@@ -85,7 +85,8 @@ def format_idea(a: dict, gain: float, loss: float, p_be: float) -> str:
 
 def format_alert(a: dict) -> str:
     shadow = " (SHADOW - do not trade)" if a.get("mode") == "shadow" else ""
-    return (f"ALERT{shadow} {_hhmm(a['at'])}\n"
+    unvalidated = " (FORCED LIVE - UNVALIDATED STRATEGY)" if a.get("forced_live") else ""
+    return (f"ALERT{shadow}{unvalidated} {_hhmm(a['at'])}\n"
             f"BUY {a['index']} {a['strike']:.0f} {a['kind']} exp {a['expiry']}, {a['lot']} qty\n"
             f"Limit up to Rs {a['entry_limit']:.2f} (lapses in 5 min)\n"
             f"Index stop {a['index_stop']:.1f}, plan target {a['index_target']:.1f}\n"

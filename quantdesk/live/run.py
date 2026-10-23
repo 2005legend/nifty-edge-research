@@ -128,7 +128,8 @@ def strategy_for(derived, research: Path, h: dict, before: date):
     return trial, cfg, model, result, registry
 
 
-def build_engine(app, today: date, journal, notifier, events: list, frozen: Path, research: Path):
+def build_engine(app, today: date, journal, notifier, events: list, frozen: Path, research: Path,
+                 force_live: bool = False):
     """The live engine for `today`, wired to the recorder's files. Returns (engine, mode, config id)."""
     from quantdesk.derived.store import DerivedStore
     from quantdesk.live.engine import LiveEngine
@@ -141,7 +142,7 @@ def build_engine(app, today: date, journal, notifier, events: list, frozen: Path
     derived = DerivedStore(app.store.root / "derived")
     h = load_hypotheses()
     trial, cfg, model, result, registry = strategy_for(derived, research, h, today)
-    mode = verdict_mode(research)
+    mode = "live" if force_live else verdict_mode(research)
     kill = None
     if mode == "live" and result["config"]:
         kill = kill_params(_trades(registry, result["config"])["r"].to_numpy(dtype=float))
@@ -172,6 +173,7 @@ def build_engine(app, today: date, journal, notifier, events: list, frozen: Path
     idea = mode != "live"            # alert-off: the owner's idea feed, sized by the owner (22 Oct 2026)
     engine = LiveEngine(rebuild_on_change(key, build), journal, notifier, cfg, model,
                         with_values(h, IDEAS_RELAXED) if idea else h, today, mode=mode, kill_params=kill,
+                        forced_live=force_live and result["status"] != "alert-on",
                         sessions=year_sessions(today, events), idea=idea, brief=brief)
     return engine, "idea" if idea else mode, trial
 

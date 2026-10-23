@@ -505,13 +505,15 @@ def cmd_live(app, args) -> int:
         return 0
     journal, notifier, research = _journal(app), notifier_from_env(), project_root() / "research"
     try:
-        engine, mode, trial = build_engine(app, today, journal, notifier, _all_events(app), frozen_dir(), research)
+        engine, mode, trial = build_engine(app, today, journal, notifier, _all_events(app), frozen_dir(), research,
+                                           force_live=args.force_live)
     except RuntimeError as exc:
         journal.log_event("not_started", str(exc), at=now)
         print(f"not started: {exc}")
         return 1
     journal.set_state("verdict_mode", mode)
-    journal.log_event("start", f"mode {mode}, configuration {trial}", at=now)
+    journal.log_event("start", f"mode {mode}, configuration {trial}" +
+                      ("; explicit forced-live override despite alert-off verdict" if args.force_live else ""), at=now)
     server = _serve(create_app(journal, research, engine.h, today=lambda: today, sessions=engine.sessions,
                                snapshot=engine.snapshot), args.port)
     threading.Thread(target=server.run, daemon=True).start()
@@ -780,6 +782,8 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("verdict", help="alert-on or alert-off from the trials run").set_defaults(func=cmd_verdict)
     live = sub.add_parser("live", help="the live engine, Telegram and the dashboard, 09:10-15:35")
     live.add_argument("--port", type=int, default=8000)
+    live.add_argument("--force-live", action="store_true",
+                      help="send real-mode alerts despite the alert-off research verdict; strategy remains unvalidated")
     live.set_defaults(func=cmd_live)
     dash = sub.add_parser("dashboard", help="the journal and research views outside market hours")
     dash.add_argument("--port", type=int, default=8000)
