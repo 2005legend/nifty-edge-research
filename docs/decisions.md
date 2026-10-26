@@ -699,3 +699,18 @@ The SP3 design's rulings S1-S12 are in `docs/superpowers/specs/2026-10-22-sp3-li
 - **The fix.** Missing values are skipped, as `z_refs_for` already does. Test: `test_one_missing_breadth_value_does_not_poison_a_years_reference`.
 - **What gets re-run.** The idea backtest (still look 47: same untuned settings, the bug fix is not tuning), then the dataset, which the model is trained on.
 - **Own trades.** The dashboard's "Log your own trade" form and `/api/own-trade` record trades the owner takes on their own reading: the desk brief, an idea, or neither. P&L is worked out after charges, and the Journal tab totals it by source. Before this, trades not tied to a system alert had nowhere to go. Test: `test_your_own_trade_is_logged_with_its_pnl_after_charges`.
+
+## 2026-10-26: hosting stays on the laptop (owner)
+
+- **Considered: InstaBox, free tier (4 vCPU / 8 GB / 20 GB).**
+  - **Size:** big enough (the data is 4.7 GB).
+  - **Idle pause:** free machines pause after 30 idle minutes.
+  - **Location and IP:** no region or fixed IP stated.
+  - **The deciding risk:** its outbound proxy adds stored secrets into HTTPS requests, so it can read outbound traffic. The `.env` holds a full Angel One login (API key, client code, PIN, TOTP secret).
+- **Decision (owner):** stay local. The secrets never leave the laptop. `deploy/instabox/` stays as a harmless probe kit only (no credentials).
+- **Local hardening, owner's steps:**
+  - run `schedule_tasks.ps1 -NoLogon` once from an administrator PowerShell
+  - Windows Update active hours 08:00-18:00
+  - allow wake timers
+  - never sleep on mains power
+- **If the cloud is wanted later:** the owner's own VM in their own account (for example AWS Lightsail Mumbai) and nothing that proxies outbound TLS.
