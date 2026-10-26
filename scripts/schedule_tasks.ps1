@@ -30,10 +30,12 @@ New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $jobs = @(
     @{ Name = 'news';           At = '06:55'; Args = 'news';             Hours = 0; Daily = $true },
     @{ Name = 'macro-morning';  At = '07:30'; Args = 'macro';            Hours = 1 },
-    @{ Name = 'record';         At = '08:55'; Args = 'record';           Hours = 8; Wake = $true },
+    # record and live also start at logon and retry at 09:05 and 09:30: on 23 Oct 2026 Windows restarted at 08:54
+    # and the recorder never ran. A second copy exits at once (run lock), so the extra starts are harmless.
+    @{ Name = 'record';         At = '08:55'; Args = 'record';           Hours = 8; Wake = $true; Retry = @('09:05', '09:30'); Logon = $true },
     @{ Name = 'macro-intraday'; At = '08:58'; Args = 'macro --intraday'; Hours = 8 },
     # SP3: alerts, paper trades and the dashboard (http://127.0.0.1:8000) until 15:35.
-    @{ Name = 'live';           At = '09:10'; Args = 'live --force-live'; Hours = 7; Wake = $true },
+    @{ Name = 'live';           At = '09:10'; Args = 'live --force-live'; Hours = 7; Wake = $true; Retry = @('09:20', '09:40'); Logon = $true },
     @{ Name = 'eod';            At = '18:35'; Args = 'eod';              Hours = 6; Wake = $true },
     @{ Name = 'macro-evening';  At = '18:35'; Args = 'macro';            Hours = 1 },
     # Retries errored history chunks and adds recent days; skips everything already saved.
@@ -60,6 +62,8 @@ foreach ($job in $jobs) {
         $triggers = @((New-ScheduledTaskTrigger -Daily -At $job.At), (New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"))
     } else {
         $triggers = @(New-ScheduledTaskTrigger -Weekly -DaysOfWeek $weekdays -At $job.At)
+        foreach ($at in @($job.Retry | Where-Object { $_ })) { $triggers += New-ScheduledTaskTrigger -Weekly -DaysOfWeek $weekdays -At $at }
+        if ($job.Logon) { $triggers += New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME" }
     }
 
     $limit = if ($job.Hours -eq 0) { [TimeSpan]::Zero } else { New-TimeSpan -Hours $job.Hours }

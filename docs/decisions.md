@@ -676,3 +676,13 @@ The SP3 design's rulings S1-S12 are in `docs/superpowers/specs/2026-10-22-sp3-li
 - **Schedule ruling.** The spec had an evening full run plus an 08:40 update. Instead there is **one full run at 08:30**, after the nightly derive (fresh chain, daily and FII tables) and the 07:30 macro pull (overnight US and Asia). Everything is current in one pass, and it lands before the 09:20 brief. *Cost if wrong:* no evening read; the morning one is the one that matters for the day.
 - **Not built.** The Ollama fallback, which the spec marks optional. A Groq outage means no desk brief that day, logged as a failed role.
 - **First live call (22 Oct, for 23 Oct, not sent):** bias DOWN 65%, range ±0.91%, numbers verified.
+
+## 2026-10-26: first real days - three operational fixes
+
+- **23 Oct: the recorder never ran.** Windows restarted at 08:54, one minute before the 08:55 start, and the missed start was never retried. The live engine ran all day on no data.
+  - **Fix:** `record` and `live` now also start at logon, with retries at 09:05/09:30 and 09:20/09:40. A second copy exits at once (run lock; Task Scheduler's IgnoreNew).
+  - **Guard:** an evening logon start never overwrites the day's recording report. Test: `test_an_evening_logon_start_never_overwrites_the_days_recording`.
+- **26 Oct: the laptop slept from 23:23 to 10:08.** The jobs' "wake" setting didn't fire, most likely because wake timers are off in Windows power options. That's the owner's setting to change; the code doesn't touch system settings.
+  - **Fix for any late start:** the recorder first fetches the missed morning minutes (indices, VIX, the 50 stocks) from Angel's 1-minute candles and stores them as recorded bars (`recorder/catchup.py`). The day's open, bands and gap are then right; option quotes for those minutes come from the model. Test: `test_a_late_start_fetches_the_missed_minutes_as_recorded_bars`.
+- **The desk crashed after sending.** Printing a non-breaking hyphen (U+2011) to the cp1252 job log raised UnicodeEncodeError. Every command's output now replaces characters the console can't show. Test: `test_a_character_the_windows_console_cannot_show_never_crashes_a_job`.
+- **Also fixed:** `tests/test_config.py` didn't list the Telegram keys that `.env.example` gained on 22 Oct. That commit was made without a full-suite run.

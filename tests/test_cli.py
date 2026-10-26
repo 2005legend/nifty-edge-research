@@ -130,6 +130,15 @@ def test_record_keeps_the_pc_awake_while_recording(app, angel_env, monkeypatch):
     assert events == ["awake", "recording", "released"]
 
 
+def test_an_evening_logon_start_never_overwrites_the_days_recording(app, angel_env, monkeypatch, capsys):
+    """The recorder also starts at logon; after the close it must leave the day's real report alone."""
+    app.store.write_report("recording", DAY, {"status": "ok", "minutes_written": 360})
+    monkeypatch.setattr(cli, "run_recording", lambda day, **kw: RecordingSummary(status="no_session"))
+    assert cli.main(["record"]) == 0                                   # NOW is 16:00, after the close
+    assert app.store.read_report("recording", DAY)["status"] == "ok"
+    assert "already recorded" in capsys.readouterr().out
+
+
 def test_record_no_session_exits_nonzero_with_reason(app, angel_env, monkeypatch, capsys):
     monkeypatch.setattr(cli, "run_recording", lambda day, **kw: RecordingSummary(
         status="no_session", errors=["ltp NIFTY (99926000): LoginError: AB1050 invalid totp"]))
@@ -333,6 +342,18 @@ def test_derive_only_builds_the_named_table(app, monkeypatch):
     monkeypatch.setattr(cli, "load_membership", lambda: object())
     assert cli.main(["derive", "--only", "daily"]) == 0
     assert ran == ["daily"]
+
+
+def test_a_character_the_windows_console_cannot_show_never_crashes_a_job():
+    """26 Oct 2026: the desk brief reached Telegram, then printing a non-breaking hyphen to the cp1252 log crashed."""
+    import io
+
+    raw = io.BytesIO()
+    stream = io.TextIOWrapper(raw, encoding="cp1252")
+    cli._safe_stdout(stream)
+    print("Caution: risk‑off", file=stream)
+    stream.flush()
+    assert raw.getvalue().startswith(b"Caution: risk")
 
 
 def test_derive_takes_its_windows_from_the_pre_registration(app, monkeypatch):

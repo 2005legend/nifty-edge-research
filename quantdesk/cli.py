@@ -79,7 +79,12 @@ def cmd_login_check(app, args) -> int:
 def cmd_record(app, args) -> int:
     if not _require(ANGEL_SECRETS):
         return 2
-    day = app.clock.now().date()
+    now = app.clock.now()
+    day = now.date()
+    close = datetime.strptime(app.settings["session"]["close"], "%H:%M").time()
+    if now.time() >= close and app.store.read_report("recording", day):     # a logon start after the close
+        print(f"{day} already recorded; nothing to do after the close")
+        return 0
     if not app.is_trading_day(day):  # before any download: the master alone is 35 MB
         app.store.write_report("recording", day, asdict(RecordingSummary(status="holiday")))
         print(f"recording holiday: {day} is not a trading day")
@@ -830,7 +835,17 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _safe_stdout(stream=None) -> None:
+    """Scheduled jobs write to a cp1252 log: a character it cannot show is replaced, never fatal."""
+    import sys
+
+    stream = stream or sys.stdout
+    if hasattr(stream, "reconfigure"):
+        stream.reconfigure(errors="replace")
+
+
 def main(argv: list[str] | None = None) -> int:
+    _safe_stdout()
     args = build_parser().parse_args(argv)
     app = build_app()
     return args.func(app, args)

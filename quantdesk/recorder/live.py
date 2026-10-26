@@ -113,6 +113,13 @@ def run_recording(day: date, *, client, stream_factory, master: pd.DataFrame, co
                 errors.append(f"ltp {underlying} ({spec['token']}): {type(exc).__name__}: {exc}"[:300])
         if not spots:
             return RecordingSummary(status="no_session", errors=errors)
+        caught_up = 0
+        if clock.now() > open_t + timedelta(minutes=1):     # a late start: fetch the missed morning first
+            from quantdesk.recorder.catchup import catch_up
+
+            targets = [(s["exchange"], s["token"]) for s in index_specs.values()] + \
+                [("NSE", t) for t in constituents.values()]
+            caught_up = catch_up(client, store, day, targets, open_t, clock.now())
         spot_token = {index_specs[u]["token"]: u for u in ("NIFTY", "SENSEX")}
 
         plan = plan_subscriptions(master, spots, day, constituents, settings)
@@ -128,6 +135,8 @@ def run_recording(day: date, *, client, stream_factory, master: pd.DataFrame, co
         events: list[dict] = [{"event": "subscribed", "time": clock.now(), "count": plan.count(),
                                "reduced": plan.reduced, "width": plan.width}]
         events += [{"event": "error", "time": clock.now(), "detail": e} for e in errors]
+        if caught_up:
+            events.append({"event": "caught_up", "time": clock.now(), "count": caught_up})
         stale_open: dict = {"since": None, "reconnected_at": None}
         latest = {"exchange_ts": None, "received_at": None, "outside": 0}
         stale_after = timedelta(seconds=rec["stale_seconds"])
