@@ -422,6 +422,33 @@ def cmd_precheck(app, args) -> int:
     return 0
 
 
+def cmd_ideas_backtest(app, args) -> int:
+    """Look 47 (research/prior_looks.md): the idea feed on history, untuned. Not a registry trial."""
+    import pandas as pd
+
+    from quantdesk.backtest.dataset import LoaderSource
+    from quantdesk.backtest.ideas import idea_backtest, report
+    from quantdesk.live.run import strategy_for
+    from quantdesk.validation.pilots.run import IDEAS_RELAXED, with_values
+
+    derived, h, _, run = _sp2(app)
+    today = app.clock.now().date()
+    trial, cfg, model, _, _ = strategy_for(derived, project_root() / "research", h, today)
+    loader = run.make_loader(derived, h, _all_events(app), frozen_dir())
+    days = [d for d in loader.days if loader.kind.get(d) == "regular" and d < today]
+    starts = {"NIFTY": date.fromisoformat(param(h, "backtest.nifty_from")),
+              "SENSEX": date.fromisoformat(param(h, "backtest.sensex_from"))}
+    h_idea = with_values(h, IDEAS_RELAXED)
+    rows = idea_backtest(LoaderSource(loader, h_idea), days, starts, cfg, model, h_idea, h, today,
+                         progress=lambda d: print(d) if d.day == 1 else None)
+    out = pilots_dir()
+    rows.to_parquet(out / "ideas_backtest.parquet")
+    text = report(rows, derived.data_hash(), app.clock.now().isoformat(timespec="seconds"))
+    (out / "IDEAS-BACKTEST.md").write_text(text, encoding="utf-8")
+    print(text)
+    return 0
+
+
 def cmd_freeze(app, args) -> int:
     """Mark the pre-registration frozen and record its hash (prereg-v1). Commit and tag afterwards."""
     _, h, registry, _ = _sp2(app)
@@ -779,6 +806,8 @@ def build_parser() -> argparse.ArgumentParser:
     precheck.add_argument("--width", type=int, default=5, help="strikes each side of the money")
     precheck.add_argument("--expiries", type=int, default=3)
     precheck.set_defaults(func=cmd_precheck)
+    sub.add_parser("ideas-backtest", help="look 47: the idea feed on history, untuned (not a trial)").set_defaults(
+        func=cmd_ideas_backtest)
     sub.add_parser("freeze", help="freeze the pre-registration (prereg-v1)").set_defaults(func=cmd_freeze)
     sub.add_parser("preflight", help="the checklist before trial B0 (R36)").set_defaults(func=cmd_preflight)
     trial = sub.add_parser("trial", help="run one registry trial, with a ticket")

@@ -38,3 +38,11 @@ The design research measured how several trading rules would have paid before SP
 Any regime add-on built on them must also pass the clean forward holdout before it goes live.
 
 **Consequence, stated up front.** With N = 46 + trials, the DSR ≥ 0.95 gate needs a much larger out-of-sample Sharpe than at N = 10. Pilot P10 computes the chance of passing before any trial is spent.
+
+## Look 47 (26 Oct 2026): the idea feed on history, owner-approved
+
+- **What:** `python -m quantdesk ideas-backtest`. The idea feed exactly as it runs live (`IDEAS_RELAXED`, the live exits, fill at delay 1, one idea per index at a time), over 2019 to the last derived session. Nothing tuned.
+- **Why:** the owner asked whether the ideas would have made money, before relying on the forward scorecards (D2 found the pre-registered rules untestable).
+- **Consequence:**
+  - N_prior becomes 47 for any later deflated Sharpe (`gate.n_prior` stays 46 until a new pre-registration is written, which must use 47 or more).
+  - No setting of the feed may be tuned on this result. A change needs its own pre-registration and the forward record.
