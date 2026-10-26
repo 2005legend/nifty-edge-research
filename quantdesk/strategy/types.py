@@ -73,6 +73,7 @@ class StrikeChoice:
     p_be: float
     ev: float
     kelly: float
+    target_premium: float | None = None   # the option's planned price at the index target (sold at the bid)
 
 
 @dataclass(frozen=True)

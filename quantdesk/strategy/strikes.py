@@ -38,6 +38,7 @@ class Candidate:
     delta: float
     gain: float
     loss: float
+    target_premium: float | None = None
 
 
 def _strike_grid(spot: float, step: int, side: str, otm_max: float, itm: int) -> list[float]:
@@ -80,7 +81,7 @@ def candidates(signal: Signal, ctx: DayContext, helpers, h: dict, today: date) -
             exchange = EXCHANGE[ctx.index]
             loss = (ask - p_stop) * lot + round_trip(ask, p_stop, lot, exchange=exchange, day=today).total
             gain = (p_tgt - ask) * lot - round_trip(ask, p_tgt, lot, exchange=exchange, day=today).total
-            out.append(Candidate(ctx.index, expiry, strike, kind, int(lot), ask, delta, gain, loss))
+            out.append(Candidate(ctx.index, expiry, strike, kind, int(lot), ask, delta, gain, loss, round(p_tgt, 2)))
     return out
 
 
@@ -106,7 +107,7 @@ def pick(cands: list[Candidate], p: float | None, delta: float, h: dict, evaluat
         else:
             ev, kelly = float("nan"), float("nan")
         kept.append(StrikeChoice(c.index, c.expiry, c.strike, c.kind, c.lot, c.ask, c.delta, c.gain, c.loss,
-                                 p_be, ev, kelly))
+                                 p_be, ev, kelly, c.target_premium))
     if not kept:
         return None
     key = lambda s: ((-s.ev if evaluate_ev else 0.0), s.index != "NIFTY", s.expiry, abs(abs(s.delta) - 0.40))

@@ -158,7 +158,8 @@ def test_idea_mode_sends_the_brief_once_and_paper_tracks_each_idea(tmp_path):
         now += timedelta(minutes=1)
     assert len(briefs) == 1 and notes.sent[0] == "MORNING BRIEF test" and j.get_state(f"lean_{DAY}_NIFTY") == "UP"
     ideas = [t for t in notes.sent if t.startswith("IDEA ")]
-    assert ideas and "Risk" in ideas[0] and "odds" in ideas[0]             # a low p is shown, not a reason to block
+    assert ideas and "Entry: buy at or below" in ideas[0] and "Target: Rs" in ideas[0]
+    assert "Stop-loss: Rs" in ideas[0] and "odds" in ideas[0] and "Risk" not in ideas[0]   # no rupee amounts
     assert j.alerts().loc[0, "mode"] == "idea" and len(j.closed_trades("paper")) == 1
     assert any(t.startswith("IDEA EXIT") for t in notes.sent)
 

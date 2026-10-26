@@ -35,7 +35,7 @@ $jobs = @(
     @{ Name = 'record';         At = '08:55'; Args = 'record';           Hours = 8; Wake = $true; Retry = @('09:05', '09:30'); Logon = $true },
     @{ Name = 'macro-intraday'; At = '08:58'; Args = 'macro --intraday'; Hours = 8 },
     # SP3: alerts, paper trades and the dashboard (http://127.0.0.1:8000) until 15:35.
-    @{ Name = 'live';           At = '09:10'; Args = 'live --force-live'; Hours = 7; Wake = $true; Retry = @('09:20', '09:40'); Logon = $true },
+    @{ Name = 'live';           At = '09:10'; Args = 'live';             Hours = 7; Wake = $true; Retry = @('09:20', '09:40'); Logon = $true },
     @{ Name = 'eod';            At = '18:35'; Args = 'eod';              Hours = 6; Wake = $true },
     @{ Name = 'macro-evening';  At = '18:35'; Args = 'macro';            Hours = 1 },
     # Retries errored history chunks and adds recent days; skips everything already saved.

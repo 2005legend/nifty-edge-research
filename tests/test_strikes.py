@@ -55,6 +55,23 @@ def test_pass_rate_mode_skips_the_probability_filters():
     assert pick([c], p=None, delta=0.0, h=H, evaluate_ev=False).strike == 22000.0
 
 
+def test_the_choice_carries_the_option_price_at_the_planning_target():
+    days = session_days(60)
+    clock = clock_for(days)
+    at = datetime(2024, 3, 5, 10, 0, tzinfo=IST)
+    frame = pd.DataFrame({"ts": [at - timedelta(minutes=1)], "close": [22010.0], "vix": [14.0]})
+    quotes = ModelQuotes({"NIFTY": frame}, flat_surface(), clock, H)
+    helpers = Helpers(clock=clock, surface=flat_surface(), quotes=quotes)
+    from tests.test_pipeline import setup
+
+    ctx, _, _ = setup()
+    signal = Signal("NIFTY", at, "long", 22010.0, 22000.0, 21960.0, 21995.0, 21990.0, 20.0, 22056.0)
+    cands = candidates(signal, ctx, helpers, H, date(2026, 10, 22))
+    assert all(c.target_premium is not None and c.target_premium > c.ask for c in cands)
+    choice = pick(cands, p=None, delta=0.0, h=H, evaluate_ev=False)
+    assert choice is None or choice.target_premium in {c.target_premium for c in cands}
+
+
 def test_candidates_price_calls_from_one_itm_to_one_and_a_half_percent_otm():
     days = session_days(60)
     clock = clock_for(days)

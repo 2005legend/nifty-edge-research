@@ -195,7 +195,7 @@ class LiveEngine:
         if mode == "suppressed":
             self.journal.log_event("lock", f"alert {alert_id} held back: {', '.join(held)}", at=now)
         if mode == "idea":
-            self.notifier.send(fmt.format_idea(row, c.gain, c.loss, c.p_be))
+            self.notifier.send(fmt.format_idea(row, c.target_premium, c.p_be))
         elif mode == "live" or (mode == "shadow" and self.push_shadow):
             self.notifier.send(fmt.format_alert(row))      # a shadow alert says "SHADOW - do not trade"
         self._pending[alert_id] = (d, ctx.index, mode)
