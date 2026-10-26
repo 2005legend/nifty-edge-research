@@ -449,6 +449,103 @@ def cmd_ideas_backtest(app, args) -> int:
     return 0
 
 
+def _sp5_inputs(app, index: str):
+    derived, h, _, run = _sp2(app)
+    loader = run.make_loader(derived, h, _all_events(app), frozen_dir())
+    eod = derived.read("options_eod", where=f"symbol = '{index}' and instrument = 'IDO'",
+                       columns="day, expiry, strike, option_type, close, lot, traded")
+    return derived, h, loader, eod
+
+
+def cmd_iv_surface(app, args) -> int:
+    """SP5: the implied volatility surface of one day from real closes, as a local 3D chart."""
+    import math as _m
+
+    from quantdesk.vol.charts import surface_page
+    from quantdesk.vol.ivsurface import atm_strike, chain_ivs, parity_forward
+
+    derived, h, loader, eod = _sp5_inputs(app, args.index)
+    days = sorted(set(eod["day"]))
+    day = date.fromisoformat(args.day) if args.day else days[-1]
+    rows = eod[eod["day"] == day]
+    if rows.empty:
+        print(f"no {args.index} chain for {day}")
+        return 1
+    points = []
+    for expiry, chain in sorted(rows.groupby("expiry"), key=lambda x: x[0]):
+        if expiry <= day:
+            continue
+        k = atm_strike(chain)
+        if k is None:
+            continue
+        F = parity_forward(chain, k)
+        try:
+            T = loader.clock.bt(datetime.combine(day, time(15, 30), tzinfo=IST),
+                                datetime.combine(expiry, time(15, 30), tzinfo=IST))
+        except ValueError:                       # a long-dated expiry past the clock's calendar
+            continue
+        dte = sum(1 for d in loader.clock.sessions if day < d <= expiry)
+        for r in chain_ivs(chain, F, T).itertuples():
+            points.append({"log_moneyness": round(r.log_moneyness, 4), "dte": dte, "expiry": str(expiry),
+                           "strike": r.strike, "iv_pct": round(100 * r.iv * _m.sqrt(252), 2)})
+    out = project_root() / "research" / "sp5" / f"iv_surface_{args.index}_{day}.html"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    note = (f"{args.index} options, bhavcopy closes of {day}; out-of-the-money options within 10% of the forward. "
+            "Black-76 on the system's business clock; annualised with 252 sessions. Flat would mean Black-Scholes "
+            "is right. It never is: the smile and the downside skew are the market pricing crash risk.")
+    out.write_text(surface_page(f"{args.index} implied volatility surface, {day}", points, note), encoding="utf-8")
+    print(f"{len(points)} options across {len({p['expiry'] for p in points})} expiries -> {out}")
+    return 0
+
+
+def cmd_vol_study(app, args) -> int:
+    """SP5 look 48: the pre-registered straddle rule (research/sp5/PREREG.md) on real prices."""
+    import math as _m
+
+    import pandas as pd
+
+    from quantdesk.backtest.straddles import evaluate, straddle_study
+    from quantdesk.vol.charts import vrp_page
+
+    derived, h, loader, eod = _sp5_inputs(app, "NIFTY")
+    by_day = {d: g for d, g in eod.groupby("day")}
+    rows = straddle_study(by_day, loader.har("NIFTY"), loader.clock, h, app.clock.now().date())
+    folder = project_root() / "research" / "sp5"
+    rows.to_parquet(folder / "vol_study.parquet")
+    g = evaluate(rows)
+    close = loader.daily["NIFTY"]["close"]
+    realised = [_m.log(close.loc[b] / close.loc[a]) ** 2 if a in close.index and b in close.index else _m.nan
+                for a, b in zip(rows["day"], rows["exit_day"])]
+    rows = rows.assign(realised_var=realised)
+    pct = lambda s: f"{100 * s:+.2f}%" if s == s else "-"  # noqa: E731
+    f, b = g["filtered"], g["baseline"]
+    lines = ["# SP5 result (look 48): buy the ATM straddle only when implied < forecast", "",
+             f"- Rule and gates: `research/sp5/PREREG.md`. Days with a trade signal: {100 * g['share_signal']:.0f}%",
+             f"- Market vs reality (2019-2025): implied variance averaged "
+             f"{rows['implied_var'].mean() / rows['realised_var'].mean():.2f}x the variance that followed", "",
+             "| 11 Feb 2019 - 31 Dec 2025 | trades | mean return on premium | t | win rate |", "|---|---|---|---|---|",
+             f"| filtered (rho < 1) | {f['n']} | {pct(f['mean'])} | {f['t']:.2f} | {100 * f['win_rate']:.0f}% |",
+             f"| baseline (every day) | {b['n']} | {pct(b['mean'])} | {b['t']:.2f} | {100 * b['win_rate']:.0f}% |",
+             "", f"Filtered minus baseline: Welch t = {g['welch_t']:.2f}", "", "## By year (filtered)", "",
+             "| year | trades | mean | t |", "|---|---|---|---|"]
+    lines += [f"| {y} | {v['n']} | {pct(v['mean'])} | {v['t']:.2f} |" for y, v in sorted(g["by_year"].items())]
+    t26 = g["touched_2026"]
+    lines += ["", f"2026 (touched, not a gate): filtered {t26['filtered']['n']} trades, mean {pct(t26['filtered']['mean'])}; "
+                  f"baseline {t26['baseline']['n']}, mean {pct(t26['baseline']['mean'])}", "", "## Gates", ""]
+    lines += [f"- {k}: {'PASS' if v else 'fail'}" for k, v in g["gates"].items()]
+    lines += ["", f"**Verdict: {'PASSED - a forward paper trial in shadow is next' if g['passed'] else 'FAILED - no buying edge by this rule'}**", ""]
+    (folder / "VOL-STUDY.md").write_text("\n".join(lines), encoding="utf-8")
+    roll = rows.set_index("day")[["implied_var", "realised_var"]].astype(float).rolling(20, min_periods=10).mean()
+    (folder / "market_vs_reality.html").write_text(vrp_page(
+        "NIFTY: the move options priced vs the move that happened", [str(d) for d in roll.index],
+        [round(100 * _m.sqrt(v), 3) if v == v else None for v in roll["implied_var"]],
+        [round(100 * _m.sqrt(v), 3) if v == v else None for v in roll["realised_var"]],
+        "One-session moves (close to close), from the ATM weekly straddle's implied vol and the index's actual "
+        "close-to-close change. When the blue line sits above the orange, options were overpriced."), encoding="utf-8")
+    print("\n".join(lines))
+    return 0
+
+
 def cmd_freeze(app, args) -> int:
     """Mark the pre-registration frozen and record its hash (prereg-v1). Commit and tag afterwards."""
     _, h, registry, _ = _sp2(app)
@@ -808,6 +905,12 @@ def build_parser() -> argparse.ArgumentParser:
     precheck.set_defaults(func=cmd_precheck)
     sub.add_parser("ideas-backtest", help="look 47: the idea feed on history, untuned (not a trial)").set_defaults(
         func=cmd_ideas_backtest)
+    ivs = sub.add_parser("iv-surface", help="SP5: one day's implied volatility surface as a local 3D chart")
+    ivs.add_argument("--day", help="default: the latest chain")
+    ivs.add_argument("--index", choices=["NIFTY", "SENSEX"], default="NIFTY")
+    ivs.set_defaults(func=cmd_iv_surface)
+    sub.add_parser("vol-study", help="SP5 look 48: the pre-registered straddle rule on real prices").set_defaults(
+        func=cmd_vol_study)
     sub.add_parser("freeze", help="freeze the pre-registration (prereg-v1)").set_defaults(func=cmd_freeze)
     sub.add_parser("preflight", help="the checklist before trial B0 (R36)").set_defaults(func=cmd_preflight)
     trial = sub.add_parser("trial", help="run one registry trial, with a ticket")

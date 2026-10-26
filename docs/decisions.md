@@ -714,3 +714,11 @@ The SP3 design's rulings S1-S12 are in `docs/superpowers/specs/2026-10-22-sp3-li
   - allow wake timers
   - never sleep on mains power
 - **If the cloud is wanted later:** the owner's own VM in their own account (for example AWS Lightsail Mumbai) and nothing that proxies outbound TLS.
+
+## 2026-10-26: SP5 volatility study (look 48), and the IV surface
+
+- **IV surface.** `python -m quantdesk iv-surface [--day D] [--index NIFTY|SENSEX]` builds one day's implied-volatility surface from real bhavcopy closes: out-of-the-money options, the put-call-parity forward and the business clock. It writes a local 3D chart to `research/sp5/`.
+- **The pre-registered test.** `research/sp5/PREREG.md` was committed before any result. `python -m quantdesk vol-study` ran it.
+  - **Result: failed all gates.** Buying the ATM weekly straddle for one session loses about 3.4% of premium per trade after costs; when options were "cheap" by the system's own forecast, it lost 3.2%.
+  - `research/sp5/market_vs_reality.html` shows options priced about 6% above the variance that followed. Buyers only win on unpriced shocks (the 2020 crash, the June 2024 election), which no forecast flagged in advance.
+- **Lesson for the owner's style (option buying):** on a one-day hold the frictions alone cost about 2-3% of premium. Buying works only with a real directional or timing edge, sized to survive many losing days.

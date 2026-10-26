@@ -13,3 +13,4 @@ logs/
 .venv-desk/
 research/pilots/*.parquet
 Paper_Trading_Log.xlsx
+research/sp5/*.parquet

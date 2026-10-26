@@ -58,3 +58,8 @@ Any regime add-on built on them must also pass the clean forward holdout before 
 - **Pre-registered** in `research/sp5/PREREG.md`, committed before any result.
 - **Rule:** an ATM NIFTY weekly straddle at the close when ρ = implied ÷ forecast variance < 1, held one session, on real bhavcopy prices.
 - **Data:** 2019-2025 decides; 2026 is reported.
+- **Look 48 result (26 Oct):** FAILED all three gates.
+  - **Baseline** (the ATM weekly straddle bought every day, one-session hold, real closes, costs and spreads): −3.39% of premium per trade (t −5.6, n 1,694).
+  - **Filtered** (ρ < 1): −3.20% (t −3.4, n 628). The filter adds nothing (Welch t 0.18), and every year was negative.
+  - **Implied vs realised:** implied variance averaged 1.06× the variance that followed, so options were roughly fair. The loss is mostly frictions (spreads and charges) on a one-day hold.
+  - **Exploratory only:** 2026 (touched) shows filtered +6.2% on 46 trades. That's small, already seen, and not evidence.
