@@ -170,11 +170,26 @@ def build_engine(app, today: date, journal, notifier, events: list, frozen: Path
     def brief(now, ctxs, frames):
         return morning_brief(now, ctxs, frames, brief_extras(app.store, derived, today), h)
 
+    def midday(now, ctxs, frames, quotes):
+        from quantdesk.live.brief import midday_update
+
+        desk = journal.get_state(f"desk_bias_{today}")
+        bias = {}
+        for index in ctxs:
+            lean = (journal.get_state(f"lean_{today}_{index}") or "").lower()
+            side = desk if desk in ("up", "down") else lean
+            bias[index] = side if side in ("up", "down") else None
+        weights = loader.clock.minute_weights
+        slot = max(0, min(len(weights), int((now - now.replace(hour=9, minute=15, second=0, microsecond=0))
+                                            .total_seconds() // 60)))
+        remaining = float(weights[slot:].sum() / weights.sum())
+        return midday_update(now, ctxs, frames, quotes, bias, remaining)
+
     idea = mode != "live"            # alert-off: the owner's idea feed, sized by the owner (22 Oct 2026)
     engine = LiveEngine(rebuild_on_change(key, build), journal, notifier, cfg, model,
                         with_values(h, IDEAS_RELAXED) if idea else h, today, mode=mode, kill_params=kill,
                         forced_live=force_live and result["status"] != "alert-on",
-                        sessions=year_sessions(today, events), idea=idea, brief=brief)
+                        sessions=year_sessions(today, events), idea=idea, brief=brief, midday=midday)
     return engine, "idea" if idea else mode, trial
 
 

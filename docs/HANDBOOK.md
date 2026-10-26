@@ -73,6 +73,7 @@ If it starts late anyway:
 | 09:10 | Live engine starts; the dashboard opens at http://127.0.0.1:8000 | – |
 | **09:20** | Morning brief | **MORNING BRIEF**: global cues, FII positioning, news tone, and for each index the open and gap, expected range, VIX, put/call ratio, levels, expiry, events, and an up/down/flat lean |
 | **During the day** | Every 15–30 minutes the engine checks for a breakout | **IDEA – CALL/PUT** when one qualifies, then **IDEA MOVE STOP** and **IDEA EXIT NOW** |
+| **12:15** | Mid-day update | **MIDDAY**: each index against its expected range, VWAP and the day's high/low, the movement likely left, and for the morning view's side (both if none) an index target and stop-loss, plus the at-the-money option's premium now, at the target and at the stop |
 | **15:35** | Day ends | **DAY SUMMARY**: each index's move against the forecast range, whether the lean and the desk were right, ideas in ₹ per lot |
 | **Fri 15:35** | Week ends | **WEEKLY SCORECARD**: ideas, targets hit, net ₹ per lot, how often the lean and the desk were right |
 | 18:35 | End-of-day files: bhavcopy, participant OI, FII/DII; evening macro | – |

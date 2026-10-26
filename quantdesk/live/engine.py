@@ -53,6 +53,7 @@ class LiveEngine:
     push_shadow: bool = True               # shadow alerts and exits to the phone, marked (owner, 22 Oct 2026)
     idea: bool = False                     # the owner's idea feed: every setup as a paper-tracked CALL/PUT idea
     brief: object | None = None            # callable(now, ctxs, frames) -> (text, leans): the 09:20 brief
+    midday: object | None = None           # callable(now, ctxs, frames, quotes) -> text: the 12:15 update
     indices: tuple = ("NIFTY", "SENSEX")
     sessions: list = field(default_factory=list)
     processed: set = field(default_factory=set)
@@ -90,6 +91,7 @@ class LiveEngine:
         if not self._resumed and ready:
             self._resume(now, source, ready)
         self._morning(now, ready)
+        self._midday(now, ready, source)
         decisions, missed = [], []
         for index, (ctx, frame) in ready.items():
             decisions += self._checks(now, ctx, frame, source, missed)
@@ -143,6 +145,19 @@ class LiveEngine:
             return
         for index, label in leans.items():
             self.journal.set_state(f"lean_{self.today}_{index}", label)
+        self.notifier.send(text)
+
+    def _midday(self, now, ready, source):
+        key = f"midday_{self.today}"
+        if self.midday is None or not ready or now.time() < time(12, 15) or self.journal.get_state(key):
+            return
+        self.journal.set_state(key, "1")
+        try:
+            text = self.midday(now, {i: c for i, (c, _) in ready.items()}, {i: f for i, (_, f) in ready.items()},
+                               {i: source.helpers(c, f).quotes for i, (c, f) in ready.items()})
+        except Exception as exc:  # noqa: BLE001 - a missing input must not stop the trading day
+            self.journal.log_event("midday_failed", f"{type(exc).__name__}: {exc}"[:300], at=now)
+            return
         self.notifier.send(text)
 
     def _checks(self, now, ctx, frame, source, missed):

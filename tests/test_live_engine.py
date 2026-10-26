@@ -164,6 +164,24 @@ def test_idea_mode_sends_the_brief_once_and_paper_tracks_each_idea(tmp_path):
     assert any(t.startswith("IDEA EXIT") for t in notes.sent)
 
 
+def test_the_midday_update_is_sent_once_after_1215(tmp_path):
+    notes = Notes()
+    j = Journal(tmp_path / "j.sqlite")
+    calls = []
+
+    def midday(now, ctxs, frames, quotes):
+        calls.append(now)
+        return "MIDDAY test"
+
+    e = LiveEngine(lambda now: FakeLiveSource(), j, notes, config_for("B0", {}), Consensus(0, 0), H, DAY,
+                   mode="shadow", sessions=[DAY], idea=True, midday=midday)
+    e.step(AT.replace(hour=12, minute=10))
+    assert calls == []
+    e.step(AT.replace(hour=12, minute=15, second=5))
+    e.step(AT.replace(hour=12, minute=16, second=5))
+    assert len(calls) == 1 and "MIDDAY test" in notes.sent
+
+
 def test_a_late_start_never_alerts_on_old_checks(tmp_path):
     e, j, notes = engine(tmp_path)
     e.step(AT + timedelta(minutes=10))

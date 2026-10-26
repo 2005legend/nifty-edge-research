@@ -59,6 +59,23 @@ def test_the_friday_scorecard_counts_the_week_in_rupees_per_lot(tmp_path):
     assert "2 ideas" in text and "1 hit target" in text and "Rs +300" in text and "1 of 1" in text
 
 
+def test_the_midday_update_gives_levels_and_option_prices_for_the_afternoon():
+    from quantdesk.live.brief import midday_update
+    from tests.test_pipeline import AT, ConvexQuotes
+
+    ctx, frame, _ = setup()                                   # open 21980, sigma_day 1%, closes 22010
+    frame = frame.assign(high=frame["close"] + 30, low=frame["close"] - 40)
+    text = midday_update(AT.replace(hour=12, minute=15), {"NIFTY": ctx}, {"NIFTY": frame},
+                         {"NIFTY": ConvexQuotes(frame)}, {"NIFTY": "down"}, remaining=0.36)
+    assert text.startswith("MIDDAY 12:15") and "NIFTY 22,010" in text and "VWAP" in text
+    assert "Expected range 21,760 - 22,200" in text                           # open +/- 1%
+    assert "DOWN case: target" in text and "PE" in text and "UP case" not in text   # the morning view's side only
+    assert "now" in text and "at target" in text and "at stop" in text
+    both = midday_update(AT.replace(hour=12, minute=15), {"NIFTY": ctx}, {"NIFTY": frame},
+                         {"NIFTY": ConvexQuotes(frame)}, {}, remaining=0.36)
+    assert "UP case" in both and "DOWN case" in both                          # no morning view: both sides
+
+
 def test_the_desk_bias_is_scored_daily_and_counted_on_friday(tmp_path):
     j = Journal(tmp_path / "j.sqlite")
     ctx, _, _ = setup()

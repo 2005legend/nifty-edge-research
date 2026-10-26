@@ -104,6 +104,68 @@ def morning_brief(now: datetime, ctxs: dict, frames: dict, extras: dict, h: dict
     return "\n".join(lines), leans
 
 
+STEP = {"NIFTY": 50, "SENSEX": 100}
+
+
+def _premium(quotes, index, expiry, strike, kind, at, spot=None) -> float | None:
+    try:
+        return float(quotes.mid(index, expiry, strike, kind, at, spot=spot))
+    except (KeyError, ValueError):
+        return None
+
+
+def _case(label, kind, index, ctx, quotes, at, last, target, stop) -> str:
+    strike = round(last / STEP.get(index, 50)) * STEP.get(index, 50)
+    reward, risk = abs(target - last), abs(stop - last)
+    text = (f"{label} case: target {target:,.0f}, stop-loss {'above' if kind == 'PE' else 'below'} {stop:,.0f} "
+            f"(reward/risk {reward / risk:.1f})" if risk else f"{label} case: target {target:,.0f}")
+    now_p = _premium(quotes, index, ctx.expiry_1, strike, kind, at)
+    at_t = _premium(quotes, index, ctx.expiry_1, strike, kind, at, spot=target)
+    at_s = _premium(quotes, index, ctx.expiry_1, strike, kind, at, spot=stop)
+    if None not in (now_p, at_t, at_s):
+        text += (f"\n  {strike:.0f} {kind} (exp {ctx.expiry_1}): ~Rs {now_p:.0f} now, ~Rs {at_t:.0f} at target, "
+                 f"~Rs {at_s:.0f} at stop")
+    return text
+
+
+def midday_update(now: datetime, ctxs: dict, frames: dict, quotes: dict, bias: dict, remaining: float) -> str:
+    """12:15, the owner's old hold-or-exit moment.
+
+    For each index: where it stands, how much of the expected range is used, and the afternoon's levels.
+    - **Targets:** the expected-range edge, or one remaining move if price is already past it.
+    - **Stop-losses:** today's high or low.
+    - **Option prices:** the at-the-money nearest-expiry option now, at the target and at the stop.
+
+    `bias` (desk, else the morning lean) picks the side shown; with none, both. `remaining` is the share of
+    the day's variance still to come on the business clock. Levels come from the expected range, not a forecast;
+    option prices are model estimates as if the index got there now."""
+    lines = [f"MIDDAY {now:%H:%M} - where the day stands, and the levels for the afternoon"]
+    for index, ctx in ctxs.items():
+        f = frames.get(index)
+        if f is None or f.empty:
+            continue
+        last, hi, lo = float(f["close"].iloc[-1]), float(f["high"].max()), float(f["low"].min())
+        vwap = float(f["vwap"].iloc[-1]) if "vwap" in f and pd.notna(f["vwap"].iloc[-1]) else None
+        exp_lo, exp_hi = ctx.open * (1 - ctx.sigma_day), ctx.open * (1 + ctx.sigma_day)
+        used = (hi - lo) / (exp_hi - exp_lo) if exp_hi > exp_lo else float("nan")
+        left = last * ctx.sigma_day * math.sqrt(max(remaining, 0.0))
+        at = f["ts"].iloc[-1] + timedelta(minutes=1)              # priced off the latest bar
+        lines += ["", f"{index} {last:,.0f} ({100 * (last / ctx.open - 1):+.2f}% from open {ctx.open:,.0f}); "
+                      f"today {lo:,.0f} - {hi:,.0f}"
+                  + (f"; VWAP {vwap:,.0f}, price {'above' if last > vwap else 'below'}" if vwap else ""),
+                  f"Expected range {exp_lo:,.0f} - {exp_hi:,.0f}: {100 * used:.0f}% used, about +/-{left:,.0f} pts "
+                  "left today"]
+        side = bias.get(index)
+        view = {"down": "DOWN", "up": "UP"}.get(side)
+        lines.append(f"Morning view: {view}" if view else "No clear morning view: both sides")
+        if side in (None, "down"):
+            lines.append(_case("DOWN", "PE", index, ctx, quotes[index], at, last, min(exp_lo, last - left), hi))
+        if side in (None, "up"):
+            lines.append(_case("UP", "CE", index, ctx, quotes[index], at, last, max(exp_hi, last + left), lo))
+    lines += ["", "Levels from today's expected range; option prices are model estimates. Your call, not advice."]
+    return "\n".join(lines)
+
+
 def _ideas(journal, start: date, end: date) -> pd.DataFrame:
     return journal._query(
         "select a.id, a.at, a.idx, p.entry_at, p.exit_at, p.pnl, p.reason from alerts a "
