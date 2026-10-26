@@ -46,3 +46,9 @@ Any regime add-on built on them must also pass the clean forward holdout before 
 - **Consequence:**
   - N_prior becomes 47 for any later deflated Sharpe (`gate.n_prior` stays 46 until a new pre-registration is written, which must use 47 or more).
   - No setting of the feed may be tuned on this result. A change needs its own pre-registration and the forward record.
+- **Result (26 Oct, after the z-reference fix):** 1,330 filled ideas from 2019 to 2026.
+  - Win rate 31%; mean −0.06 R (t −2.04); about −₹37 per lot on average after charges.
+  - 2026 alone: −0.07 R. Only 2021 and 2024 were positive, and neither significantly.
+  - Targets hit 18% of the time (+1.87 R); stops 35% (−0.85 R).
+  - Option prices are modelled.
+  - **Verdict:** the idea feed as built does not pay. No setting is tuned on this.
