@@ -12,3 +12,4 @@ logs/
 *.egg-info/
 .venv-desk/
 research/pilots/*.parquet
+Paper_Trading_Log.xlsx
