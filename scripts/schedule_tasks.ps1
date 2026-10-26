@@ -4,11 +4,19 @@ Registers the quantdesk daily jobs in Windows Task Scheduler for the current use
     powershell -ExecutionPolicy Bypass -File scripts\schedule_tasks.ps1          # create or update the jobs
     powershell -ExecutionPolicy Bypass -File scripts\schedule_tasks.ps1 -Remove  # delete them
 
-Jobs run hidden while you are logged in, so there is no window to close by accident. Each one appends its
-output to logs\tasks\<job>.log. A job still running is never started a second time, a job missed while
-the PC was off starts when it comes back on, and jobs keep running on battery.
+    # once, from PowerShell opened with "Run as administrator": jobs also run with nobody logged in
+    powershell -ExecutionPolicy Bypass -File scripts\schedule_tasks.ps1 -NoLogon
+
+Jobs run hidden, so there is no window to close by accident. Each one appends its output to
+logs\tasks\<job>.log. A job still running is never started a second time, a job missed while the PC was off
+starts when it comes back on, and jobs keep running on battery.
+
+By default jobs run only while you are logged in. On 23 Oct 2026 Windows restarted at 08:54 and sat at the
+lock screen, so the recorder never ran. -NoLogon registers them to run whether or not anyone is logged in
+(Windows "S4U": no password is stored; internet works, network shares do not). Windows only allows that from an
+administrator PowerShell.
 #>
-param([switch]$Remove)
+param([switch]$Remove, [switch]$NoLogon)
 
 $ErrorActionPreference = 'Stop'
 $project = Split-Path -Parent $PSScriptRoot
@@ -46,7 +54,8 @@ $jobs = @(
     @{ Name = 'desk';           At = '08:30'; Args = 'desk';             Hours = 1 }
 )
 
-$principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
+$logonType = if ($NoLogon) { 'S4U' } else { 'Interactive' }
+$principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType $logonType -RunLevel Limited
 
 foreach ($job in $jobs) {
     $exe = if ($job.Exe) { $job.Exe } else { $python }

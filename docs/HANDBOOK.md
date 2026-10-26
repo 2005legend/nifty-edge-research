@@ -47,8 +47,20 @@ All times are IST, Monday to Friday. Every job runs from Windows Task Scheduler.
 internet, from about 08:30 to 15:35.
 
 **Keep it awake before 08:30.** On 26 Oct it slept until 10:08 and missed the morning. Either leave it on
-overnight, or enable *Power Options → Change plan settings → Advanced → Sleep → Allow wake timers*. If it
-starts late anyway:
+overnight, or enable *Power Options → Change plan settings → Advanced → Sleep → Allow wake timers*.
+
+**Let the jobs run without a login (once, as administrator).** On 23 Oct Windows restarted at 08:54 and sat at
+the lock screen, so nothing could start. Open PowerShell with *Run as administrator* and run:
+
+```
+cd "C:\Users\USER\sidaarth\Trading project"
+powershell -ExecutionPolicy Bypass -File scripts\schedule_tasks.ps1 -NoLogon
+```
+
+Also set *Settings → Windows Update → Active hours* to 08:00–18:00, so updates never restart the laptop during
+the market.
+
+If it starts late anyway:
 - The recorder and live engine also start at logon, and retry at 09:05/09:30 and 09:20/09:40.
 - A late recorder first fetches the missed morning minutes from Angel, so the day's open and bands stay right.
 
