@@ -36,6 +36,9 @@ def member_breadth(day_bars: pd.DataFrame, members: set[str], prior_value: dict[
                    top_n: int) -> pd.DataFrame:
     """One session's minutes, walked in order: each stock carries its open, last close and own VWAP."""
     bars = day_bars[day_bars["target"].isin(members)].sort_values(["ts", "target"])
+    # A recorder started mid-session cannot know a stock's first minute's volume (it differences the day's
+    # running total), so it stores NA. That minute adds no traded value.
+    bars = bars.assign(volume=pd.to_numeric(bars["volume"], errors="coerce").astype("float64").fillna(0.0))
     weights = _top_weights(prior_value, members, top_n)
     seen: dict[str, dict] = {}
     rows = []

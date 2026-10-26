@@ -31,6 +31,15 @@ def test_breadth_counts_traded_value_and_top5():
     assert second["top5_ret"] == pytest.approx(expected_top5)
 
 
+def test_a_late_start_minute_without_volume_counts_as_no_traded_value():
+    """26 Oct 2026: the recorder started at 10:14, so each stock's first minute had no volume (pandas NA)."""
+    day = bars("A", [10.0, 11.0], vols=[None, 100])
+    day["volume"] = day["volume"].astype("Int64")
+    out = member_breadth(day, members={"A"}, prior_value={"A": 1.0}, top_n=TOP_N)
+    assert out.iloc[0]["tv"] == 0.0 and out.iloc[0]["above_vwap"] == 0
+    assert out.iloc[1]["tv"] == pytest.approx(11.0 * 100) and out.iloc[1]["adv"] == 1
+
+
 def test_a_member_without_data_is_counted_not_filled():
     out = member_breadth(bars("A", [10.0]), members={"A", "HDFC"}, prior_value={"A": 1.0}, top_n=TOP_N)
     assert out.iloc[0]["members_present"] == 1 and out.iloc[0]["members_total"] == 2
