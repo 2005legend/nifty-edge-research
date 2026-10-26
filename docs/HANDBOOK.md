@@ -46,6 +46,12 @@ ideas as untested until the Friday scorecards say otherwise.**
 All times are IST, Monday to Friday. Every job runs from Windows Task Scheduler. The laptop must be on, with
 internet, from about 08:30 to 15:35.
 
+**Keep it awake before 08:30.** On 26 Oct it slept until 10:08 and missed the morning. Either leave it on
+overnight, or enable *Power Options → Change plan settings → Advanced → Sleep → Allow wake timers*. If it
+starts late anyway:
+- The recorder and live engine also start at logon, and retry at 09:05/09:30 and 09:20/09:40.
+- A late recorder first fetches the missed morning minutes from Angel, so the day's open and bands stay right.
+
 | Time | What happens | You get on Telegram |
 |---|---|---|
 | 06:55 | News collector starts (runs all day) | – |
@@ -67,21 +73,19 @@ on those days. Flat days give none. There is one open idea per index at a time.
 ### An idea, and what to do with it
 
 ```
-IDEA 11:00 - CALL (paper-tracked; your call, not advice)
-BUY NIFTY 26100 CE exp 2026-01-06, lot 65
-Entry up to Rs 83.25 (lapses in 5 min)
-Index stop 26032.5, target 26072.5
-Option SL-limit: trigger Rs 74.70, limit Rs 67.23
-Risk ~Rs 549 per lot, plan gain ~Rs 682 per lot
-System odds 25% (breakeven 45%)
-For: options +0.90
-Against: technical -0.03
+IDEA 11:00 - BUY NIFTY 26100 CE (CALL), expiry 2026-01-06, lot 65
+Entry: buy at or below Rs 83.25 (skip if not filled in 5 min)
+Target: Rs 94.80 on the option | NIFTY 26072.5
+Stop-loss: Rs 74.70 on the option (SL-limit Rs 67.23) | NIFTY 26032.5
+System odds 25% vs 45% needed. Unvalidated, paper-tracked; your call, not advice.
 ```
 
-1. **Decide.** "System odds" is the model's own estimate, often low; it's shown, not used to block. "Risk per lot"
-   is the loss if the stop is hit, after charges.
-2. **If you take it:** buy with a limit order up to the entry price within 5 minutes. Then place the SL-limit order at the
-   trigger and limit shown.
+The picker prefers the **nearest expiry** and a strike near 0.40 delta (slightly out of the money, so a cheaper
+contract). There are no rupee amounts and no rupee filters: you size the trade (owner's choice, 26 Oct).
+
+1. **Decide.** "System odds" is the model's own estimate, often low; it's shown, not used to block.
+2. **If you take it:** buy with a limit order at or below the entry price within 5 minutes. Then place the SL-limit order at the
+   stop-loss and limit shown, and a sell at the target if you want it to exit by itself.
 3. **On the dashboard:** press **took it** and type your fill, or press **skipped**. When you exit, type the exit
    price in **log exit** (the P&L after charges is computed for you). If you override an exit message, say so in the note.
 4. **Follow the messages.** MOVE STOP means move your stop. EXIT NOW means sell at the bid.
@@ -111,6 +115,8 @@ Run these from the project folder (`C:\Users\USER\sidaarth\Trading project`) as 
 | `pricecheck` | The real pricing check on the recorder's quotes (needs 15+ sessions, 4 expiry days per index) |
 | `pilot P1/P2/P4/P9/P10/D2 [--scenario base/d2_600/ideas/ideas_relaxed]` | The zero-trial research pilots |
 | `dataset` | Rebuild the signal dataset 2019 to yesterday (about 1 hour) |
+| `ideas-backtest` | Look 47: the idea feed on history, untuned. Writes `research/pilots/IDEAS-BACKTEST.md` |
+| `live --force-live` | Live alerts by the strict research rules despite alert-off. About 0–2 a year; the idea feed is the default |
 | `freeze`, `preflight`, `trial <id>`, `verdict` | The pre-registered validation (only for a future strategy) |
 | `backfill --what history/bhavcopy/fundamentals/participant_oi/macro` | Download history |
 | `login-check` | Check the Angel One login |
