@@ -89,6 +89,22 @@ def test_each_lock_comes_with_the_period_an_unlock_needs(client):
     assert today["lock_periods"] == {"per_day": "2026-10-22", "day_loss": "2026-10-22"}
 
 
+def test_your_own_trade_is_logged_with_its_pnl_after_charges(client):
+    """26 Oct 2026: the owner bought NIFTY 22600 PE (27 Oct) at 81, 2 lots, and sold at 105, on the desk's DOWN bias."""
+    from quantdesk.costs import round_trip
+
+    c, j = client
+    body = {"index": "NIFTY", "strike": 22600, "kind": "PE", "expiry": "2026-10-27", "qty": 130,
+            "entry_at": "2026-10-26T10:30:00+05:30", "entry_premium": 81.0,
+            "exit_at": "2026-10-26T11:20:00+05:30", "exit_premium": 105.0, "source": "desk", "notes": "bias DOWN"}
+    r = c.post("/api/own-trade", json=body)
+    expected = 24.0 * 130 - round_trip(81.0, 105.0, 130, exchange="NSE", day=DAY).total
+    assert r.status_code == 200 and r.json()["pnl"] == pytest.approx(expected)
+    stats = c.get("/api/journal").json()["own"]
+    assert stats["n"] == 1 and stats["net"] == pytest.approx(expected) and stats["by_source"]["desk"]["n"] == 1
+    assert c.post("/api/own-trade", json={**body, "source": "hunch"}).status_code == 422
+
+
 def test_mode_shows_the_kill_switch_and_unlock_lifts_it(client):
     c, j = client
     j.set_state("verdict_mode", "live")

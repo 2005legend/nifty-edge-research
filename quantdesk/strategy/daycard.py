@@ -220,7 +220,8 @@ class DayLoader:
         collected: dict = {}
         for d in earlier:
             for key, value in self.breadth_at_checks(d).items():
-                collected.setdefault(key, []).append(value)
+                if value is not None and not math.isnan(value):    # one gap must not make a year's mean NaN
+                    collected.setdefault(key, []).append(value)
             raw = self.options_inputs(index, d)
             if raw:
                 for f in OPTION_FEATURES:

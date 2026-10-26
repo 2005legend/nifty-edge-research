@@ -688,3 +688,14 @@ The SP3 design's rulings S1-S12 are in `docs/superpowers/specs/2026-10-22-sp3-li
 - **Also fixed:** `tests/test_config.py` didn't list the Telegram keys that `.env.example` gained on 22 Oct. That commit was made without a full-suite run.
 - **26 Oct, the live engine failed every step from 10:18 (692 errors).** The recorder started mid-session, so each stock's first minute had no volume: it differences the day's running total, and stores NA when it has no earlier total. The breadth code then raised "boolean value of NA is ambiguous". A minute without volume now adds no traded value.
   - Test: `test_a_late_start_minute_without_volume_counts_as_no_traded_value`. Today's recorded data was replayed and both modes now step cleanly.
+
+## 2026-10-26: one missing breadth value disabled the technical score for a year (bug), and own-trade logging
+
+- **The bug.** `DayLoader.z_refs` averaged breadth values over the last 250 sessions without dropping missing ones. A single NaN `top5_ret` (a day around Nov 2020 when the top-5 weights couldn't be computed) made the reference mean NaN for the next ~250 sessions.
+  - **Effect:** no 2021 signal had a technical score (0% coverage, against 85-89% in 2020 and 2022, and 100% from 2023).
+  - In the dataset, 2021 signals entered the model without their technical score.
+  - In the first idea backtest, every 2021 idea stopped at `warmup`, so 2021 was missing from the results.
+  - The live engine would have done the same after any future gap.
+- **The fix.** Missing values are skipped, as `z_refs_for` already does. Test: `test_one_missing_breadth_value_does_not_poison_a_years_reference`.
+- **What gets re-run.** The idea backtest (still look 47: same untuned settings, the bug fix is not tuning), then the dataset, which the model is trained on.
+- **Own trades.** The dashboard's "Log your own trade" form and `/api/own-trade` record trades the owner takes on their own reading: the desk brief, an idea, or neither. P&L is worked out after charges, and the Journal tab totals it by source. Before this, trades not tied to a system alert had nowhere to go. Test: `test_your_own_trade_is_logged_with_its_pnl_after_charges`.

@@ -46,6 +46,20 @@
       <div class="card"><h3>Open paper trades</h3><div id="open"></div></div>
     </div>
     <div class="card" style="margin-top:12px"><h3>Alerts today</h3><div id="alerts">None yet.</div></div>
+    <div class="card" style="margin-top:12px"><h3>Log your own trade</h3>
+      <form id="own" onsubmit="return logOwn(event)">
+        <select name="index"><option>NIFTY</option><option>SENSEX</option></select>
+        <input name="strike" size="7" placeholder="strike" required>
+        <select name="kind"><option value="CE">CE (call)</option><option value="PE">PE (put)</option></select>
+        <input name="expiry" type="date" required>
+        <input name="qty" size="5" placeholder="qty" required>
+        <input name="entry_time" type="time" required> <input name="entry_premium" size="6" placeholder="buy Rs" required>
+        <input name="exit_time" type="time"> <input name="exit_premium" size="6" placeholder="sell Rs">
+        <select name="source"><option value="desk">from the desk brief</option><option value="idea">from an idea</option>
+          <option value="own">my own read</option></select>
+        <input name="notes" size="20" placeholder="note">
+        <button class="act">save</button>
+      </form><div id="own-result"></div></div>
     <div class="grid" style="margin-top:12px">
       <div class="card"><h3>NIFTY</h3><div id="chart-NIFTY" class="chart"></div></div>
       <div class="card"><h3>SENSEX</h3><div id="chart-SENSEX" class="chart"></div></div>
@@ -94,6 +108,19 @@ function you(a, real) {
     <button class="act" onclick="post('/api/real/${real.id}/exit',{premium:parseFloat($('x-${real.id}').value),notes:$('n-${real.id}').value})">log exit</button>`;
 }
 function unlock(lock, period) { post("/api/unlock", { lock, period, reason: $("r-" + lock).value }); }
+async function logOwn(ev) {
+  ev.preventDefault();
+  const f = Object.fromEntries(new FormData($("own")).entries());
+  const day = new Date().toISOString().slice(0, 10);
+  const body = { index: f.index, strike: parseFloat(f.strike), kind: f.kind, expiry: f.expiry, qty: parseInt(f.qty),
+    entry_at: `${day}T${f.entry_time}:00+05:30`, entry_premium: parseFloat(f.entry_premium),
+    exit_at: f.exit_time ? `${day}T${f.exit_time}:00+05:30` : null,
+    exit_premium: f.exit_premium ? parseFloat(f.exit_premium) : null, source: f.source, notes: f.notes };
+  const r = await fetch("/api/own-trade", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json();
+  $("own-result").textContent = r.ok ? (j.pnl == null ? "Saved (open)." : `Saved: Rs ${j.pnl.toFixed(0)} after charges.`) : "Not saved: " + JSON.stringify(j);
+  return false;
+}
 let seen = new Set();
 async function today() {
   const d = await (await fetch("/api/today")).json();
@@ -132,7 +159,10 @@ function statCard(name, s) {
 }
 async function journal() {
   const j = await (await fetch("/api/journal")).json();
-  $("jstats").innerHTML = statCard("Paper", j.paper) + statCard("Real", j.real) +
+  const o = j.own || { n: 0 };
+  const ownCard = `<div class="card"><h3>Your own trades</h3>${o.n ? `trades ${o.n}, net Rs ${o.net.toFixed(0)} after charges, win rate ${(100 * o.win_rate).toFixed(0)}%<br>` +
+    Object.entries(o.by_source).map(([s, v]) => `${s}: ${v.n} trades, Rs ${v.net.toFixed(0)}`).join("<br>") : "None logged yet."}</div>`;
+  $("jstats").innerHTML = ownCard + statCard("Paper", j.paper) + statCard("Real", j.real) +
     `<div class="card"><h3>Discipline</h3>followed the system: ${j.followed_share == null ? "-" : (100 * j.followed_share).toFixed(0) + "%"}<br>
      premium turnover Rs ${j.turnover.toFixed(0)} of Rs ${j.turnover_budget} a year</div>`;
   const ch = chartFor("equity"); if (ch) ch.price.setData(j.paper.equity.map(e => ({ time: t(e.at), value: e.equity })));

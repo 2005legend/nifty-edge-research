@@ -54,6 +54,30 @@ class PauseIn(BaseModel):
     reason: str = Field(min_length=10)
 
 
+class OwnTradeIn(BaseModel):
+    index: Literal["NIFTY", "SENSEX"]
+    strike: float = Field(gt=0)
+    kind: Literal["CE", "PE"]
+    expiry: str
+    qty: int = Field(gt=0)
+    entry_at: str
+    entry_premium: float = Field(gt=0)
+    exit_at: str | None = None
+    exit_premium: float | None = Field(default=None, gt=0)
+    source: Literal["desk", "idea", "own"]
+    notes: str = ""
+
+
+def _own_stats(trades: pd.DataFrame) -> dict:
+    done = trades.dropna(subset=["pnl"]) if len(trades) else trades
+    if done.empty:
+        return {"n": 0, "net": 0.0, "win_rate": None, "by_source": {}}
+    by = {s: {"n": int(len(g)), "net": float(g["pnl"].sum()), "win_rate": float((g["pnl"] > 0).mean())}
+          for s, g in done.groupby("source")}
+    return {"n": int(len(done)), "net": float(done["pnl"].sum()), "win_rate": float((done["pnl"] > 0).mean()),
+            "by_source": by}
+
+
 def _records(frame: pd.DataFrame) -> list[dict]:
     return json.loads(frame.to_json(orient="records", date_format="iso")) if len(frame) else []
 
@@ -120,6 +144,20 @@ def create_app(journal, research_dir: Path, h: dict, today, sessions: list[date]
         journal.close_real(real_id, body.premium, pd.Timestamp.now(tz="Asia/Kolkata"), pnl, body.notes)
         return {"ok": True, "pnl": pnl}
 
+    @app.post("/api/own-trade")
+    def own_trade(body: OwnTradeIn):
+        pnl = None
+        if body.exit_premium is not None:
+            costs = round_trip(body.entry_premium, body.exit_premium, body.qty, exchange=EXCHANGE[body.index],
+                               day=date.fromisoformat(body.entry_at[:10])).total
+            pnl = (body.exit_premium - body.entry_premium) * body.qty - costs
+        trade_id = journal.add_own_trade({"idx": body.index, "strike": body.strike, "kind": body.kind,
+                                          "expiry": body.expiry, "qty": body.qty, "entry_at": body.entry_at,
+                                          "entry_premium": body.entry_premium, "exit_at": body.exit_at,
+                                          "exit_premium": body.exit_premium, "pnl": pnl, "source": body.source,
+                                          "notes": body.notes})
+        return {"id": trade_id, "pnl": pnl}
+
     @app.post("/api/unlock")
     def unlock(body: UnlockIn):
         journal.log_event("unlock", f"{body.lock}|{body.period}|{body.reason}")
@@ -145,7 +183,8 @@ def create_app(journal, research_dir: Path, h: dict, today, sessions: list[date]
         entries = journal._query("select p.entry_at, p.entry_premium, a.lot from paper_trades p join alerts a "
                                  "on a.id = p.alert_id")
         turnover = float((entries["entry_premium"] * entries["lot"]).sum()) if len(entries) else 0.0
-        return {"paper": _stats(paper), "real": _stats(real), "followed_share": followed,
+        return {"paper": _stats(paper), "real": _stats(real), "own": _own_stats(journal.own_trades()),
+                "followed_share": followed,
                 "turnover": turnover, "turnover_budget": TURNOVER_BUDGET,
                 "calibration": _calibration(journal)}
 

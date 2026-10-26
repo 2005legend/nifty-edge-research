@@ -108,7 +108,8 @@ def summarise(rows: pd.DataFrame) -> dict:
 
 def report(rows: pd.DataFrame, data_hash: str, written: str) -> str:
     s = summarise(rows)
-    keys = ["all", "2019-2025", "2026"] + [k for k in s if k.isdigit()] + [k for k in ("NIFTY", "SENSEX") if k in s]
+    keys = ["all", "2019-2025", "2026"] + [k for k in s if k.isdigit() and k != "2026"] + \
+        [k for k in ("NIFTY", "SENSEX") if k in s]
     fmt = lambda v, d=2: "-" if v is None or (isinstance(v, float) and np.isnan(v)) else f"{v:.{d}f}"  # noqa: E731
     lines = ["# Idea feed on history (one untuned look; not a registry trial)", "",
              f"- data_hash `{data_hash}`, written {written}",

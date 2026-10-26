@@ -32,6 +32,9 @@ create table if not exists real_trades (
 create table if not exists ratchets (id integer primary key, alert_id integer, at text, index_stop real, trigger real);
 create table if not exists events (id integer primary key, at text, kind text, detail text);
 create table if not exists state (key text primary key, value text);
+create table if not exists own_trades (
+    id integer primary key, idx text, strike real, kind text, expiry text, qty integer, entry_at text,
+    entry_premium real, exit_at text, exit_premium real, pnl real, source text, notes text);
 """
 
 
@@ -82,6 +85,18 @@ class Journal:
         with self._db() as db:
             db.execute("update real_trades set exit_at = ?, exit_premium = ?, pnl = ?, r = ?, notes = ? where id = ?",
                        (_iso(at), exit_premium, pnl, pnl / RISK, notes, real_id))
+
+    def add_own_trade(self, t: dict) -> int:
+        """A trade the owner took on their own reading (the desk brief, an idea, or neither), with its P&L."""
+        fields = ["idx", "strike", "kind", "expiry", "qty", "entry_at", "entry_premium", "exit_at", "exit_premium",
+                  "pnl", "source", "notes"]
+        with self._db() as db:
+            cur = db.execute(f"insert into own_trades ({', '.join(fields)}) values ({', '.join('?' * len(fields))})",
+                             [t.get(f) for f in fields])
+            return int(cur.lastrowid)
+
+    def own_trades(self) -> pd.DataFrame:
+        return self._query("select * from own_trades order by entry_at")
 
     def real_trades(self) -> pd.DataFrame:
         return self._query("select * from real_trades order by fill_at")

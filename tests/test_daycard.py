@@ -62,6 +62,23 @@ def test_z_refs_use_earlier_sessions_only(loader):
     assert dl.z_refs("NIFTY", days[-1] + timedelta(days=1)).get(("loc_vwap", "*")).n == 1
 
 
+def test_one_missing_breadth_value_does_not_poison_a_years_reference(loader):
+    """2021: one NaN top5_ret in the 250-session window made the mean NaN, so no 2021 signal had a technical score."""
+    dl, days = loader
+    real = dl.breadth_at_checks
+
+    def with_a_gap(day):
+        out = dict(real(day))
+        if day == days[3]:
+            out[("adv_share", "10:00")] = float("nan")
+        return out
+
+    dl.breadth_at_checks = with_a_gap
+    ref = dl.z_refs("NIFTY", days[-1])[("adv_share", "10:00")]
+    assert ref.n == len(days) - 2 and ref.mean == ref.mean and ref.sd == ref.sd      # NaN-free, one fewer value
+    dl.breadth_at_checks = real
+
+
 def test_the_spike_reference_needs_fourteen_earlier_sessions(loader):
     dl, days = loader
     assert dl.day_context("NIFTY", days[10]).spike_ref is None
