@@ -52,3 +52,9 @@ Any regime add-on built on them must also pass the clean forward holdout before 
   - Targets hit 18% of the time (+1.87 R); stops 35% (−0.85 R).
   - Option prices are modelled.
   - **Verdict:** the idea feed as built does not pay. No setting is tuned on this.
+
+## Look 48 (26 Oct 2026): SP5, buy options only when priced below the forecast move
+
+- **Pre-registered** in `research/sp5/PREREG.md`, committed before any result.
+- **Rule:** an ATM NIFTY weekly straddle at the close when ρ = implied ÷ forecast variance < 1, held one session, on real bhavcopy prices.
+- **Data:** 2019-2025 decides; 2026 is reported.
