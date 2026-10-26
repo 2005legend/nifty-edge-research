@@ -152,6 +152,9 @@ def build_engine(app, today: date, journal, notifier, events: list, frozen: Path
         raise RuntimeError(f"the derived tables end on {last}: run `python -m quantdesk derive` after the evening "
                            "downloads (the nightly derive job does this)")
     warm_signal_refs(loader, h, today)
+    from quantdesk.live.brief import score_missed
+
+    score_missed(journal, loader.daily, today)           # calls a crashed or late run never scored
     membership = load_membership()
     token_symbol = {token: symbol for symbol, token in app.constituents(today).items()}
     raw = app.store.root / "raw"

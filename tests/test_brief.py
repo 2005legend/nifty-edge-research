@@ -76,6 +76,21 @@ def test_the_midday_update_gives_levels_and_option_prices_for_the_afternoon():
     assert "UP case" in both and "DOWN case" in both                          # no morning view: both sides
 
 
+def test_a_day_the_summary_could_not_score_is_scored_later_from_the_official_open_and_close(tmp_path):
+    """26 Oct 2026: the live run crashed all day, so the desk's DOWN call was never scored; Nifty closed up."""
+    from quantdesk.live.brief import score_missed
+
+    j = Journal(tmp_path / "j.sqlite")
+    j.set_state("desk_bias_2026-10-26", "down")
+    j.set_state("lean_2026-10-26_NIFTY", "UP")
+    j.set_state("desk_bias_2026-10-27", "up")                           # today: not in the official table yet
+    daily = {"NIFTY": pd.DataFrame({"open": [22500.0], "close": [22700.0]}, index=[date(2026, 10, 26)])}
+    assert score_missed(j, daily, today=date(2026, 10, 27)) == 2
+    assert j.get_state("desk_result_2026-10-26") == "wrong" and j.get_state("lean_result_2026-10-26_NIFTY") == "right"
+    assert j.get_state("desk_result_2026-10-27") is None
+    assert score_missed(j, daily, today=date(2026, 10, 27)) == 0                # never scored twice
+
+
 def test_the_desk_bias_is_scored_daily_and_counted_on_friday(tmp_path):
     j = Journal(tmp_path / "j.sqlite")
     ctx, _, _ = setup()

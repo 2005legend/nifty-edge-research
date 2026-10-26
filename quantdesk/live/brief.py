@@ -210,6 +210,31 @@ def day_summary(day: date, ctxs: dict, closes: dict, journal, leans: dict) -> st
     return "\n".join(lines)
 
 
+def score_missed(journal, daily: dict, today: date) -> int:
+    """Score any desk bias or morning lean the day summary never scored (a crashed or late run), from the official
+    daily open and close once the nightly rebuild has them. Returns the number of calls scored."""
+    calls = journal._query("select key, value from state where key like 'desk_bias_%' or key like 'lean_%'")
+    scored = 0
+    for key, value in zip(calls["key"], calls["value"]):
+        if key.startswith("lean_result_"):
+            continue
+        if key.startswith("desk_bias_"):
+            day, index, result_key = key[len("desk_bias_"):], "NIFTY", "desk_result_" + key[len("desk_bias_"):]
+        else:
+            day, index = key[len("lean_"):].split("_", 1)
+            result_key = f"lean_result_{day}_{index}"
+        call = (value or "").lower()
+        if call not in ("up", "down") or journal.get_state(result_key) or date.fromisoformat(day) >= today:
+            continue
+        rows = daily.get(index)
+        if rows is None or date.fromisoformat(day) not in rows.index:
+            continue
+        opened, closed = float(rows.loc[date.fromisoformat(day), "open"]), float(rows.loc[date.fromisoformat(day), "close"])
+        journal.set_state(result_key, "right" if (call == "up") == (closed > opened) else "wrong")
+        scored += 1
+    return scored
+
+
 def scorecard(journal, day: date) -> str:
     start = day - timedelta(days=day.weekday())
     ideas = _ideas(journal, start, day)
